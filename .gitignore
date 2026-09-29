@@ -1,0 +1,8 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Variáveis de ambiente
+.env
+
