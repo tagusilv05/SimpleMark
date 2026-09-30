@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body
 
-from app.api.deps import ServicoAutenticacaoDep, UsuarioAtual
+from app.api.deps import ServicoAutenticacaoDep, ServicoSessaoDep, SessaoAtual, UsuarioAtual
 from app.schemas.auth import LoginEntrada, TokenResposta, UsuarioPublico, montar_usuario_publico
 from app.schemas.comum import MensagemResposta
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/auth", tags=["Autenticação"])
     summary="Entrar",
     description=(
         "Entra como paciente, profissional de saúde ou administrador. "
-        "O identificador pode ser o e-mail ou o CPF."
+        "O identificador pode ser o e-mail ou o CPF. "
         "Após 5 tentativas de login com credenciais erradas, a conta fica bloqueada por 1 hora."
     ),
     responses={401: {"model": MensagemResposta}, 
@@ -77,7 +77,8 @@ def login(
     summary="Autenticar a conta",
     description=(
         "Confere o token e devolve a conta autenticada. "
-        "Vale para paciente, profissional de saúde e administrador."
+        "Vale para paciente, profissional de saúde e administrador. "
+        "Sessão parada há 24 horas ou mais expira e responde 401."
     ),
     responses={401: {"model": MensagemResposta}},
 )
@@ -90,3 +91,21 @@ def eu(usuario: UsuarioAtual) -> UsuarioPublico:
     3. A resposta traz o perfil: paciente, profissional ou administrador.
     """
     return montar_usuario_publico(usuario)
+
+
+@router.post(
+    "/sair",
+    status_code=204,
+    summary="Sair",
+    description="Encerra a sessão atual. O token deixa de valer na hora. As outras sessões da conta continuam.",
+    responses={401: {"model": MensagemResposta}},
+)
+def sair(sessao: SessaoAtual, servico: ServicoSessaoDep) -> None:
+    """Desfaz o login desta sessão.
+
+    Passo a passo:
+    1. SessaoAtual confere o token e a sessão. Sessão já expirada ou encerrada responde 401.
+    2. O service grava o horário de encerramento.
+    3. A resposta é 204, sem corpo.
+    """
+    servico.encerrar(sessao)

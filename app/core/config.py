@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     login_max_tentativas: int = 5
     login_bloqueio_minutos: int = 60
 
+    # apos 24h de inatividade de acordo com o requisito nao funcional 14. Ajustável pelo .env.
+    sessao_inatividade_horas: int = 24
+
     @property
     def lista_cors(self) -> list[str]:
         """Separa as origens do CORS que o navegador pode chamar.

@@ -3,35 +3,22 @@
 
 import math
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.exceptions import ErroNegocio
 from app.core.security import gerar_token_acesso, verificar_senha
+from app.core.tempo import agora_utc, como_utc
 from app.core.validators import normalizar_cpf, normalizar_email
 from app.models.usuario import Usuario
 from app.repositories.usuario import RepositorioUsuario
+from app.services.sessao import ServicoSessao
 
 MENSAGEM_CREDENCIAL_INVALIDA = (
     "E-mail, CPF ou senha incorretos. Verifique os dados e tente novamente."
 )
-
-def _agora() -> datetime:
-    """Momento atual em UTC. Fica numa função para os testes poderem controlar o tempo."""
-    return datetime.now(timezone.utc)
-
-
-def _como_utc(momento: datetime) -> datetime:
-    """Garante que a data tem fuso horário (UTC).
-
-    O PostgreSQL devolve datas com fuso. O SQLite, usado nos testes, devolve sem fuso.
-    Python não compara as duas formas entre si, então padronizamos antes de comparar.
-    """
-    if momento.tzinfo is None:
-        return momento.replace(tzinfo=timezone.utc)
-    return momento
 
 
 def _mensagem_bloqueio(restante: timedelta) -> str:
@@ -74,17 +61,17 @@ class ServicoAutenticacao:
         Passo a passo:
         1. Se o identificador tem @, trata como e-mail. Senão, trata como CPF.
         2. Busca a conta. Se não existir, responde a mesma frase de senha errada.
-        3. Compara a senha com o hash Argon2.
-        4. Se não bater, responde a mesma frase, sem dizer qual campo errou.
-        5. Se a senha bater e a conta estiver inativa, recusa o login.
-           No profissional de saúde, a mensagem pede a validação do administrador.
-        6. Se a conta estiver ativa, assina o JWT com o id do usuário e devolve a conta.
+        3. Trava a linha da conta, para duas tentativas simultâneas não passarem juntas.
+        4. Se a conta está bloqueada, recusa com 429 sem nem olhar a senha.
+        5. Compara a senha com o hash Argon2.
+        6. Se não bater, conta a falha. Na quinta seguida, bloqueia a conta.
         7. Se bater, zera o contador de falhas e grava.
         8. Se a conta estiver inativa, recusa o login.
            No profissional de saúde, a mensagem pede a validação do administrador.
-        9. Se a conta estiver ativa, assina o JWT com o id do usuário e devolve a conta.
+        9. Se a conta estiver ativa, abre uma sessão no banco, assina o JWT com o id do
+           usuário e o id da sessão, e devolve a conta.
         """
-          # Utiliza o método _localizar, que está própria classe para buscar o usuário.
+        # Utiliza o método _localizar, que está própria classe para buscar o usuário.
         usuario = self._localizar(identificador)
         # Se o usuário não for encontrado, retorna um erro de credencial inválida.
         if usuario is None:
@@ -93,7 +80,7 @@ class ServicoAutenticacao:
         # Trava a linha da conta até o commit. Sem isso, 100 tentativas simultâneas
         # leriam o contador em 0 ao mesmo tempo e todas teriam a senha conferida.
         usuario = self.usuarios.buscar_por_id_para_atualizar(usuario.id)
-        agora = _agora()
+        agora = agora_utc()
 
         # Conta bloqueada: nem confere a senha. Se conferisse, quem estivesse
         # adivinhando ficaria sabendo quando acertou, mesmo bloqueado.
@@ -131,8 +118,9 @@ class ServicoAutenticacao:
                 )
             raise ErroNegocio("Esta conta ainda não está ativa.", 403)
 
-        # Se a conta estiver ativa, gera o token de acesso e devolve a conta.
-        return ResultadoLogin(token=gerar_token_acesso(usuario.id), usuario=usuario)
+        # Se a conta estiver ativa, abre a sessão, gera o token ligado a ela e devolve a conta.
+        sessao = ServicoSessao(self.db).abrir(usuario.id)
+        return ResultadoLogin(token=gerar_token_acesso(usuario.id, sessao.id), usuario=usuario)
 
     def _bloqueio_restante(self, usuario: Usuario, agora: datetime) -> timedelta | None:
         """Diz quanto falta para a conta ser liberada, ou None se ela não está bloqueada.
@@ -145,7 +133,7 @@ class ServicoAutenticacao:
         """
         if usuario.bloqueado_ate is None:
             return None
-        limite = _como_utc(usuario.bloqueado_ate)
+        limite = como_utc(usuario.bloqueado_ate)
         if limite > agora:
             return limite - agora
         usuario.bloqueado_ate = None

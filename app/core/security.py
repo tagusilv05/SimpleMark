@@ -1,5 +1,6 @@
-# Arquivo criado por Victor
+# Arquivo criado por Victor e Gustavo
 import jwt
+import uuid
 from fastapi_users.jwt import decode_jwt, generate_jwt
 from fastapi_users.password import PasswordHelper
 
@@ -36,17 +37,22 @@ def verificar_senha(senha: str, senha_hash: str) -> tuple[bool, str | None]:
     return _senhas.verify_and_update(senha, senha_hash)
 
 
-def gerar_token_acesso(id_usuario: int) -> str:
+def gerar_token_acesso(id_usuario: int, id_sessao: uuid.UUID) -> str:
     """Monta o JWT que o cliente manda no cabeçalho Authorization.
 
     Passo a passo:
     1. Coloca o id do usuário em sub, como texto.
-    2. Grava a audiência simplemark:auth para recusar token de outro sistema.
-    3. Assina com SECRET_KEY, sem prazo neste token.
-    4. Devolve o texto do token.
+    2. Coloca o id da sessão em sid. É ele que liga o token à linha da tabela sessao,
+       onde o sistema controla a expiração por inatividade.
+    3. Grava a audiência simplemark:auth para recusar token de outro sistema.
+    4. Assina com SECRET_KEY, sem prazo dentro do token: quem decide se ele ainda
+       vale é a sessão no banco.
+    5. Devolve o texto do token.
     """
+
     dados = {
         "sub": str(id_usuario),
+        "sid": str(id_sessao),
         "aud": AUDIENCIA_TOKEN,
     }
     return generate_jwt(dados, settings.secret_key, lifetime_seconds=None)
