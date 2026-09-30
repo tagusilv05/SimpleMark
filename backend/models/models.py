@@ -133,7 +133,7 @@ class Consulta(Base):
     __tablename__ = "consulta"
 
     id_consulta = Column(Integer, primary_key=True, index=True)
-    id_usuario = Column(UUID(as_uuid=True), ForeignKey("usuario.id"), nullable=False)
+    id_paciente = Column(UUID(as_uuid=True), ForeignKey("paciente.id"), nullable=False)
     id_esp_prof = Column(Integer, ForeignKey("profissional_especialidade.id_esp_prof"), nullable=False)
     data = Column(Date, nullable=False)
     hora = Column(Time, nullable=False)
