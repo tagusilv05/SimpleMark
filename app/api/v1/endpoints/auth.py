@@ -1,4 +1,4 @@
-# Arquivo criado por Victor
+# Arquivo criado por Victor e Gustavo
 from typing import Annotated
 
 from fastapi import APIRouter, Body
@@ -17,8 +17,11 @@ router = APIRouter(prefix="/auth", tags=["Autenticação"])
     description=(
         "Entra como paciente, profissional de saúde ou administrador. "
         "O identificador pode ser o e-mail ou o CPF."
+        "Após 5 tentativas de login com credenciais erradas, a conta fica bloqueada por 1 hora."
     ),
-    responses={401: {"model": MensagemResposta}, 422: {"model": MensagemResposta}},
+    responses={401: {"model": MensagemResposta}, 
+               422: {"model": MensagemResposta},
+               429: {"model": MensagemResposta, "description": "Conta bloqueada temporariamente devido a tentativas de login inválidas."}},
 )
 def login(
     servico: ServicoAutenticacaoDep,
@@ -57,7 +60,8 @@ def login(
     Passo a passo:
     1. O schema exige identificador e senha com no mínimo 8 caracteres.
     2. O service descobre se o identificador é e-mail ou CPF e confere a senha.
-    3. A resposta leva o token e os dados públicos, com o perfil da conta.
+    3. Conta bloqueada por senhas erradas seguidas responde 429, com o tempo que falta.
+    4. A resposta leva o token e os dados públicos, com o perfil da conta.
     """
     resultado = servico.autenticar(dados.identificador, dados.senha)
     return TokenResposta(

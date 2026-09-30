@@ -40,6 +40,14 @@ Os testes desta parte:
 | GET | `/api/v1/administracao/profissionais/pendentes` | Administrador |
 | POST | `/api/v1/administracao/profissionais/{id_profissional}/validar` | Administrador |
 
+## Bloqueio de login
+
+Depois de 5 senhas erradas seguidas, a conta fica bloqueada por 1 hora e o login responde `429` com o tempo que falta, mesmo que a senha informada esteja certa. Acertar a senha zera a contagem. O e-mail e o CPF da mesma conta contam juntos, e o bloqueio vale para os três perfis.
+
+O limite e a duração podem ser trocados no `.env`, sem mexer no código: `LOGIN_MAX_TENTATIVAS` e `LOGIN_BLOQUEIO_MINUTOS`.
+
+Depois de baixar esta versão, aplique a nova migration: `python -m alembic upgrade head`.
+
 ## Organização
 
 - `app/api`: rotas de cadastro, login e autenticação

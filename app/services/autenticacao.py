@@ -1,10 +1,13 @@
-# Arquivo criado por Victor
+# Arquivo criado por Victor e Gustavo
 """Login por e-mail ou CPF e emissão do token de acesso."""
 
+import math
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.exceptions import ErroNegocio
 from app.core.security import gerar_token_acesso, verificar_senha
 from app.core.validators import normalizar_cpf, normalizar_email
@@ -15,6 +18,30 @@ MENSAGEM_CREDENCIAL_INVALIDA = (
     "E-mail, CPF ou senha incorretos. Verifique os dados e tente novamente."
 )
 
+def _agora() -> datetime:
+    """Momento atual em UTC. Fica numa função para os testes poderem controlar o tempo."""
+    return datetime.now(timezone.utc)
+
+
+def _como_utc(momento: datetime) -> datetime:
+    """Garante que a data tem fuso horário (UTC).
+
+    O PostgreSQL devolve datas com fuso. O SQLite, usado nos testes, devolve sem fuso.
+    Python não compara as duas formas entre si, então padronizamos antes de comparar.
+    """
+    if momento.tzinfo is None:
+        return momento.replace(tzinfo=timezone.utc)
+    return momento
+
+
+def _mensagem_bloqueio(restante: timedelta) -> str:
+    """Frase de conta bloqueada, com a causa e quanto falta para tentar de novo (RNF3)."""
+    minutos = max(1, math.ceil(restante.total_seconds() / 60))
+    unidade = "minuto" if minutos == 1 else "minutos"
+    return (
+        "Conta temporariamente bloqueada após várias tentativas de login incorretas. "
+        f"Tente novamente em {minutos} {unidade}."
+    )
 
 @dataclass
 class ResultadoLogin:
@@ -52,24 +79,49 @@ class ServicoAutenticacao:
         5. Se a senha bater e a conta estiver inativa, recusa o login.
            No profissional de saúde, a mensagem pede a validação do administrador.
         6. Se a conta estiver ativa, assina o JWT com o id do usuário e devolve a conta.
+        7. Se bater, zera o contador de falhas e grava.
+        8. Se a conta estiver inativa, recusa o login.
+           No profissional de saúde, a mensagem pede a validação do administrador.
+        9. Se a conta estiver ativa, assina o JWT com o id do usuário e devolve a conta.
         """
-        # Utiliza o método _localizar, que está própria classe para buscar o usuário.
+          # Utiliza o método _localizar, que está própria classe para buscar o usuário.
         usuario = self._localizar(identificador)
         # Se o usuário não for encontrado, retorna um erro de credencial inválida.
         if usuario is None:
             raise ErroNegocio(MENSAGEM_CREDENCIAL_INVALIDA, 401)
+
+        # Trava a linha da conta até o commit. Sem isso, 100 tentativas simultâneas
+        # leriam o contador em 0 ao mesmo tempo e todas teriam a senha conferida.
+        usuario = self.usuarios.buscar_por_id_para_atualizar(usuario.id)
+        agora = _agora()
+
+        # Conta bloqueada: nem confere a senha. Se conferisse, quem estivesse
+        # adivinhando ficaria sabendo quando acertou, mesmo bloqueado.
+        restante = self._bloqueio_restante(usuario, agora)
+        if restante is not None:
+            raise ErroNegocio(_mensagem_bloqueio(restante), 429)
+
         # Verifica se a senha é válida.
         valida, novo_hash = verificar_senha(senha, usuario.senha_hash)
 
-        # Se a senha não for válida, retorna um erro de credencial inválida.
+        # Se a senha não for válida, conta a falha e recusa.
         if not valida:
+            restante = self._registrar_falha(usuario, agora)
+            if restante is not None:
+                # Esta foi a falha que bloqueou a conta. Avisa já, em vez de um 401.
+                raise ErroNegocio(_mensagem_bloqueio(restante), 429)
             raise ErroNegocio(MENSAGEM_CREDENCIAL_INVALIDA, 401)
-        
+
         # Se a senha for válida, atualiza o hash da senha.
         if novo_hash:
             usuario.senha_hash = novo_hash
-            self.db.commit()
-        
+
+        # Acertou a senha: a sequência de falhas acabou.
+        usuario.tentativas_login_falhas = 0
+        usuario.bloqueado_ate = None
+        # O commit grava o contador zerado e libera a trava da linha.
+        self.db.commit()
+
         # Se a conta não estiver ativa, retorna um erro de conta inativa.
         if not usuario.status:
             if usuario.profissional is not None:
@@ -78,9 +130,49 @@ class ServicoAutenticacao:
                     403,
                 )
             raise ErroNegocio("Esta conta ainda não está ativa.", 403)
-        
+
         # Se a conta estiver ativa, gera o token de acesso e devolve a conta.
         return ResultadoLogin(token=gerar_token_acesso(usuario.id), usuario=usuario)
+
+    def _bloqueio_restante(self, usuario: Usuario, agora: datetime) -> timedelta | None:
+        """Diz quanto falta para a conta ser liberada, ou None se ela não está bloqueada.
+
+        Passo a passo:
+        1. Sem data em bloqueado_ate, a conta nunca foi bloqueada.
+        2. Data no futuro: a conta está bloqueada e a diferença é o tempo que falta.
+        3. Data no passado: o bloqueio venceu. Limpa a marca e o contador,
+           e a conta volta a ter todas as tentativas.
+        """
+        if usuario.bloqueado_ate is None:
+            return None
+        limite = _como_utc(usuario.bloqueado_ate)
+        if limite > agora:
+            return limite - agora
+        usuario.bloqueado_ate = None
+        usuario.tentativas_login_falhas = 0
+        return None
+
+    def _registrar_falha(self, usuario: Usuario, agora: datetime) -> timedelta | None:
+        """Conta uma senha errada e bloqueia a conta ao chegar no limite.
+
+        Passo a passo:
+        1. Soma 1 ao contador de falhas seguidas.
+        2. Se chegou em LOGIN_MAX_TENTATIVAS, grava bloqueado_ate = agora + duração
+           e zera o contador, para a próxima rodada começar do zero.
+        3. Faz commit ANTES de a rota devolver o erro. O get_db desfaz tudo quando a
+           rota termina com erro, então sem este commit a falha nunca seria gravada
+           e o bloqueio jamais aconteceria.
+        4. Devolve o tempo de bloqueio se a conta acabou de ser bloqueada, senão None.
+        """
+        usuario.tentativas_login_falhas += 1
+        restante = None
+        if usuario.tentativas_login_falhas >= settings.login_max_tentativas:
+            duracao = timedelta(minutes=settings.login_bloqueio_minutos)
+            usuario.bloqueado_ate = agora + duracao
+            usuario.tentativas_login_falhas = 0
+            restante = duracao
+        self.db.commit()
+        return restante
 
     # Método para localizar o usuário. Identificador pode ser e-mail ou CPF.
     def _localizar(self, identificador: str) -> Usuario | None:

@@ -1,9 +1,9 @@
-# Arquivo criado por Victor
+# Arquivo criado por Victor e Gustavo
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -34,6 +34,16 @@ class Usuario(Base):
     senha_hash: Mapped[str] = mapped_column(String(1024), nullable=False)
     status: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     consentimento_lgpd: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # Bloqueio por tentativas de login inválidas de acordo com o requisito nao funcional 15 que estabelecemos no inicio do projeto.
+    # tentativas_login_falhas: quantas senhas erradas seguidas desde o último acerto.
+    # bloqueado_ate: enquanto for uma data futura, a conta não consegue entrar.
+    tentativas_login_falhas: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    bloqueado_ate: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     endereco: Mapped[Endereco | None] = relationship(
         "Endereco",

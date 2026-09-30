@@ -1,4 +1,4 @@
-# Arquivo criado por Victor
+# Arquivo criado por Victor e Gustavo
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     secret_key: str = "troque-esta-chave-antes-de-subir-o-sistema"
     database_url: str = "postgresql+psycopg://simplemark:simplemark@localhost:5432/simplemark"
     cors_origens: str = "http://localhost:5173"
+
+    # Bloqueio de login de acordo com RNF15, onde apos 5 tentativas de login com credenciais erradas o usuario estara bloqueado por 1h.
+    # Ajustáveis pelo .env sem necessitar mexer no código.
+    login_max_tentativas: int = 5
+    login_bloqueio_minutos: int = 60
 
     @property
     def lista_cors(self) -> list[str]:
