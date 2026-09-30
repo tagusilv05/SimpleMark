@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Variáveis de ambiente
+.env
+
+# Testes ficam só na máquina local
+tests/
+
