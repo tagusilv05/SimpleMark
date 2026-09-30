@@ -8,6 +8,7 @@ from routers.horarios_profissional import router as horarios_profissional_router
 from routers.administracao import router as administracao_router
 from routers.auth import router as auth_router
 from routers.cadastro import router as cadastro_router
+from routers.consulta_profissional import router as consulta_profissional_router
 from dependencies.erros import registrar_erros
 from services.CadastroService.admin_inicial import criar_admin_inicial
 
@@ -30,6 +31,7 @@ app.include_router(horarios_profissional_router)
 app.include_router(cadastro_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(administracao_router, prefix="/api/v1")
+app.include_router(consulta_profissional_router, prefix="/api/v1")
 
 @app.get("/")
 def home():

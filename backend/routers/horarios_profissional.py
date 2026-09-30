@@ -7,8 +7,8 @@ from services import horarios_profissionais
 from datetime import date
 
 router = APIRouter(
-    prefix="/admin/horarios",
-    tags=["Admin Horarios"]
+    prefix="/profissional/horarios",
+    tags=["Horarios Profissionais"]
 )
 
 @router.get("", response_model=List[HorarioOut])  # <-- CORREcaO: serializa objetos SQLAlchemy
