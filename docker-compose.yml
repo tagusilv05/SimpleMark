@@ -1,0 +1,33 @@
+# Arquivo criado por Victor
+services:
+  postgres:
+    image: postgres:16
+    container_name: simplemark-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-simplemark}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-simplemark}
+      POSTGRES_DB: ${POSTGRES_DB:-simplemark}
+    ports:
+      - "5432:5432"
+    volumes:
+      - simplemark_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-simplemark} -d ${POSTGRES_DB:-simplemark}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Painel para ver as tabelas. A API continua em http://127.0.0.1:8000/docs
+  adminer:
+    image: adminer
+    container_name: simplemark-adminer
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  simplemark_postgres:

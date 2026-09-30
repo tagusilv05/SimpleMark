@@ -1,0 +1,19 @@
+# Arquivo criado por Victor
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.env
+*.db
+.idea/
+.vscode/
+*.log
+_pdf_pages/
+_pdf_images/
+_relatorio_extract.txt
