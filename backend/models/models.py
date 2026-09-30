@@ -33,6 +33,7 @@ class Usuario(Base):
     paciente = relationship("Paciente", back_populates="usuario", uselist=False)
     administrador = relationship("Administrador", back_populates="usuario", uselist=False)
     profissional = relationship("Profissional", back_populates="usuario", uselist=False)
+    endereco = relationship("Endereco", back_populates="usuario", uselist=False)
 
 
 class Paciente(Base):
@@ -65,6 +66,19 @@ class Profissional(Base):
     usuario = relationship("Usuario", back_populates="profissional")
     especialidades = relationship("ProfissionalEspecialidade", back_populates="profissional")
 
+class Endereco(Base):
+    __tablename__ = "endereco"
+
+    id_endereco = Column(Integer, primary_key=True, index=True)
+    id_usuario = Column(UUID(as_uuid=True), ForeignKey("usuario.id"), unique=True, nullable=False)
+    cep = Column(String(9), nullable=False)
+    cidade = Column(String(100), nullable=False)
+    logradouro = Column(String(150), nullable=False)
+    numero = Column(String(20), nullable=False)
+    bairro = Column(String(100), nullable=False)
+    complemento = Column(String(150), nullable=True)
+
+    usuario = relationship("Usuario", back_populates="endereco")
 
 class InfoConselho(Base):
     __tablename__ = "info_conselho"
