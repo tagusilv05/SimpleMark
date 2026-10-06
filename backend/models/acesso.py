@@ -45,3 +45,30 @@ class SessaoLogin(Base):
     encerrada_em = Column(DateTime(timezone=True), nullable=True)
 
     usuario = relationship(Usuario)
+
+
+class CodigoRecuperacao(Base):
+    """Código de 6 caracteres enviado por e-mail para redefinir a senha.
+
+    O código e o token de redefinição ficam gravados só como hash.
+    encerrado_em preenchido significa que o registro não serve mais para nada:
+    foi usado, substituído por um código novo ou esgotou as tentativas.
+    """
+
+    __tablename__ = "codigo_recuperacao"
+
+    id = Column(Integer, primary_key=True)
+    id_usuario = Column(
+        UUID(as_uuid=True),
+        ForeignKey("usuario.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    codigo_hash = Column(String(64), nullable=False, index=True)
+    criado_em = Column(DateTime(timezone=True), nullable=False)
+    expira_em = Column(DateTime(timezone=True), nullable=False)
+    tentativas = Column(Integer, nullable=False, default=0)
+    verificado_em = Column(DateTime(timezone=True), nullable=True)
+    token_hash = Column(String(64), nullable=True, unique=True)
+    redefinir_ate = Column(DateTime(timezone=True), nullable=True)
+    encerrado_em = Column(DateTime(timezone=True), nullable=True)

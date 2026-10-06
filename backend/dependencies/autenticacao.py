@@ -1,12 +1,14 @@
 """Dependências do login. As rotas do grupo continuam usando só get_db."""
 
 import uuid
+from collections.abc import Callable
 from typing import Annotated
 
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from core.envio_email import enviar_email
 from core.excecoes import ErroNegocio
 from core.perfil import PerfilUsuario, perfil_de
 from core.seguranca import TokenInvalido, ler_token_acesso
@@ -17,6 +19,7 @@ from repositories.usuario import RepositorioUsuario
 from services.CadastroService.cadastro import ServicoCadastro
 from services.CadastroService.validacao_profissional import ServicoValidacaoProfissional
 from services.LoginService.autenticacao import ServicoAutenticacao
+from services.RecuperacaoService.recuperacao import ServicoRecuperacaoSenha
 from services.SessaoService.sessao import ServicoSessao
 
 esquema_bearer = HTTPBearer(auto_error=False)
@@ -34,6 +37,15 @@ def get_servico_autenticacao(db: DbSession) -> ServicoAutenticacao:
 
 def get_servico_sessao(db: DbSession) -> ServicoSessao:
     return ServicoSessao(db)
+
+
+def get_servico_recuperacao(db: DbSession) -> ServicoRecuperacaoSenha:
+    return ServicoRecuperacaoSenha(db)
+
+
+def get_enviador_email() -> Callable[[str, str, str], None]:
+    """Função que envia o e-mail. Os testes trocam por uma que só guarda a mensagem."""
+    return enviar_email
 
 
 def get_servico_validacao(db: DbSession) -> ServicoValidacaoProfissional:
@@ -77,6 +89,8 @@ ServicoCadastroDep = Annotated[ServicoCadastro, Depends(get_servico_cadastro)]
 ServicoAutenticacaoDep = Annotated[ServicoAutenticacao, Depends(get_servico_autenticacao)]
 ServicoValidacaoDep = Annotated[ServicoValidacaoProfissional, Depends(get_servico_validacao)]
 ServicoSessaoDep = Annotated[ServicoSessao, Depends(get_servico_sessao)]
+ServicoRecuperacaoDep = Annotated[ServicoRecuperacaoSenha, Depends(get_servico_recuperacao)]
+EnviadorEmailDep = Annotated[Callable[[str, str, str], None], Depends(get_enviador_email)]
 SessaoAtual = Annotated[SessaoLogin, Depends(sessao_atual)]
 UsuarioAtual = Annotated[Usuario, Depends(usuario_atual)]
 AdministradorAtual = Annotated[Usuario, Depends(administrador_atual)]

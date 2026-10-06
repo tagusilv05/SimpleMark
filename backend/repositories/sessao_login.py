@@ -39,3 +39,13 @@ class RepositorioSessaoLogin:
             .execution_options(synchronize_session=False)
         )
         self.db.execute(comando)
+
+    def encerrar_todas(self, id_usuario: uuid.UUID, agora: datetime) -> None:
+        """Encerra as sessões abertas da conta. Quem chama faz o commit."""
+        comando = (
+            update(SessaoLogin)
+            .where(SessaoLogin.id_usuario == id_usuario, SessaoLogin.encerrada_em.is_(None))
+            .values(encerrada_em=agora)
+            .execution_options(synchronize_session=False)
+        )
+        self.db.execute(comando)
