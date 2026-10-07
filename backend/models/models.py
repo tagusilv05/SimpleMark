@@ -4,6 +4,7 @@ from sqlalchemy import (
     Column,
     Boolean,
     Date,
+    DateTime,
     Float,
     ForeignKey,
     Integer,
@@ -177,5 +178,52 @@ class DocumentoClinico(Base):
     id_consulta = Column(Integer, ForeignKey("consulta.id_consulta"), nullable=False)
     observacoes = Column(Text, nullable=True)
     tipo = Column(Boolean, nullable=False)
+    codigo_verificacao = Column(String(64), unique=True, index=True, nullable=True)
+    qr_code = Column(Text, nullable=True)
+    data_emissao = Column(DateTime(timezone=True), nullable=True)
 
     consulta = relationship("Consulta", back_populates="documentos")
+    receita = relationship("Receita", back_populates="documento", uselist=False)
+    atestado = relationship("Atestado", back_populates="documento", uselist=False)
+
+
+class Receita(Base):
+    """Parte da receita. A superclasse do documento fica em documento_clinico."""
+
+    __tablename__ = "receita"
+
+    id_documento = Column(Integer, ForeignKey("documento_clinico.id_documento"), primary_key=True)
+    validade_dias = Column(Integer, nullable=False, default=30)
+
+    documento = relationship("DocumentoClinico", back_populates="receita")
+    medicamentos = relationship("ReceitaMedicamento", back_populates="receita")
+
+
+class ReceitaMedicamento(Base):
+    """Cada item prescrito na receita."""
+
+    __tablename__ = "receita_medicamento"
+
+    id_medicamento = Column(Integer, primary_key=True, index=True)
+    id_documento = Column(Integer, ForeignKey("receita.id_documento"), nullable=False, index=True)
+    medicamento = Column(String(200), nullable=False)
+    dosagem = Column(String(100), nullable=False)
+    posologia = Column(String(300), nullable=False)
+    quantidade = Column(String(50), nullable=False)
+    duracao_dias = Column(Integer, nullable=True)
+
+    receita = relationship("Receita", back_populates="medicamentos")
+
+
+class Atestado(Base):
+    """Parte do atestado. A superclasse do documento fica em documento_clinico."""
+
+    __tablename__ = "atestado"
+
+    id_documento = Column(Integer, ForeignKey("documento_clinico.id_documento"), primary_key=True)
+    dias_afastamento = Column(Integer, nullable=False)
+    data_inicio = Column(Date, nullable=False)
+    cid = Column(String(10), nullable=True)
+    finalidade = Column(String(200), nullable=True)
+
+    documento = relationship("DocumentoClinico", back_populates="atestado")
