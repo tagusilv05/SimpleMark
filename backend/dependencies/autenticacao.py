@@ -12,8 +12,9 @@ from core.perfil import PerfilUsuario, perfil_de
 from core.seguranca import TokenInvalido, ler_token_acesso
 from dependencies.database import get_db
 from models.acesso import SessaoLogin
-from models.models import Usuario
+from models.models import Paciente, Usuario
 from repositories.usuario import RepositorioUsuario
+from services.AvaliacaoService.avaliacao import ServicoAvaliacao
 from services.CadastroService.cadastro import ServicoCadastro
 from services.CadastroService.validacao_profissional import ServicoValidacaoProfissional
 from services.LoginService.autenticacao import ServicoAutenticacao
@@ -38,6 +39,10 @@ def get_servico_sessao(db: DbSession) -> ServicoSessao:
 
 def get_servico_validacao(db: DbSession) -> ServicoValidacaoProfissional:
     return ServicoValidacaoProfissional(db)
+
+
+def get_servico_avaliacao(db: DbSession) -> ServicoAvaliacao:
+    return ServicoAvaliacao(db)
 
 
 def sessao_atual(
@@ -73,6 +78,12 @@ def administrador_atual(usuario: Annotated[Usuario, Depends(usuario_atual)]) -> 
     return usuario
 
 
+def paciente_atual(usuario: Annotated[Usuario, Depends(usuario_atual)]) -> Paciente:
+    if perfil_de(usuario) != PerfilUsuario.PACIENTE:
+        raise ErroNegocio("Somente o paciente pode avaliar uma consulta.", 403)
+    return usuario.paciente
+
+
 ServicoCadastroDep = Annotated[ServicoCadastro, Depends(get_servico_cadastro)]
 ServicoAutenticacaoDep = Annotated[ServicoAutenticacao, Depends(get_servico_autenticacao)]
 ServicoValidacaoDep = Annotated[ServicoValidacaoProfissional, Depends(get_servico_validacao)]
@@ -80,3 +91,5 @@ ServicoSessaoDep = Annotated[ServicoSessao, Depends(get_servico_sessao)]
 SessaoAtual = Annotated[SessaoLogin, Depends(sessao_atual)]
 UsuarioAtual = Annotated[Usuario, Depends(usuario_atual)]
 AdministradorAtual = Annotated[Usuario, Depends(administrador_atual)]
+ServicoAvaliacaoDep = Annotated[ServicoAvaliacao, Depends(get_servico_avaliacao)]
+PacienteAtual = Annotated[Paciente, Depends(paciente_atual)]

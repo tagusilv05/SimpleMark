@@ -28,6 +28,8 @@ _ROTULOS = {
     "orgao_conselho": "órgão do conselho",
     "info_profissional": "informações profissionais",
     "especialidades": "especialidades",
+    "nota": "nota",
+    "feedback": "comentário",
 }
 
 
@@ -65,6 +67,10 @@ def _mensagem_validacao(erro: dict) -> str:
         return f"O campo {campo} não faz parte desta requisição. Remova-o e tente novamente."
     if tipo in {"date_parsing", "date_from_datetime_parsing"}:
         return "A data de nascimento é inválida. Use o formato AAAA-MM-DD."
+    if campo == "nota" and tipo in {"int_type", "int_parsing"}:
+        return "A nota deve ser um número inteiro de 1 a 5 estrelas."
+    if campo == "limite" and tipo in {"int_parsing", "greater_than_equal", "less_than_equal"}:
+        return "O limite deve ser um número inteiro de 1 a 50."
     if tipo == "too_short" and campo == "especialidades":
         return "Informe ao menos uma especialidade para o profissional atuar na plataforma."
     if tipo == "too_short" and campo == "senha":
