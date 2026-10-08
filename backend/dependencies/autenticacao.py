@@ -15,6 +15,8 @@ from models.acesso import SessaoLogin
 from models.models import Paciente, Usuario
 from repositories.usuario import RepositorioUsuario
 from services.AvaliacaoService.avaliacao import ServicoAvaliacao
+from repositories.administracao import RepositorioAdministracao
+from services.AdministracaoService.administracao import ServicoAdministracao
 from services.CadastroService.cadastro import ServicoCadastro
 from services.CadastroService.validacao_profissional import ServicoValidacaoProfissional
 from services.LoginService.autenticacao import ServicoAutenticacao
@@ -44,6 +46,9 @@ def get_servico_validacao(db: DbSession) -> ServicoValidacaoProfissional:
 def get_servico_avaliacao(db: DbSession) -> ServicoAvaliacao:
     return ServicoAvaliacao(db)
 
+def get_servico_administracao(db: DbSession) -> ServicoAdministracao:
+    return ServicoAdministracao(db)
+
 
 def sessao_atual(
     db: DbSession,
@@ -66,6 +71,8 @@ def usuario_atual(db: DbSession, sessao: Annotated[SessaoLogin, Depends(sessao_a
         raise ErroNegocio("Token inválido. Entre novamente.", 401)
     if not usuario.status:
         raise ErroNegocio("Esta conta não está ativa. Entre em contato com o administrador.", 401)
+    if RepositorioAdministracao(db).esta_banido(usuario.id):
+        raise ErroNegocio("Esta conta foi banida pelo administrador.", 403)
     return usuario
 
 
@@ -87,6 +94,7 @@ def paciente_atual(usuario: Annotated[Usuario, Depends(usuario_atual)]) -> Pacie
 ServicoCadastroDep = Annotated[ServicoCadastro, Depends(get_servico_cadastro)]
 ServicoAutenticacaoDep = Annotated[ServicoAutenticacao, Depends(get_servico_autenticacao)]
 ServicoValidacaoDep = Annotated[ServicoValidacaoProfissional, Depends(get_servico_validacao)]
+ServicoAdministracaoDep = Annotated[ServicoAdministracao, Depends(get_servico_administracao)]
 ServicoSessaoDep = Annotated[ServicoSessao, Depends(get_servico_sessao)]
 SessaoAtual = Annotated[SessaoLogin, Depends(sessao_atual)]
 UsuarioAtual = Annotated[Usuario, Depends(usuario_atual)]

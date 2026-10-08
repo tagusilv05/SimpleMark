@@ -13,6 +13,7 @@ from core.tempo import agora_utc, como_utc
 from core.validadores import normalizar_cpf, normalizar_email
 from models.acesso import Credencial
 from models.models import Usuario
+from repositories.administracao import RepositorioAdministracao
 from repositories.credencial import RepositorioCredencial
 from repositories.usuario import RepositorioUsuario
 from services.SessaoService.sessao import ServicoSessao
@@ -74,6 +75,9 @@ class ServicoAutenticacao:
         credencial.tentativas_login_falhas = 0
         credencial.bloqueado_ate = None
         self.db.commit()
+
+        if RepositorioAdministracao(self.db).esta_banido(usuario.id):
+            raise ErroNegocio("Esta conta foi banida pelo administrador.", 403)
 
         if not usuario.status:
             if usuario.profissional is not None:
