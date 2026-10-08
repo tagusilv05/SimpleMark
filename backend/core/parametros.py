@@ -21,3 +21,7 @@ def login_bloqueio_minutos() -> int:
 
 def sessao_inatividade_horas() -> int:
     return int(os.getenv("SESSAO_INATIVIDADE_HORAS", "24"))
+
+def base_url_validacao() -> str:
+    """Base da URL pública que o QR-Code do documento clínico aponta."""
+    return os.getenv("BASE_URL_VALIDACAO", "http://localhost:8080/api/v1")
