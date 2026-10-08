@@ -102,3 +102,14 @@ def listar_especialidades(db: Session):
         db.query(Especialidade)
         .all()
     )
+
+
+def buscar_profissional_especialidade(id_profissional, id_especialidade, db: Session):
+    return (
+        db.query(ProfissionalEspecialidade)
+        .filter(
+            ProfissionalEspecialidade.id_profissional == id_profissional,
+            ProfissionalEspecialidade.id_especialidade == id_especialidade
+        )
+        .first()
+    )
