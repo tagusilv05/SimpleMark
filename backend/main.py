@@ -13,6 +13,9 @@ from dependencies.erros import registrar_erros
 from services.CadastroService.admin_inicial import criar_admin_inicial
 from routers.porfissional_minha_conta import router as routers_porfissional_minha_conta
 from routers.usuario_minha_conta import router as routers_usuario_minha_conta
+from routers.buscar_avaliacao_profissional import router as router_buscar_avaliacao_profissional
+from routers.confirmar_consulta import router as router_confirmar_consulta
+
 from seed.seed import criar_seed
 
 Base.metadata.create_all(bind=engine)
@@ -40,7 +43,9 @@ app.include_router(consulta_profissional_router, prefix="/api/v1")
 
 
 app.include_router(routers_porfissional_minha_conta, prefix="/profissionais", tags=["Profissionais"])
-app.include_router(routers_usuario_minha_conta, prefix="/usuario", tags=["usuario"])
+app.include_router(routers_usuario_minha_conta, prefix="/usuario", tags=["Usuario"])
+app.include_router(router_buscar_avaliacao_profissional, prefix="/avaliacao", tags=["Avaliacao"])
+app.include_router(router_confirmar_consulta, prefix="/consulta", tags=["Consulta"])
 
 @app.get("/")
 def home():

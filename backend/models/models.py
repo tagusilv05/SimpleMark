@@ -153,6 +153,7 @@ class Avaliacao(Base):
 
     id_consulta = Column(Integer, ForeignKey("consulta.id_consulta"), primary_key=True)
     feedback = Column(Text, nullable=True)
+    avaliacao = Column(Integer, nullable=False)
     data = Column(Date, nullable=False)
     hora = Column(Time, nullable=False)
 
