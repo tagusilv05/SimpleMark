@@ -1,6 +1,7 @@
 # Define os modelos do banco de dados utilizando SQLAlchemy,
 # incluindo as tabelas, campos, chaves estrangeiras e relacionamentos entre elas.
 from sqlalchemy import (
+    CheckConstraint,
     Column,
     Boolean,
     Date,
@@ -8,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     Numeric,
+    SmallInteger,
     String,
     Text,
     Time,
@@ -150,8 +152,12 @@ class Consulta(Base):
 
 class Avaliacao(Base):
     __tablename__ = "avaliacao"
+    __table_args__ = (
+        CheckConstraint("nota BETWEEN 1 AND 5", name="ck_avaliacao_nota"),
+    )
 
     id_consulta = Column(Integer, ForeignKey("consulta.id_consulta"), primary_key=True)
+    nota = Column(SmallInteger, nullable=True)  # 1 a 5 estrelas; NULL = paciente não deu estrelas
     feedback = Column(Text, nullable=True)
     avaliacao = Column(Integer, nullable=False)
     data = Column(Date, nullable=False)
