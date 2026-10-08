@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^docker compose up -d --build --no-deps backend$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

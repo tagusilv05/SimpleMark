@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database.connection import Base, engine
 from models import models
 import models.acesso  # registra credencial e sessao_login sem alterar as tabelas do grupo
+import models.administracao  # registra banimento e logs da administração sem alterar as tabelas do grupo
 
 from routers.horarios_profissional import router as horarios_profissional_router
 from routers.administracao import router as administracao_router
