@@ -12,3 +12,13 @@ def como_utc(valor: datetime) -> datetime:
     if valor.tzinfo is None:
         return valor.replace(tzinfo=timezone.utc)
     return valor.astimezone(timezone.utc)
+
+
+def agora_local() -> datetime:
+    """Relógio de parede do servidor, sem fuso.
+
+    A agenda (data_horario) guarda data e hora sem fuso, do jeito que o
+    profissional digitou. Comparar aquelas colunas com agora_utc() deslocaria o
+    resultado, então a busca por horário livre usa este relógio.
+    """
+    return datetime.now()
