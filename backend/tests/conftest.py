@@ -32,6 +32,7 @@ from models.models import (
     ProfissionalEspecialidade,
     Usuario,
 )
+from routers.busca_profissional import router as busca_profissional_router
 from routers.documento_qrcode import router as documento_qrcode_router
 from routers.documento_emissao import router as documento_emissao_router
 from routers.documento_validacao import router as documento_validacao_router
@@ -74,6 +75,7 @@ def db(engine):
 def app(db):
     aplicacao = FastAPI()
     registrar_erros(aplicacao)
+    aplicacao.include_router(busca_profissional_router, prefix="/api/v1")
     aplicacao.include_router(documento_qrcode_router, prefix="/api/v1")
     aplicacao.include_router(documento_validacao_router, prefix="/api/v1")
     aplicacao.include_router(documento_emissao_router, prefix="/api/v1")
