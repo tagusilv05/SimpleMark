@@ -1,91 +1,128 @@
-"""Consultas de banimentos, sessões e logs usadas na administração."""
-
-import uuid
+# Consulta ao banco usada na busca de profissionais. Não aplica regra de
+# negócio: recebe o filtro já normalizado pelo service e devolve as linhas.
 from datetime import datetime
 
-from sqlalchemy import select, update
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import or_, select
+from sqlalchemy.orm import Session, joinedload
 
-from models.acesso import SessaoLogin
-from models.administracao import Banimento, LogAcaoAdministrador
-from models.models import Paciente, Profissional
+from models.models import (
+    Consulta,
+    DataHorario,
+    Especialidade,
+    Profissional,
+    ProfissionalEspecialidade,
+    Usuario,
+)
+from schemas.busca_profissional import FiltroBuscaProfissional
+
+# Consulta cancelada devolve o horário para a agenda; as demais o mantêm preso.
+_STATUS_QUE_OCUPAM = ("agendada", "confirmada", "realizada", "em andamento")
 
 
-class RepositorioAdministracao:
-    """Consultas da área administrativa. Não aplica regra de negócio."""
+def _horario_ja_agendado():
+    """Horário com consulta marcada em cima, mesmo com a flag `ocupado` falsa.
 
-    def __init__(self, db: Session) -> None:
-        self.db = db
-
-    def ids_usuarios_banidos(self) -> set[uuid.UUID]:
-        """Ids de todos os usuários com banimento registrado."""
-        consulta = select(Banimento.id_usuario)
-        return set(self.db.scalars(consulta).all())
-
-    def esta_banido(self, id_usuario: uuid.UUID) -> bool:
-        """Indica se o usuário tem banimento registrado."""
-        return self.buscar_banimento(id_usuario) is not None
-
-    def buscar_banimento(self, id_usuario: uuid.UUID) -> Banimento | None:
-        """Banimento do usuário, ou None se ele não estiver banido."""
-        return self.db.scalar(select(Banimento).where(Banimento.id_usuario == id_usuario))
-
-    def listar_profissionais(self) -> list[Profissional]:
-        """Todos os profissionais, com o usuário já carregado, em ordem de id."""
-        consulta = (
-            select(Profissional)
-            .join(Profissional.usuario)
-            .options(selectinload(Profissional.usuario))
-            .order_by(Profissional.id_profissional)
+    A flag é o caminho normal, mas ela depende de quem agenda lembrar de marcá-la.
+    Este EXISTS fecha a brecha: o paciente não enxerga um horário que já tem
+    consulta naquele vínculo, data e hora.
+    """
+    return (
+        select(Consulta.id_consulta)
+        .where(
+            Consulta.id_esp_prof == DataHorario.id_esp_prof,
+            Consulta.data == DataHorario.data_consulta,
+            Consulta.hora == DataHorario.hora_inicio,
+            Consulta.status.in_(_STATUS_QUE_OCUPAM),
         )
-        return list(self.db.scalars(consulta))
+        .exists()
+    )
 
-    def listar_pacientes(self) -> list[Paciente]:
-        """Todos os pacientes, com o usuário já carregado, em ordem de id."""
-        consulta = (
-            select(Paciente)
-            .join(Paciente.usuario)
-            .options(selectinload(Paciente.usuario))
-            .order_by(Paciente.id_paciente)
+
+def _aplicar_especialidade(query, filtro: FiltroBuscaProfissional):
+    """Filtra por especialidade, se o filtro tiver algum valor."""
+    if filtro.id_especialidade is not None:
+        query = query.filter(
+            ProfissionalEspecialidade.id_especialidade == filtro.id_especialidade
         )
-        return list(self.db.scalars(consulta))
+    if filtro.especialidade:
+        # Busca por parte do nome, sem diferenciar maiúsculas nem acentuação
+        # digitada pelo paciente ("cardio" encontra "Cardiologia").
+        query = query.filter(Especialidade.especialidade.ilike(f"%{filtro.especialidade}%"))
+    return query
 
-    def buscar_profissional(self, id_profissional: int) -> Profissional | None:
-        """Profissional pelo id, ou None se não existir."""
-        return self.db.get(Profissional, id_profissional)
 
-    def buscar_paciente(self, id_paciente: int) -> Paciente | None:
-        """Paciente pelo id, ou None se não existir."""
-        return self.db.get(Paciente, id_paciente)
+def _aplicar_periodo(query, filtro: FiltroBuscaProfissional, momento: datetime):
+    """Filtra por período, se o filtro tiver algum valor."""
+    if filtro.data_inicio is not None:
+        query = query.filter(DataHorario.data_consulta >= filtro.data_inicio)
+    if filtro.data_fim is not None:
+        query = query.filter(DataHorario.data_consulta <= filtro.data_fim)
+    if filtro.hora_inicio is not None:
+        query = query.filter(DataHorario.hora_inicio >= filtro.hora_inicio)
+    if filtro.hora_fim is not None:
+        query = query.filter(DataHorario.hora_fim <= filtro.hora_fim)
 
-    def adicionar_banimento(self, banimento: Banimento) -> Banimento:
-        """Inclui o banimento na sessão, sem flush nem commit."""
-        self.db.add(banimento)
-        return banimento
-
-    def encerrar_sessoes(self, id_usuario: uuid.UUID, agora: datetime) -> None:
-        """Encerra as sessões de login ainda abertas do usuário.
-
-        UPDATE em lote com synchronize_session=False: objetos SessaoLogin já
-        carregados na sessão não enxergam a mudança.
-        """
-        comando = (
-            update(SessaoLogin)
-            .where(
-                SessaoLogin.id_usuario == id_usuario,
-                SessaoLogin.encerrada_em.is_(None),
-            )
-            .values(encerrada_em=agora)
-            .execution_options(synchronize_session=False)
+    # Hoje só vale o que ainda não começou: um horário das 8h não é vaga às 14h.
+    return query.filter(
+        or_(
+            DataHorario.data_consulta > momento.date(),
+            DataHorario.hora_inicio >= momento.time(),
         )
-        self.db.execute(comando)
+    )
 
-    def adicionar_log(self, log: LogAcaoAdministrador) -> LogAcaoAdministrador:
-        """Inclui o log de ação na sessão, sem flush nem commit."""
-        self.db.add(log)
-        return log
 
-    def listar_logs(self) -> list[LogAcaoAdministrador]:
-        """Logs de ações administrativas, do mais recente ao mais antigo."""
-        consulta = select(LogAcaoAdministrador).order_by(LogAcaoAdministrador.realizada_em.desc())
-        return list(self.db.scalars(consulta))
+def _aplicar_valor(query, filtro: FiltroBuscaProfissional):
+    if filtro.valor_min is not None:
+        query = query.filter(ProfissionalEspecialidade.valor_consulta >= filtro.valor_min)
+    if filtro.valor_max is not None:
+        query = query.filter(ProfissionalEspecialidade.valor_consulta <= filtro.valor_max)
+    return query
+
+
+def buscar_horarios_disponiveis(
+    db: Session,
+    filtro: FiltroBuscaProfissional,
+    momento: datetime,
+) -> list[DataHorario]:
+    """Horários livres que atendem ao filtro, já com profissional e especialidade.
+
+    O join com data_horario também serve de filtro: profissional sem agenda
+    aberta no período simplesmente não aparece na busca.
+    """
+    caminho_vinculo = joinedload(DataHorario.profissional_especialidade)
+    query = (
+        db.query(DataHorario)
+        .join(
+            ProfissionalEspecialidade,
+            DataHorario.id_esp_prof == ProfissionalEspecialidade.id_esp_prof,
+        )
+        .join(
+            Profissional,
+            ProfissionalEspecialidade.id_profissional == Profissional.id_profissional,
+        )
+        .join(Usuario, Profissional.id_usuario == Usuario.id)
+        .join(
+            Especialidade,
+            ProfissionalEspecialidade.id_especialidade == Especialidade.id_especialidade,
+        )
+        .filter(DataHorario.ocupado.is_(False))
+        .filter(Usuario.status.is_(True))  # conta inativa não recebe agendamento
+        .filter(~_horario_ja_agendado())
+        .options(
+            caminho_vinculo.joinedload(ProfissionalEspecialidade.profissional).joinedload(
+                Profissional.usuario
+            ),
+            caminho_vinculo.joinedload(ProfissionalEspecialidade.especialidade),
+            caminho_vinculo.joinedload(ProfissionalEspecialidade.conselho),
+        )
+    )
+
+    query = _aplicar_especialidade(query, filtro)
+    query = _aplicar_periodo(query, filtro, momento)
+    query = _aplicar_valor(query, filtro)
+
+    return query.order_by(
+        Usuario.nome,
+        DataHorario.data_consulta,
+        DataHorario.hora_inicio,
+    ).all()
