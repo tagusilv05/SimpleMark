@@ -3,6 +3,7 @@ import uuid
 from pydantic import BaseModel, Field, field_validator
 
 from core.perfil import perfil_de
+from core.seguranca import TAMANHO_CODIGO_LOGIN
 from core.validadores import normalizar_cpf, normalizar_email
 from models.models import Usuario
 
@@ -27,6 +28,26 @@ class LoginEntrada(BaseModel):
         if "@" in texto:
             return normalizar_email(texto)
         return normalizar_cpf(texto)
+
+
+class ConfirmarLoginEntrada(BaseModel):
+    id_desafio: uuid.UUID
+    codigo: str
+
+    @field_validator("codigo")
+    @classmethod
+    def codigo_somente_numeros(cls, valor: str) -> str:
+        texto = valor.strip()
+        if len(texto) != TAMANHO_CODIGO_LOGIN or not (texto.isascii() and texto.isdigit()):
+            raise ValueError(f"O código de confirmação deve ter {TAMANHO_CODIGO_LOGIN} números.")
+        return texto
+
+
+class DesafioLoginResposta(BaseModel):
+    mensagem: str
+    id_desafio: uuid.UUID
+    email_mascarado: str
+    expira_em_segundos: int
 
 
 class UsuarioPublico(BaseModel):
