@@ -1,3 +1,5 @@
+"""Consultas da tabela credencial."""
+
 import uuid
 
 from sqlalchemy import select
@@ -13,6 +15,10 @@ class RepositorioCredencial:
         self.db = db
 
     def buscar_para_atualizar(self, id_usuario: uuid.UUID) -> Credencial | None:
+        """Credencial do usuário com a linha travada (FOR UPDATE), ou None.
+
+        populate_existing recarrega o objeto mesmo que ele já esteja na sessão.
+        """
         comando = (
             select(Credencial)
             .where(Credencial.id_usuario == id_usuario)
@@ -22,5 +28,6 @@ class RepositorioCredencial:
         return self.db.execute(comando).scalar_one_or_none()
 
     def adicionar(self, credencial: Credencial) -> Credencial:
+        """Inclui a credencial na sessão, sem flush nem commit."""
         self.db.add(credencial)
         return credencial

@@ -1,3 +1,5 @@
+"""Consultas da tabela usuario."""
+
 import uuid
 
 from sqlalchemy import select
@@ -13,14 +15,18 @@ class RepositorioUsuario:
         self.db = db
 
     def buscar_por_id(self, id_usuario: uuid.UUID) -> Usuario | None:
+        """Usuário pelo id, ou None se não existir."""
         return self.db.get(Usuario, id_usuario)
 
     def buscar_por_email(self, email: str) -> Usuario | None:
+        """Usuário pelo e-mail, ou None se não existir."""
         return self.db.scalar(select(Usuario).where(Usuario.email == email))
 
     def buscar_por_cpf(self, cpf: str) -> Usuario | None:
+        """Usuário pelo CPF, ou None se não existir."""
         return self.db.scalar(select(Usuario).where(Usuario.cpf == cpf))
 
     def adicionar(self, usuario: Usuario) -> Usuario:
+        """Inclui o usuário na sessão, sem flush nem commit."""
         self.db.add(usuario)
         return usuario

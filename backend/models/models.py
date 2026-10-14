@@ -1,5 +1,5 @@
-# Define os modelos do banco de dados utilizando SQLAlchemy,
-# incluindo as tabelas, campos, chaves estrangeiras e relacionamentos entre elas.
+"""Modelos SQLAlchemy das tabelas principais do grupo e seus relacionamentos."""
+
 from sqlalchemy import (
     CheckConstraint,
     Column,
@@ -21,6 +21,8 @@ from database.connection import Base
 import uuid
 
 class Usuario(Base):
+    """Conta de pessoa na plataforma, com dados pessoais; o perfil vem das tabelas vinculadas."""
+
     __tablename__ = "usuario"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -40,6 +42,8 @@ class Usuario(Base):
 
 
 class Paciente(Base):
+    """Perfil de paciente de um usuário."""
+
     __tablename__ = "paciente"
 
     id_paciente = Column(Integer, primary_key=True, index=True)
@@ -50,6 +54,8 @@ class Paciente(Base):
 
 
 class Administrador(Base):
+    """Perfil de administrador de um usuário."""
+
     __tablename__ = "administrador"
 
     id_administrador = Column(Integer, primary_key=True, index=True)
@@ -59,6 +65,8 @@ class Administrador(Base):
 
 
 class Profissional(Base):
+    """Perfil de profissional de saúde de um usuário, com foto e informações profissionais."""
+
     __tablename__ = "profissional"
 
     id_profissional = Column(Integer, primary_key=True, index=True)
@@ -70,6 +78,8 @@ class Profissional(Base):
     especialidades = relationship("ProfissionalEspecialidade", back_populates="profissional")
 
 class Endereco(Base):
+    """Endereço do usuário (um por usuário)."""
+
     __tablename__ = "endereco"
 
     id_endereco = Column(Integer, primary_key=True, index=True)
@@ -84,6 +94,8 @@ class Endereco(Base):
     usuario = relationship("Usuario", back_populates="endereco")
 
 class InfoConselho(Base):
+    """Número e órgão do conselho profissional (ex.: CRM) usado numa especialidade."""
+
     __tablename__ = "info_conselho"
 
     id_conselho = Column(Integer, primary_key=True, index=True)
@@ -94,6 +106,8 @@ class InfoConselho(Base):
 
 
 class Especialidade(Base):
+    """Especialidade de saúde, com nome único."""
+
     __tablename__ = "especialidade"
 
     id_especialidade = Column(Integer, primary_key=True, index=True)
@@ -103,6 +117,11 @@ class Especialidade(Base):
 
 
 class ProfissionalEspecialidade(Base):
+    """Vínculo do profissional com uma especialidade, com valor da consulta e nota média.
+
+    Horários e consultas se ligam a este vínculo, não direto ao profissional.
+    """
+
     __tablename__ = "profissional_especialidade"
 
     id_esp_prof = Column(Integer, primary_key=True, index=True)
@@ -120,6 +139,8 @@ class ProfissionalEspecialidade(Base):
 
 
 class DataHorario(Base):
+    """Horário de agenda do profissional numa especialidade, marcado como ocupado ou livre."""
+
     __tablename__ = "data_horario"
 
     id_horario = Column(Integer, primary_key=True, index=True)
@@ -133,6 +154,8 @@ class DataHorario(Base):
 
 
 class Consulta(Base):
+    """Consulta de um paciente com um profissional numa especialidade (status padrão "agendada")."""
+
     __tablename__ = "consulta"
 
     id_consulta = Column(Integer, primary_key=True, index=True)
@@ -152,6 +175,8 @@ class Consulta(Base):
 
 
 class Avaliacao(Base):
+    """Avaliação do paciente sobre uma consulta, com nota de 1 a 5 e comentário opcionais."""
+
     __tablename__ = "avaliacao"
     __table_args__ = (
         CheckConstraint("nota BETWEEN 1 AND 5", name="ck_avaliacao_nota"),
@@ -168,6 +193,8 @@ class Avaliacao(Base):
 
 
 class Pagamento(Base):
+    """Pagamento de uma consulta (status padrão "pendente")."""
+
     __tablename__ = "pagamento"
 
     id_consulta = Column(Integer, ForeignKey("consulta.id_consulta"), primary_key=True)
@@ -179,6 +206,11 @@ class Pagamento(Base):
 
 
 class DocumentoClinico(Base):
+    """Documento emitido numa consulta (receita ou atestado), com código de verificação e QR-Code.
+
+    O significado do booleano tipo está em core/documento.py.
+    """
+
     __tablename__ = "documento_clinico"
 
     id_documento = Column(Integer, primary_key=True, index=True)

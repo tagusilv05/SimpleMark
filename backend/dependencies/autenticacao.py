@@ -28,25 +28,31 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 
 def get_servico_cadastro(db: DbSession) -> ServicoCadastro:
+    """Fornece o serviço de cadastro ligado à sessão do banco."""
     return ServicoCadastro(db)
 
 
 def get_servico_autenticacao(db: DbSession) -> ServicoAutenticacao:
+    """Fornece o serviço de autenticação ligado à sessão do banco."""
     return ServicoAutenticacao(db)
 
 
 def get_servico_sessao(db: DbSession) -> ServicoSessao:
+    """Fornece o serviço de sessão de login ligado à sessão do banco."""
     return ServicoSessao(db)
 
 
 def get_servico_validacao(db: DbSession) -> ServicoValidacaoProfissional:
+    """Fornece o serviço de validação de profissional ligado à sessão do banco."""
     return ServicoValidacaoProfissional(db)
 
 
 def get_servico_avaliacao(db: DbSession) -> ServicoAvaliacao:
+    """Fornece o serviço de avaliação ligado à sessão do banco."""
     return ServicoAvaliacao(db)
 
 def get_servico_administracao(db: DbSession) -> ServicoAdministracao:
+    """Fornece o serviço de administração ligado à sessão do banco."""
     return ServicoAdministracao(db)
 
 
@@ -54,6 +60,10 @@ def sessao_atual(
     db: DbSession,
     credenciais: Annotated[HTTPAuthorizationCredentials | None, Depends(esquema_bearer)],
 ) -> SessaoLogin:
+    """Lê o token Bearer e devolve a sessão de login válida, renovando a atividade.
+
+    Responde 401 sem token, com token inválido ou com sessão encerrada/expirada.
+    """
     if credenciais is None or credenciais.scheme.lower() != "bearer":
         raise ErroNegocio("Informe o token de acesso para continuar.", 401)
     try:
@@ -66,6 +76,10 @@ def sessao_atual(
 
 
 def usuario_atual(db: DbSession, sessao: Annotated[SessaoLogin, Depends(sessao_atual)]) -> Usuario:
+    """Devolve o usuário dono da sessão atual.
+
+    Responde 401 se o usuário não existir ou estiver inativo, e 403 se estiver banido.
+    """
     usuario = RepositorioUsuario(db).buscar_por_id(sessao.id_usuario)
     if usuario is None:
         raise ErroNegocio("Token inválido. Entre novamente.", 401)
@@ -77,6 +91,7 @@ def usuario_atual(db: DbSession, sessao: Annotated[SessaoLogin, Depends(sessao_a
 
 
 def administrador_atual(usuario: Annotated[Usuario, Depends(usuario_atual)]) -> Usuario:
+    """Exige que o usuário logado seja administrador; caso contrário, responde 403."""
     if perfil_de(usuario) != PerfilUsuario.ADMINISTRADOR:
         raise ErroNegocio(
             "Somente o administrador pode validar o cadastro do profissional de saúde.",
@@ -86,6 +101,10 @@ def administrador_atual(usuario: Annotated[Usuario, Depends(usuario_atual)]) -> 
 
 
 def paciente_atual(usuario: Annotated[Usuario, Depends(usuario_atual)]) -> Paciente:
+    """Exige que o usuário logado seja paciente e devolve o registro de paciente.
+
+    Caso contrário, responde 403.
+    """
     if perfil_de(usuario) != PerfilUsuario.PACIENTE:
         raise ErroNegocio("Somente o paciente pode avaliar uma consulta.", 403)
     return usuario.paciente
