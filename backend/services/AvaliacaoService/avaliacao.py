@@ -30,6 +30,7 @@ class ServicoAvaliacao:
     """
 
     def __init__(self, db: Session) -> None:
+        """Guarda a sessão do banco e monta o repositório de avaliações."""
         self.db = db
         self.avaliacoes = RepositorioAvaliacao(db)
 
@@ -110,6 +111,11 @@ class ServicoAvaliacao:
         m = MINIMO_AVALIACOES_CONFIANCA
 
         def pontuacao(media: float, total: int) -> float:
+            """Média bayesiana: puxa a média do profissional para a média geral.
+
+            Com poucas avaliações pesa mais a média geral; o peso dela é dado por
+            MINIMO_AVALIACOES_CONFIANCA.
+            """
             return (total / (total + m)) * media + (m / (total + m)) * media_geral
 
         ordenadas = sorted(

@@ -29,6 +29,7 @@ class ServicoCadastro:
     """
 
     def __init__(self, db: Session) -> None:
+        """Guarda a sessão do banco e monta os repositórios usados no cadastro."""
         self.db = db
         self.usuarios = RepositorioUsuario(db)
         self.credenciais = RepositorioCredencial(db)

@@ -1,3 +1,5 @@
+"""Consultas da tabela codigo_login."""
+
 import uuid
 from datetime import datetime
 
@@ -11,6 +13,7 @@ class RepositorioCodigoLogin:
     """Consultas de codigo_login. Não aplica regra de negócio."""
 
     def __init__(self, db: Session) -> None:
+        """Guarda a sessão do banco usada nas consultas."""
         self.db = db
 
     def criar(
@@ -20,6 +23,7 @@ class RepositorioCodigoLogin:
         agora: datetime,
         expira_em: datetime,
     ) -> CodigoLogin:
+        """Registra um código de login e faz flush para o id já ficar disponível."""
         codigo = CodigoLogin(
             id_usuario=id_usuario,
             codigo_hash=codigo_hash,
@@ -31,6 +35,7 @@ class RepositorioCodigoLogin:
         return codigo
 
     def buscar(self, id_codigo: uuid.UUID) -> CodigoLogin | None:
+        """Código pelo id, ou None se não existir."""
         return self.db.get(CodigoLogin, id_codigo)
 
     def buscar_para_atualizar(self, id_codigo: uuid.UUID) -> CodigoLogin | None:
@@ -44,6 +49,7 @@ class RepositorioCodigoLogin:
         return self.db.execute(comando).scalar_one_or_none()
 
     def existe_hash(self, id_usuario: uuid.UUID, codigo_hash: str) -> bool:
+        """Indica se o usuário já teve um código com esse hash."""
         comando = select(CodigoLogin.id).where(
             CodigoLogin.id_usuario == id_usuario,
             CodigoLogin.codigo_hash == codigo_hash,
@@ -51,6 +57,7 @@ class RepositorioCodigoLogin:
         return self.db.scalar(comando) is not None
 
     def encerrar_pendentes(self, id_usuario: uuid.UUID, agora: datetime) -> None:
+        """Marca como encerrados os códigos do usuário ainda em aberto."""
         comando = (
             update(CodigoLogin)
             .where(CodigoLogin.id_usuario == id_usuario, CodigoLogin.encerrado_em.is_(None))
@@ -60,6 +67,7 @@ class RepositorioCodigoLogin:
         self.db.execute(comando)
 
     def apagar_anteriores_a(self, id_usuario: uuid.UUID, limite: datetime) -> None:
+        """Apaga os códigos do usuário criados antes do limite."""
         comando = (
             delete(CodigoLogin)
             .where(CodigoLogin.id_usuario == id_usuario, CodigoLogin.criado_em < limite)

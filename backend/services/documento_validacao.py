@@ -1,3 +1,5 @@
+"""Validação pública de receitas e atestados pelo código do QR-Code."""
+
 # Validação pública de uma receita ou atestado a partir do código do QR-Code.
 #
 # Rota aberta de propósito: quem confere o documento é a farmácia, o RH ou o
@@ -15,12 +17,14 @@ from schemas.documento_validacao import ValidacaoDocumentoOutput
 
 
 def _descrever_conselho(conselho) -> str | None:
+    """Conselho no formato "ÓRGÃO NÚMERO", ou None se não houver."""
     if conselho is None:
         return None
     return f"{conselho.orgao_conselho} {conselho.numero_conselho}"
 
 
 def _para_schema(documento: DocumentoClinico) -> ValidacaoDocumentoOutput:
+    """Resposta da validação, sem paciente nem observações clínicas (RNF17)."""
     esp_prof = documento.consulta.profissional_especialidade
     return ValidacaoDocumentoOutput(
         valido=True,

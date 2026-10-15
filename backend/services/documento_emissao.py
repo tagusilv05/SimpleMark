@@ -1,3 +1,5 @@
+"""Emissão de receitas e atestados pelo profissional da consulta."""
+
 # Emissão de receitas e atestados pelo profissional.
 #
 # O documento nasce vinculado à consulta, e é a consulta que diz quem é o
@@ -68,6 +70,11 @@ def _consulta_do_profissional(db: Session, id_consulta: int, usuario: Usuario) -
 
 
 def _criar_documento(db: Session, consulta: Consulta, tipo: bool, observacoes: str | None):
+    """Cria o documento clínico da consulta e faz flush para obter o id.
+
+    Levanta ConsultaNaoPermiteEmissao se a consulta estiver cancelada. Não faz
+    commit.
+    """
     if consulta.status in STATUS_IMPEDE_EMISSAO:
         raise ConsultaNaoPermiteEmissao(
             "Não é possível emitir documentos para uma consulta cancelada."
@@ -85,12 +92,14 @@ def _criar_documento(db: Session, consulta: Consulta, tipo: bool, observacoes: s
 
 
 def _descrever_conselho(esp_prof) -> str | None:
+    """Conselho do vínculo no formato "ÓRGÃO NÚMERO", ou None."""
     if esp_prof.conselho is None:
         return None
     return f"{esp_prof.conselho.orgao_conselho} {esp_prof.conselho.numero_conselho}"
 
 
 def _para_schema(documento: DocumentoClinico) -> DocumentoEmitidoOutput:
+    """Monta a resposta do documento, com os campos da receita ou do atestado."""
     consulta = documento.consulta
     esp_prof = consulta.profissional_especialidade
     paciente = consulta.paciente
@@ -138,6 +147,10 @@ def _para_schema(documento: DocumentoClinico) -> DocumentoEmitidoOutput:
 
 
 def emitir_receita(db: Session, dados: EmitirReceitaInput, usuario: Usuario) -> DocumentoEmitidoOutput:
+    """Emite a receita da consulta com seus medicamentos e o QR-Code.
+
+    Só o profissional da consulta pode emitir (RN9). Faz commit.
+    """
     consulta = _consulta_do_profissional(db, dados.id_consulta, usuario)
     documento = _criar_documento(db, consulta, TIPO_RECEITA, dados.observacoes)
 
@@ -161,6 +174,11 @@ def emitir_receita(db: Session, dados: EmitirReceitaInput, usuario: Usuario) -> 
 
 
 def emitir_atestado(db: Session, dados: EmitirAtestadoInput, usuario: Usuario) -> DocumentoEmitidoOutput:
+    """Emite o atestado da consulta com o QR-Code.
+
+    Só o profissional da consulta pode emitir (RN9). O CID é gravado em
+    maiúsculas. Faz commit.
+    """
     consulta = _consulta_do_profissional(db, dados.id_consulta, usuario)
     documento = _criar_documento(db, consulta, TIPO_ATESTADO, dados.observacoes)
 
@@ -181,6 +199,10 @@ def emitir_atestado(db: Session, dados: EmitirAtestadoInput, usuario: Usuario) -
 
 
 def buscar_documento_emitido(db: Session, id_documento: int, usuario: Usuario) -> DocumentoEmitidoOutput:
+    """Documento emitido, visível só ao profissional da consulta.
+
+    Levanta DocumentoNaoEncontrado se o documento não existir.
+    """
     documento = buscar_documento(db, id_documento)
     if documento is None:
         raise DocumentoNaoEncontrado("Documento clínico não encontrado.")
@@ -191,6 +213,7 @@ def buscar_documento_emitido(db: Session, id_documento: int, usuario: Usuario) -
 
 
 def listar_documentos(db: Session, id_consulta: int, usuario: Usuario) -> list[DocumentoResumoOutput]:
+    """Resumo dos documentos da consulta, só para o profissional dela."""
     _consulta_do_profissional(db, id_consulta, usuario)
     return [
         DocumentoResumoOutput(

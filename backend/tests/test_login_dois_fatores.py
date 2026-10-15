@@ -2,6 +2,7 @@
 # POST /auth/login/confirmar (código enviado por e-mail).
 #
 # O envio de e-mail é trocado por uma lista em memória: nenhum teste usa o SMTP.
+"""Testes do login em duas etapas: senha e código enviado por e-mail."""
 import uuid
 from datetime import date, timedelta
 
@@ -27,6 +28,7 @@ ENVIO = "services.LoginService.codigo_login.enviar_codigo_login"
 
 @pytest.fixture
 def client_login(db):
+    """Cliente de teste de um app só com o router de autenticação."""
     aplicacao = FastAPI()
     registrar_erros(aplicacao)
     aplicacao.include_router(auth_router, prefix="/api/v1")
@@ -44,6 +46,7 @@ def emails(monkeypatch):
 
 @pytest.fixture
 def conta(db):
+    """Cria um paciente ativo com senha cadastrada."""
     usuario = Usuario(
         id=uuid.uuid4(),
         nome="Ana Teste",
@@ -64,10 +67,12 @@ def conta(db):
 
 
 def _login(client, senha=SENHA, identificador=EMAIL):
+    """Envia a primeira etapa do login (identificador e senha)."""
     return client.post("/api/v1/auth/login", json={"identificador": identificador, "senha": senha})
 
 
 def _confirmar(client, id_desafio, codigo):
+    """Envia a segunda etapa do login com o código recebido."""
     return client.post(
         "/api/v1/auth/login/confirmar",
         json={"id_desafio": str(id_desafio), "codigo": codigo},
@@ -75,16 +80,19 @@ def _confirmar(client, id_desafio, codigo):
 
 
 def _pedir_codigo(client, emails) -> tuple[str, str]:
+    """Faz o login com senha e devolve o id do desafio e o código enviado."""
     resposta = _login(client)
     assert resposta.status_code == 200
     return resposta.json()["id_desafio"], emails[-1][1]
 
 
 def _codigo_errado(codigo: str) -> str:
+    """Devolve um código de 6 dígitos diferente do informado."""
     return "000000" if codigo != "000000" else "111111"
 
 
 def test_senha_correta_envia_codigo_e_nao_devolve_token(client_login, conta, emails):
+    """Senha certa envia código de 6 dígitos por e-mail e não devolve token."""
     resposta = _login(client_login)
 
     assert resposta.status_code == 200
@@ -99,6 +107,7 @@ def test_senha_correta_envia_codigo_e_nao_devolve_token(client_login, conta, ema
 
 
 def test_login_por_cpf_tambem_envia_codigo(client_login, conta, emails):
+    """Login pelo CPF sem pontuação também envia o código ao e-mail da conta."""
     resposta = _login(client_login, identificador="39053344705")
 
     assert resposta.status_code == 200
@@ -106,6 +115,7 @@ def test_login_por_cpf_tambem_envia_codigo(client_login, conta, emails):
 
 
 def test_banco_guarda_so_o_hash_do_codigo(client_login, conta, emails, db):
+    """O banco guarda só o hash do código, nunca o código em claro."""
     _id_desafio, codigo = _pedir_codigo(client_login, emails)
 
     registro = db.scalars(select(CodigoLogin)).one()
@@ -114,6 +124,7 @@ def test_banco_guarda_so_o_hash_do_codigo(client_login, conta, emails, db):
 
 
 def test_senha_errada_nao_envia_codigo(client_login, conta, emails):
+    """Senha errada responde 401 e nenhum e-mail é enviado."""
     resposta = _login(client_login, senha="SenhaErrada1")
 
     assert resposta.status_code == 401
@@ -121,6 +132,7 @@ def test_senha_errada_nao_envia_codigo(client_login, conta, emails):
 
 
 def test_codigo_correto_abre_a_sessao(client_login, conta, emails):
+    """Código certo devolve token bearer que dá acesso a /auth/eu."""
     id_desafio, codigo = _pedir_codigo(client_login, emails)
 
     resposta = _confirmar(client_login, id_desafio, codigo)
@@ -137,6 +149,7 @@ def test_codigo_correto_abre_a_sessao(client_login, conta, emails):
 
 
 def test_codigo_so_vale_uma_vez(client_login, conta, emails):
+    """Código já usado é recusado com 401 na segunda tentativa."""
     id_desafio, codigo = _pedir_codigo(client_login, emails)
     assert _confirmar(client_login, id_desafio, codigo).status_code == 200
 
@@ -147,6 +160,7 @@ def test_codigo_so_vale_uma_vez(client_login, conta, emails):
 
 
 def test_codigo_incorreto_nao_abre_sessao_e_o_certo_continua_valendo(client_login, conta, emails):
+    """Código errado é recusado com 401 e o certo continua valendo."""
     id_desafio, codigo = _pedir_codigo(client_login, emails)
 
     errado = _confirmar(client_login, id_desafio, _codigo_errado(codigo))
@@ -157,6 +171,7 @@ def test_codigo_incorreto_nao_abre_sessao_e_o_certo_continua_valendo(client_logi
 
 
 def test_codigo_expirado_e_recusado(client_login, conta, emails, db):
+    """Código expirado é recusado com 401; um novo login gera código válido."""
     id_desafio, codigo = _pedir_codigo(client_login, emails)
     registro = db.get(CodigoLogin, uuid.UUID(id_desafio))
     registro.expira_em = agora_utc() - timedelta(seconds=1)
@@ -172,6 +187,7 @@ def test_codigo_expirado_e_recusado(client_login, conta, emails, db):
 
 
 def test_novo_login_invalida_o_codigo_anterior_e_nao_repete(client_login, conta, emails):
+    """Novo login gera código diferente e invalida o anterior."""
     primeiro_id, primeiro_codigo = _pedir_codigo(client_login, emails)
     segundo_id, segundo_codigo = _pedir_codigo(client_login, emails)
 
@@ -182,6 +198,7 @@ def test_novo_login_invalida_o_codigo_anterior_e_nao_repete(client_login, conta,
 
 
 def test_codigos_errados_seguidos_bloqueiam_a_conta(client_login, conta, emails):
+    """Códigos errados até o limite bloqueiam a conta com 429."""
     id_desafio, codigo = _pedir_codigo(client_login, emails)
     errado = _codigo_errado(codigo)
     limite = login_max_tentativas()
@@ -196,6 +213,7 @@ def test_codigos_errados_seguidos_bloqueiam_a_conta(client_login, conta, emails)
 
 
 def test_acertar_a_senha_nao_zera_as_falhas(client_login, conta, emails):
+    """Senha certa sem confirmar o código não zera as falhas acumuladas."""
     limite = login_max_tentativas()
     for _ in range(limite - 1):
         assert _login(client_login, senha="SenhaErrada1").status_code == 401
@@ -205,6 +223,7 @@ def test_acertar_a_senha_nao_zera_as_falhas(client_login, conta, emails):
 
 
 def test_codigo_com_formato_invalido_responde_422(client_login, conta, emails):
+    """Código curto ou com letras é recusado com 422."""
     id_desafio, _codigo = _pedir_codigo(client_login, emails)
 
     curto = _confirmar(client_login, id_desafio, "12345")
@@ -216,6 +235,7 @@ def test_codigo_com_formato_invalido_responde_422(client_login, conta, emails):
 
 
 def test_identificador_de_confirmacao_invalido_responde_422(client_login, conta):
+    """Id de desafio que não é UUID é recusado com 422."""
     resposta = _confirmar(client_login, "isto-nao-e-um-uuid", "123456")
 
     assert resposta.status_code == 422
@@ -223,12 +243,14 @@ def test_identificador_de_confirmacao_invalido_responde_422(client_login, conta)
 
 
 def test_confirmacao_desconhecida_responde_401(client_login, conta):
+    """Id de desafio inexistente responde 401."""
     resposta = _confirmar(client_login, uuid.uuid4(), "123456")
 
     assert resposta.status_code == 401
 
 
 def test_conta_inativa_nao_recebe_codigo(client_login, conta, emails, db):
+    """Conta inativa recebe 403 e nenhum código é enviado."""
     conta.status = False
     db.commit()
 
@@ -239,7 +261,9 @@ def test_conta_inativa_nao_recebe_codigo(client_login, conta, emails, db):
 
 
 def test_falha_no_envio_responde_503_e_nao_deixa_codigo_valido(client_login, conta, monkeypatch, db):
+    """Falha no envio do e-mail responde 503 e não deixa código gravado."""
     def smtp_fora(_destinatario, _codigo):
+        """Simula o servidor de e-mail fora do ar."""
         raise OSError("servidor de e-mail fora do ar")
 
     monkeypatch.setattr(ENVIO, smtp_fora)

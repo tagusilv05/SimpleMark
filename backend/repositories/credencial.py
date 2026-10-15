@@ -12,6 +12,7 @@ class RepositorioCredencial:
     """Senha e contador de falhas. A trava da linha evita duas tentativas ao mesmo tempo."""
 
     def __init__(self, db: Session) -> None:
+        """Guarda a sessão do banco usada nas consultas."""
         self.db = db
 
     def buscar_para_atualizar(self, id_usuario: uuid.UUID) -> Credencial | None:

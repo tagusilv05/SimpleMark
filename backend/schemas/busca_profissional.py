@@ -1,4 +1,6 @@
 # Schemas da busca de profissionais por especialidade, data, horário e valor.
+"""Filtros e resultado da busca de profissionais (/profissionais/busca)."""
+
 from datetime import date, time
 from enum import Enum
 

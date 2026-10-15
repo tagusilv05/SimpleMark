@@ -1,3 +1,5 @@
+"""Rotas de cadastro, consulta, edição e remoção dos horários do profissional."""
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List

@@ -1,4 +1,6 @@
 # schemas/consulta_paciente.py
+"""Saídas das consultas do paciente logado (/consultas/minhas)."""
+
 from datetime import date, time
 from decimal import Decimal
 from typing import Optional, List
@@ -6,6 +8,8 @@ from pydantic import BaseModel
 
 
 class ProfissionalResumo(BaseModel):
+    """Profissional e especialidade da consulta."""
+
     id_profissional: int
     nome: str
     path_imagem: Optional[str] = None
@@ -13,11 +17,18 @@ class ProfissionalResumo(BaseModel):
 
 
 class AvaliacaoResumo(BaseModel):
+    """Avaliação que o paciente deu à consulta."""
+
     avaliacao: int
     feedback: Optional[str] = None
 
 
 class ConsultaPacienteResponse(BaseModel):
+    """Consulta do paciente, em GET /consultas/minhas/{id_consulta} e na lista.
+
+    pode_avaliar só é verdadeiro em consulta realizada ainda sem avaliação.
+    """
+
     id_consulta: int
     data: date
     hora: time
@@ -33,5 +44,7 @@ class ConsultaPacienteResponse(BaseModel):
 
 
 class ListaConsultasResponse(BaseModel):
+    """Resposta de GET /consultas/minhas."""
+
     total: int
     itens: List[ConsultaPacienteResponse]

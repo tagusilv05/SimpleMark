@@ -1,3 +1,5 @@
+"""Rotas de autenticação: login em duas etapas, conta logada e logout."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Body
@@ -56,6 +58,12 @@ def login(
         ),
     ],
 ) -> DesafioLoginResposta:
+    """Etapa 1 do login: confere a senha e envia o código de confirmação por e-mail.
+
+    Responde 401 com credencial errada, 403 com conta banida ou inativa, 422 com
+    identificador inválido, 429 com a conta bloqueada por tentativas e 503 se o
+    e-mail não sair.
+    """
     desafio = servico.iniciar_login(dados.identificador, dados.senha)
     minutos = max(1, desafio.expira_em_segundos // 60)
     unidade = "minuto" if minutos == 1 else "minutos"
@@ -99,6 +107,11 @@ def confirmar_login(
         ),
     ],
 ) -> TokenResposta:
+    """Etapa 2 do login: confere o código e, se estiver certo, abre a sessão.
+
+    Responde 401 com código inválido, expirado ou incorreto, 403 com conta banida
+    ou inativa e 429 com a conta bloqueada por tentativas.
+    """
     resultado = servico.confirmar_login(dados.id_desafio, dados.codigo)
     return TokenResposta(
         access_token=resultado.token,
@@ -114,6 +127,7 @@ def confirmar_login(
     responses={401: {"model": MensagemResposta}},
 )
 def eu(usuario: UsuarioAtual) -> UsuarioPublico:
+    """Devolve os dados públicos da conta logada. Sem token válido, responde 401."""
     return montar_usuario_publico(usuario)
 
 
@@ -124,4 +138,5 @@ def eu(usuario: UsuarioAtual) -> UsuarioPublico:
     responses={401: {"model": MensagemResposta}},
 )
 def sair(sessao: SessaoAtual, servico: ServicoSessaoDep) -> None:
+    """Encerra a sessão do token atual (logout). Sem token válido, responde 401."""
     servico.encerrar(sessao)

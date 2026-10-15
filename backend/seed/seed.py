@@ -32,6 +32,7 @@ from models.models import (
 )
 
 def criar_seed():
+    """Insere especialidades, 10 pacientes e 5 profissionais; desfaz tudo se falhar."""
     db = SessionLocal()
     try:
         especialidades = [

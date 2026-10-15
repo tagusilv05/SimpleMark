@@ -1,4 +1,5 @@
 # CRIADO: JOAO MARCOS 
+"""Rota de confirmação (criação) de consulta, com o link da videochamada."""
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends
 from sqlalchemy.orm import Session
@@ -16,6 +17,12 @@ router = APIRouter()
 # O link da videochamada (Jitsi) é gerado na hora; o e-mail ao paciente sai em segundo plano, depois da resposta
 @router.post("/confirmar-consulta")
 def confirmar_consulta(dados: ConfirmarConsultaInput, tarefas: BackgroundTasks, db: Session = Depends(get_db)):
+    """Cria a consulta, gera o link da videochamada e agenda o e-mail ao paciente.
+
+    Rota sem autenticação. Responde 400 se o paciente ou o profissional não existir
+    ou estiver inativo, ou se o profissional não tiver a especialidade; outros
+    erros, 500. Falha ao gerar o link não desfaz a consulta.
+    """
     try:
 
         consulta = service_confirmar_consulta(dados, db)

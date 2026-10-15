@@ -4,6 +4,7 @@
 # nenhum teste envia e-mail de verdade. As tarefas em segundo plano rodam na
 # mesma sessão do teste, e o backoff não espera de verdade (as esperas ficam
 # registradas).
+"""Testes da videochamada (Jitsi Meet) da consulta."""
 import logging
 import re
 from datetime import date, time, timedelta
@@ -26,17 +27,21 @@ class _SessaoCompartilhada:
     """A sessão do teste, sem deixar a tarefa em segundo plano fechá-la."""
 
     def __init__(self, db):
+        """Guarda a sessão real do teste."""
         self._db = db
 
     def __getattr__(self, nome):
+        """Repassa qualquer atributo para a sessão real."""
         return getattr(self._db, nome)
 
     def close(self):
+        """Ignora o fechamento para a sessão seguir aberta no teste."""
         pass
 
 
 @pytest.fixture
 def integracoes(monkeypatch, db):
+    """Troca sessão, envio de e-mail e espera do backoff por dublês."""
     monkeypatch.delenv("JITSI_BASE_URL", raising=False)
     dubles = SimpleNamespace(emails=[], esperas=[])
     monkeypatch.setattr(videochamada, "fabrica_sessao", lambda: _SessaoCompartilhada(db))
@@ -73,6 +78,7 @@ def nova_consulta(db, agenda):
     """Cria uma consulta sem link, como as que existiam antes da integração."""
 
     def _criar(hora=time(14, 0), status="agendada") -> int:
+        """Grava a consulta no horário e status pedidos e devolve o id."""
         consulta = Consulta(
             id_paciente=agenda.id_paciente,
             id_esp_prof=agenda.esp_prof,
@@ -91,7 +97,9 @@ def nova_consulta(db, agenda):
 
 @pytest.fixture
 def logar(app):
+    """Fábrica que loga o usuário informado trocando a dependência de sessão."""
     def _logar(usuario):
+        """Faz o usuário informado ser o usuário logado."""
         app.dependency_overrides[usuario_atual] = lambda: usuario
 
     yield _logar
@@ -99,15 +107,18 @@ def logar(app):
 
 
 def _texto(mensagem) -> str:
+    """Extrai o corpo em texto puro do e-mail."""
     return mensagem.get_body(preferencelist=("plain",)).get_content()
 
 
 def _consulta(db, id_consulta) -> Consulta:
+    """Relê a consulta do banco, descartando o cache da sessão."""
     db.expire_all()
     return db.get(Consulta, id_consulta)
 
 
 def _com_link(db, nova_consulta, **kwargs) -> tuple[int, str]:
+    """Cria uma consulta, gera o link dela e devolve id e link."""
     id_consulta = nova_consulta(**kwargs)
     videochamada.garantir_link(db, id_consulta)
     return id_consulta, _consulta(db, id_consulta).meet_link
@@ -119,6 +130,7 @@ def _com_link(db, nova_consulta, **kwargs) -> tuple[int, str]:
 
 
 def test_confirmar_consulta_gera_link_e_envia_email_ao_paciente(client, db, agenda, integracoes):
+    """Confirmar consulta gera link Jitsi e envia ao paciente e-mail sem excessos."""
     resposta = client.post(
         "/consulta/confirmar-consulta",
         json={
@@ -154,9 +166,11 @@ def test_confirmar_consulta_gera_link_e_envia_email_ao_paciente(client, db, agen
 
 
 def test_nome_da_sala_e_so_prefixo_mais_aleatorio(db, nova_consulta, integracoes, monkeypatch):
+    """O nome da sala é só o prefixo mais o token aleatório de 16 bytes."""
     pedidos = []
 
     def _aleatorio(nbytes):
+        """Registra o tamanho pedido e devolve um token fixo."""
         pedidos.append(nbytes)
         return "TOKENALEATORIO"
 
@@ -171,6 +185,7 @@ def test_nome_da_sala_e_so_prefixo_mais_aleatorio(db, nova_consulta, integracoes
 
 
 def test_nome_da_sala_e_imprevisivel(integracoes):
+    """500 links gerados são todos diferentes e no formato esperado."""
     links = {videochamada.gerar_link_sala() for _ in range(500)}
 
     assert len(links) == 500
@@ -178,6 +193,7 @@ def test_nome_da_sala_e_imprevisivel(integracoes):
 
 
 def test_jitsi_base_url_configuravel(monkeypatch):
+    """JITSI_BASE_URL muda o servidor usado no link."""
     monkeypatch.setenv("JITSI_BASE_URL", "https://jitsi.simplemark.test/")
 
     link = videochamada.gerar_link_sala()
@@ -186,6 +202,7 @@ def test_jitsi_base_url_configuravel(monkeypatch):
 
 
 def test_nunca_dois_links_para_a_mesma_consulta(db, nova_consulta, integracoes):
+    """Consulta que já tem link não ganha outro, nem pela tarefa de e-mail."""
     id_consulta, link = _com_link(db, nova_consulta)
 
     assert videochamada.garantir_link(db, id_consulta) is False
@@ -195,6 +212,7 @@ def test_nunca_dois_links_para_a_mesma_consulta(db, nova_consulta, integracoes):
 
 
 def test_link_gravado_por_outra_requisicao_nao_e_trocado(db, nova_consulta, integracoes):
+    """Link gravado por outra requisição é relido do banco e não é trocado."""
     id_consulta = nova_consulta()
     consulta = db.get(Consulta, id_consulta)
     assert consulta.meet_link is None  # a sessão "acha" que ainda não há link
@@ -212,6 +230,7 @@ def test_link_gravado_por_outra_requisicao_nao_e_trocado(db, nova_consulta, inte
 
 
 def test_banco_impede_a_mesma_sala_em_duas_consultas(db, nova_consulta, integracoes):
+    """O banco recusa o mesmo link em duas consultas com IntegrityError."""
     _, link = _com_link(db, nova_consulta)
     outra = db.get(Consulta, nova_consulta(hora=time(16, 0)))
 
@@ -222,6 +241,7 @@ def test_banco_impede_a_mesma_sala_em_duas_consultas(db, nova_consulta, integrac
 
 
 def test_tarefa_de_email_gera_o_link_que_faltou(db, nova_consulta, integracoes):
+    """A tarefa de e-mail gera o link que faltava e o envia ao paciente."""
     id_consulta = nova_consulta()
 
     videochamada.enviar_email_confirmacao(id_consulta)
@@ -233,7 +253,9 @@ def test_tarefa_de_email_gera_o_link_que_faltou(db, nova_consulta, integracoes):
 
 
 def test_falha_no_email_nao_afeta_o_link(db, nova_consulta, integracoes, monkeypatch):
+    """Falha no e-mail após 3 tentativas com backoff mantém o link gravado."""
     def _smtp_fora(_mensagem):
+        """Simula o servidor de e-mail fora do ar."""
         raise ErroEnvioEmail("Falha no servidor de e-mail (SMTPServerDisconnected).")
 
     monkeypatch.setattr(videochamada, "remetente_email", _smtp_fora)
@@ -246,9 +268,11 @@ def test_falha_no_email_nao_afeta_o_link(db, nova_consulta, integracoes, monkeyp
 
 
 def test_falha_temporaria_no_email_e_recuperada_na_retentativa(db, nova_consulta, integracoes, monkeypatch):
+    """Falha temporária no e-mail é superada na segunda tentativa."""
     falhas = [ErroEnvioEmail("Falha no servidor de e-mail (SMTPServerDisconnected).")]
 
     def _smtp_instavel(mensagem):
+        """Falha na primeira chamada e envia normalmente nas seguintes."""
         if falhas:
             raise falhas.pop()
         integracoes.emails.append(mensagem)
@@ -264,6 +288,7 @@ def test_falha_temporaria_no_email_e_recuperada_na_retentativa(db, nova_consulta
 
 @pytest.mark.parametrize("status", ["cancelado", "realizada"])
 def test_consulta_inativa_nao_recebe_link_nem_email(db, nova_consulta, integracoes, status):
+    """Consulta cancelada ou realizada não recebe link nem e-mail."""
     id_consulta = nova_consulta(status=status)
 
     assert videochamada.garantir_link(db, id_consulta) is False
@@ -274,6 +299,7 @@ def test_consulta_inativa_nao_recebe_link_nem_email(db, nova_consulta, integraco
 
 
 def test_logs_nao_trazem_link_nem_dado_pessoal(db, agenda, nova_consulta, integracoes, caplog):
+    """Os logs não trazem a sala, o e-mail nem o nome do paciente."""
     caplog.set_level(logging.INFO, logger="simplemark.videochamada")
     id_consulta, link = _com_link(db, nova_consulta)
     videochamada.enviar_email_confirmacao(id_consulta)
@@ -292,6 +318,7 @@ def test_logs_nao_trazem_link_nem_dado_pessoal(db, agenda, nova_consulta, integr
 
 
 def test_link_visivel_para_o_medico_e_o_paciente_da_consulta(client, db, agenda, nova_consulta, integracoes, logar):
+    """Médico e paciente da consulta veem o link, sem status interno."""
     id_consulta, link = _com_link(db, nova_consulta)
 
     for usuario in (agenda.medico, agenda.paciente):
@@ -303,6 +330,7 @@ def test_link_visivel_para_o_medico_e_o_paciente_da_consulta(client, db, agenda,
 
 
 def test_outro_medico_recebe_404_e_nao_gera_link(client, db, agenda, nova_consulta, integracoes, logar):
+    """Médico alheio recebe 404 em ver, reprocessar e cancelar, sem gerar link."""
     id_consulta = nova_consulta()
     logar(agenda.outro_medico)
 
@@ -317,6 +345,7 @@ def test_outro_medico_recebe_404_e_nao_gera_link(client, db, agenda, nova_consul
 
 
 def test_consulta_antiga_ganha_link_sob_demanda(client, db, agenda, nova_consulta, integracoes, logar):
+    """Consulta sem link ganha um ao ser consultada, sempre o mesmo, e um e-mail."""
     id_consulta = nova_consulta()  # sem link, como as consultas anteriores à integração
     logar(agenda.medico)
 
@@ -332,6 +361,7 @@ def test_consulta_antiga_ganha_link_sob_demanda(client, db, agenda, nova_consult
 
 
 def test_lista_de_consultas_do_paciente_traz_o_link(client, db, agenda, nova_consulta, integracoes, logar):
+    """A lista de consultas do paciente traz o link, sem status interno."""
     id_consulta, link = _com_link(db, nova_consulta)
     logar(agenda.paciente)
 
@@ -343,6 +373,7 @@ def test_lista_de_consultas_do_paciente_traz_o_link(client, db, agenda, nova_con
 
 
 def test_reprocessar_gera_o_link_que_falta_e_envia_o_email(client, db, agenda, nova_consulta, integracoes, logar):
+    """Reprocessar consulta sem link responde 202, gera o link e envia e-mail."""
     id_consulta = nova_consulta()
     logar(agenda.paciente)
 
@@ -356,6 +387,7 @@ def test_reprocessar_gera_o_link_que_falta_e_envia_o_email(client, db, agenda, n
 
 
 def test_reprocessar_mantem_o_link_e_reenvia_o_email(client, db, agenda, nova_consulta, integracoes, logar):
+    """Reprocessar consulta com link responde 202, mantém o link e reenvia e-mail."""
     id_consulta, link = _com_link(db, nova_consulta)
     logar(agenda.medico)
 
@@ -369,6 +401,7 @@ def test_reprocessar_mantem_o_link_e_reenvia_o_email(client, db, agenda, nova_co
 
 
 def test_reprocessar_recusa_consulta_cancelada(client, db, agenda, nova_consulta, integracoes, logar):
+    """Reprocessar consulta cancelada responde 400 sem gerar link nem e-mail."""
     id_consulta = nova_consulta(status="cancelada")
     logar(agenda.paciente)
 
@@ -385,6 +418,7 @@ def test_reprocessar_recusa_consulta_cancelada(client, db, agenda, nova_consulta
 
 
 def test_medico_reagenda_mantendo_o_link_e_avisa_o_paciente(client, db, agenda, nova_consulta, integracoes, logar):
+    """Médico reagenda, o link é mantido e o paciente recebe o novo horário."""
     id_consulta, link = _com_link(db, nova_consulta)
     logar(agenda.medico)
 
@@ -409,6 +443,7 @@ def test_medico_reagenda_mantendo_o_link_e_avisa_o_paciente(client, db, agenda, 
 
 
 def test_reagendar_consulta_sem_link_gera_o_link(client, db, agenda, nova_consulta, integracoes, logar):
+    """Reagendar consulta sem link gera o link e o envia no e-mail."""
     id_consulta = nova_consulta()
     logar(agenda.medico)
 
@@ -423,6 +458,7 @@ def test_reagendar_consulta_sem_link_gera_o_link(client, db, agenda, nova_consul
 
 
 def test_paciente_nao_pode_reagendar(client, agenda, nova_consulta, integracoes, logar):
+    """Paciente que tenta reagendar recebe 403 com mensagem clara."""
     id_consulta = nova_consulta()
     logar(agenda.paciente)
 
@@ -436,6 +472,7 @@ def test_paciente_nao_pode_reagendar(client, agenda, nova_consulta, integracoes,
 
 
 def test_reagendar_exige_horario_existente_e_livre(client, agenda, nova_consulta, integracoes, logar):
+    """Horário fora da agenda dá 400, ocupado dá 409, e nenhum e-mail sai."""
     id_consulta = nova_consulta()
     nova_consulta(hora=time(16, 0))  # outra consulta já ocupa as 16h
     logar(agenda.medico)
@@ -455,6 +492,7 @@ def test_reagendar_exige_horario_existente_e_livre(client, agenda, nova_consulta
 
 
 def test_cancelar_esconde_o_link_e_avisa_o_paciente(client, db, agenda, nova_consulta, integracoes, logar):
+    """Cancelar oculta o link, avisa o paciente sem link e recusa 2º cancelamento."""
     id_consulta, link = _com_link(db, nova_consulta)
     logar(agenda.paciente)
 
@@ -477,6 +515,7 @@ def test_cancelar_esconde_o_link_e_avisa_o_paciente(client, db, agenda, nova_con
 
 
 def test_consulta_cancelada_nao_devolve_link_em_nenhuma_rota(client, db, agenda, nova_consulta, integracoes, logar):
+    """Consulta cancelada não devolve o link nem na rota nem na lista."""
     id_consulta, _ = _com_link(db, nova_consulta)
     logar(agenda.medico)
     client.patch(f"/api/v1/consultas/{id_consulta}/cancelar")

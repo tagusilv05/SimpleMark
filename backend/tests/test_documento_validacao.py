@@ -1,22 +1,27 @@
 # Testes do endpoint público GET /api/v1/documentos/validar/{codigo_verificacao}
+"""Testes do endpoint público GET /api/v1/documentos/validar/{codigo_verificacao}."""
 from models.models import DocumentoClinico
 
 
 def _rota_qrcode(id_documento: int) -> str:
+    """Monta a rota de geração do QR-Code do documento."""
     return f"/api/v1/documentos/{id_documento}/qrcode"
 
 
 def _rota_validar(codigo: str) -> str:
+    """Monta a rota pública de validação do código."""
     return f"/api/v1/documentos/validar/{codigo}"
 
 
 def _gerar(client, criar_documento, autenticar, dono: int = 1, tipo: bool = True):
+    """Cria um documento, loga o dono e gera o QR-Code dele."""
     documento = criar_documento(dono=dono, tipo=tipo)
     autenticar(dono)
     return documento, client.post(_rota_qrcode(documento.id_documento)).json()
 
 
 def test_codigo_valido_confirma_o_documento(client, criar_documento, autenticar):
+    """Código válido responde 200 com tipo, profissional, conselho e datas."""
     documento, qrcode = _gerar(client, criar_documento, autenticar)
 
     resposta = client.get(_rota_validar(qrcode["codigo_verificacao"]))
@@ -34,6 +39,7 @@ def test_codigo_valido_confirma_o_documento(client, criar_documento, autenticar)
 
 
 def test_atestado_e_identificado_pelo_tipo(client, criar_documento, autenticar):
+    """Documento do tipo atestado é validado como ATESTADO."""
     _documento, qrcode = _gerar(client, criar_documento, autenticar, tipo=False)
 
     corpo = client.get(_rota_validar(qrcode["codigo_verificacao"])).json()
@@ -42,6 +48,7 @@ def test_atestado_e_identificado_pelo_tipo(client, criar_documento, autenticar):
 
 
 def test_codigo_inexistente_responde_404(client, cenario):
+    """Código que não existe responde 404 com `valido` falso."""
     resposta = client.get(_rota_validar("codigo-que-nunca-existiu"))
 
     assert resposta.status_code == 404
@@ -50,6 +57,7 @@ def test_codigo_inexistente_responde_404(client, cenario):
 
 
 def test_documento_sem_qrcode_nao_e_validavel(client, criar_documento):
+    """Documento sem QR-Code gerado não é validado: 404 e `valido` falso."""
     criar_documento(dono=1)
 
     resposta = client.get(_rota_validar("qualquer-coisa"))
@@ -59,6 +67,7 @@ def test_documento_sem_qrcode_nao_e_validavel(client, criar_documento):
 
 
 def test_validacao_e_publica_nao_exige_token(client, criar_documento, autenticar, app):
+    """A validação responde 200 mesmo sem ninguém logado."""
     from dependencies.autenticacao import usuario_atual
 
     _documento, qrcode = _gerar(client, criar_documento, autenticar)
@@ -70,6 +79,7 @@ def test_validacao_e_publica_nao_exige_token(client, criar_documento, autenticar
 
 
 def test_nao_expoe_dado_clinico_nem_paciente(client, criar_documento, autenticar, db):
+    """A validação não expõe observações nem dados do paciente."""
     documento, qrcode = _gerar(client, criar_documento, autenticar)
     db.expire_all()
     observacoes = db.get(DocumentoClinico, documento.id_documento).observacoes

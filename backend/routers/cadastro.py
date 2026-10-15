@@ -1,3 +1,5 @@
+"""Rotas públicas de cadastro de paciente e de profissional de saúde."""
+
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, status
@@ -55,6 +57,11 @@ def cadastrar_paciente(
         ),
     ],
 ) -> UsuarioPublico:
+    """Cria a conta do paciente, já ativa.
+
+    Rota pública. Responde 409 se o CPF ou o e-mail já estiverem cadastrados e 422
+    com dados inválidos.
+    """
     return montar_usuario_publico(servico.cadastrar_paciente(dados))
 
 
@@ -98,4 +105,10 @@ def cadastrar_profissional(
         ),
     ],
 ) -> UsuarioPublico:
+    """Cria a conta do profissional, inativa até a validação do administrador.
+
+    Rota pública. Especialidade que não existe é criada na hora. Responde 409 se o
+    CPF, o e-mail ou o número de conselho já estiverem cadastrados e 422 com dados
+    inválidos.
+    """
     return montar_usuario_publico(servico.cadastrar_profissional(dados))

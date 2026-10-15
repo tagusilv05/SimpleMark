@@ -1,3 +1,5 @@
+"""Agenda de horários do profissional por vínculo com a especialidade."""
+
 from models.models import DataHorario, ProfissionalEspecialidade
 from repositories import horarios_profissional as horario_repository
 

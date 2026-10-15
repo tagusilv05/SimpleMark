@@ -1,4 +1,6 @@
 # routers/busca_profissional.py
+"""Rota pública de busca de profissionais com horários livres para agendamento."""
+
 from datetime import date, time
 
 from fastapi import APIRouter, Depends, Query
@@ -53,6 +55,12 @@ def buscar(
     ),
     db: Session = Depends(get_db),
 ):
+    """Busca profissionais por especialidade, período, horário e valor da consulta.
+
+    Rota pública. Cada vínculo profissional-especialidade vem com os horários livres
+    a partir de hoje; quem não tem horário livre fica de fora. Responde 400 com
+    intervalo de data, horário ou valor invertido.
+    """
     filtro = FiltroBuscaProfissional(
         id_especialidade=id_especialidade,
         especialidade=especialidade,

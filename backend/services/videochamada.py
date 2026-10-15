@@ -78,6 +78,7 @@ def gerar_link_sala() -> str:
 
 
 def _momento(data_consulta: date, hora: time) -> datetime:
+    """Data e hora no fuso das consultas (FUSO_CONSULTAS)."""
     return datetime.combine(data_consulta, hora, tzinfo=ZoneInfo(FUSO_CONSULTAS))
 
 
@@ -87,10 +88,12 @@ def inicio_da_consulta(consulta: Consulta) -> datetime:
 
 
 def _usuario_paciente(consulta: Consulta) -> Usuario:
+    """Usuário do paciente da consulta."""
     return consulta.paciente.usuario
 
 
 def _usuario_profissional(consulta: Consulta) -> Usuario:
+    """Usuário do profissional da consulta."""
     return consulta.profissional_especialidade.profissional.usuario
 
 
@@ -115,6 +118,7 @@ def _ativa(consulta: Consulta) -> bool:
 
 
 def _dados_email(consulta: Consulta) -> DadosEmailConsulta:
+    """Dados dos e-mails da consulta; consulta cancelada vai sem link."""
     paciente = _usuario_paciente(consulta)
     link = None if consulta.status in STATUS_CANCELADOS else consulta.meet_link
     return DadosEmailConsulta(

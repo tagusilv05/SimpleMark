@@ -1,3 +1,5 @@
+"""Listagem das consultas da agenda do profissional."""
+
 from datetime import date
 from sqlalchemy.orm import Session, joinedload
 from models.models import Consulta, Paciente, Profissional, ProfissionalEspecialidade
@@ -11,6 +13,7 @@ def _buscar_consultas_do_profissional(
     data_inicio: date | None,
     data_fim: date | None,
 ) -> list[Consulta]:
+    """Consultas do profissional com filtros opcionais, por data e hora."""
     query = (
         db.query(Consulta)
         .join(
@@ -36,6 +39,7 @@ def _buscar_consultas_do_profissional(
 
 
 def _para_schema(c: Consulta) -> ConsultaProfissionalOut:
+    """Monta a resposta da consulta com os dados de contato do paciente."""
     usuario = c.paciente.usuario
     return ConsultaProfissionalOut(
         id_consulta=c.id_consulta,
@@ -62,6 +66,7 @@ def listar_consultas_do_profissional(
     data_inicio: date | None = None,
     data_fim: date | None = None,
 ) -> list[ConsultaProfissionalOut] | None:
+    """Consultas do profissional, ou None se ele não existir."""
     profissional = (
         db.query(Profissional)
         .filter(Profissional.id_profissional == id_profissional)

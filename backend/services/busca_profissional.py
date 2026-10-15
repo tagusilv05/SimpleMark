@@ -1,3 +1,5 @@
+"""Busca pública de profissionais por especialidade, data, horário e valor."""
+
 # Busca de profissionais de saúde por especialidade, data, horário livre e
 # valor da consulta.
 #
@@ -49,12 +51,14 @@ def _normalizar(filtro: FiltroBuscaProfissional, momento: datetime) -> FiltroBus
 
 
 def _descrever_conselho(conselho) -> str | None:
+    """Conselho no formato "ÓRGÃO NÚMERO", ou None se não houver."""
     if conselho is None:
         return None
     return f"{conselho.orgao_conselho} {conselho.numero_conselho}"
 
 
 def _ficha(vinculo: ProfissionalEspecialidade) -> ProfissionalBuscaOutput:
+    """Ficha do vínculo profissional+especialidade, ainda sem horários."""
     profissional = vinculo.profissional
     return ProfissionalBuscaOutput(
         id_esp_prof=vinculo.id_esp_prof,
@@ -95,10 +99,12 @@ def _agrupar_por_vinculo(horarios: list[DataHorario]) -> list[ProfissionalBuscaO
 
 
 def _chave_valor(ficha: ProfissionalBuscaOutput):
+    """Ordena pelo menor valor da consulta e, no empate, pelo nome."""
     return (ficha.valor_consulta, ficha.nome.casefold())
 
 
 def _chave_avaliacao(ficha: ProfissionalBuscaOutput):
+    """Ordena pela maior avaliação, com os não avaliados no fim."""
     # Maior nota primeiro; quem ainda não foi avaliado fica no fim da lista.
     return (ficha.avaliacao is None, -(ficha.avaliacao or 0.0), ficha.nome.casefold())
 

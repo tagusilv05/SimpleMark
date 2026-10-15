@@ -1,4 +1,5 @@
 # CRIADO: JOAO MARCOS 
+"""Rota que lista as avaliações recebidas por um profissional numa especialidade."""
 
 from fastapi import APIRouter,  HTTPException,  Depends
 from sqlalchemy.orm import Session
@@ -18,6 +19,11 @@ router = APIRouter()
 # Busca as avaliações do profissional por especialidade 
 @router.post("/buscar-avaliacoes", response_model=AvaliacaoConsultaOutput)
 def buscar_avaliacoes(dados: AvaliacaoConsultaInput, db: Session = Depends(get_db)):
+    """Lista as avaliações do profissional na especialidade, com o total por nota.
+
+    Rota sem autenticação. Responde 400 se o usuário não for profissional ativo, se
+    não tiver a especialidade ou se não houver avaliações; outros erros, 500.
+    """
     try:
 
         avaliacao, total, sub_total = service_buscar_avaliacoes_profissional(dados, db)

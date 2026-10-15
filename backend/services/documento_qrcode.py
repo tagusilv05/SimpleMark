@@ -1,3 +1,5 @@
+"""Identificador único e QR-Code dos documentos clínicos."""
+
 # Geração do identificador único e do QR-Code de um documento clínico
 # (receita ou atestado), no lado do profissional.
 #
@@ -44,6 +46,7 @@ def montar_url_validacao(codigo_verificacao: str) -> str:
 
 
 def _gerar_qrcode_base64(url: str) -> str:
+    """Imagem PNG do QR-Code da URL, em base64."""
     imagem = qrcode.make(url)
     buffer = io.BytesIO()
     imagem.save(buffer, format="PNG")

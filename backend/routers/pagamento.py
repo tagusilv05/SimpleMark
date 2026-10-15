@@ -1,3 +1,5 @@
+"""Rotas de pagamento das consultas pelo Mercado Pago."""
+
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
@@ -22,6 +24,7 @@ router = APIRouter(prefix="/pagamento", tags=["Pagamento"])
 
 
 def _paciente_logado(usuario: UsuarioAtual) -> Paciente:
+    """Devolve o paciente da conta logada; outros perfis recebem 403."""
     paciente = usuario.paciente
     if paciente is None:
         raise ErroNegocio("Apenas pacientes podem realizar o pagamento.", 403)
@@ -34,6 +37,13 @@ def criar_preferencia(
     usuario: UsuarioAtual,
     db: Session = Depends(get_db),
 ):
+    """Cria a preferência de pagamento da consulta no Mercado Pago.
+
+    Somente o paciente da consulta (403 para outros perfis). Responde 404 se a
+    consulta não existir ou for de outro paciente, 400 se estiver cancelada, sem
+    valor ou já paga e 502 se o Mercado Pago não devolver o link. O pagamento
+    local fica pendente.
+    """
     resultado = criar_preferencia_consulta(dados.id_consulta, _paciente_logado(usuario), db)
     return PreferenciaSaida(**resultado)
 
@@ -45,6 +55,12 @@ def retorno_sucesso(
     collection_id: str | None = Query(default=None),
     external_reference: str | None = Query(default=None),
 ):
+    """Retorno do Mercado Pago depois do pagamento aprovado.
+
+    Rota pública. Consulta o pagamento no Mercado Pago, atualiza o status local e
+    devolve o resultado. Responde 400 se o external_reference não for um id de
+    consulta.
+    """
     return processar_retorno(payment_id, collection_id, external_reference, db)
 
 
@@ -55,6 +71,7 @@ def retorno_pendente(
     collection_id: str | None = Query(default=None),
     external_reference: str | None = Query(default=None),
 ):
+    """Retorno do Mercado Pago com pagamento pendente; mesmo tratamento do sucesso."""
     return processar_retorno(payment_id, collection_id, external_reference, db)
 
 
@@ -65,11 +82,17 @@ def retorno_falha(
     collection_id: str | None = Query(default=None),
     external_reference: str | None = Query(default=None),
 ):
+    """Retorno do Mercado Pago com pagamento recusado; mesmo tratamento do sucesso."""
     return processar_retorno(payment_id, collection_id, external_reference, db)
 
 
 @router.post("/notificacao")
 async def notificacao(request: Request, db: Session = Depends(get_db)):
+    """Webhook do Mercado Pago: atualiza o status local do pagamento notificado.
+
+    Rota pública. Lê o id do pagamento da query string ou do corpo; notificação
+    que não é de pagamento, ou sem id, é ignorada.
+    """
     id_pagamento = request.query_params.get("data.id") or request.query_params.get("id")
 
     try:
@@ -100,6 +123,11 @@ def obter_pagamento(
     usuario: UsuarioAtual,
     db: Session = Depends(get_db),
 ):
+    """Devolve o pagamento da consulta, sincronizado com o Mercado Pago.
+
+    Somente o paciente da consulta (403 para outros perfis). Responde 404 se a
+    consulta não existir, for de outro paciente ou não tiver pagamento.
+    """
     paciente = _paciente_logado(usuario)
     pagamento = consultar_pagamento(id_consulta, paciente, db)
     return PagamentoSaida(

@@ -15,6 +15,7 @@ class RepositorioAdministracao:
     """Consultas da área administrativa. Não aplica regra de negócio."""
 
     def __init__(self, db: Session) -> None:
+        """Guarda a sessão do banco usada nas consultas."""
         self.db = db
 
     def ids_usuarios_banidos(self) -> set[uuid.UUID]:

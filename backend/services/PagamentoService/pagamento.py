@@ -1,3 +1,9 @@
+"""Pagamento da consulta pelo paciente via checkout do Mercado Pago.
+
+A consulta é ligada ao pagamento pelo external_reference (id da consulta), e
+o status do Mercado Pago é traduzido para o status local por STATUS_MP.
+"""
+
 import os
 
 from models.models import Consulta, Paciente, Pagamento
@@ -34,6 +40,12 @@ STATUS_MP = {
 
 
 def criar_preferencia_consulta(id_consulta: int, paciente: Paciente, db: Session):
+    """Cria o checkout do Mercado Pago para a consulta do paciente.
+
+    Recusa com ErroNegocio 400 consulta cancelada, valor zerado ou negativo e
+    consulta já paga; sem init_point na resposta, levanta 502. Cria o pagamento
+    local como "pendente" ou volta para "pendente" o que já existia.
+    """
     consulta = _consulta_do_paciente(id_consulta, paciente, db)
 
     if consulta.status == "cancelado":
@@ -68,6 +80,11 @@ def criar_preferencia_consulta(id_consulta: int, paciente: Paciente, db: Session
 
 
 def consultar_pagamento(id_consulta: int, paciente: Paciente, db: Session):
+    """Status do pagamento da consulta, sincronizado com o Mercado Pago.
+
+    Levanta ErroNegocio 404 se a consulta não for do paciente ou se não houver
+    pagamento.
+    """
     consulta = _consulta_do_paciente(id_consulta, paciente, db)
     pagamento = _sincronizar_por_referencia(consulta, db)
     if pagamento is None:
@@ -76,6 +93,11 @@ def consultar_pagamento(id_consulta: int, paciente: Paciente, db: Session):
 
 
 def processar_retorno(payment_id: str | None, collection_id: str | None, external_reference: str | None, db: Session):
+    """Trata o retorno do checkout (back_urls) e atualiza o pagamento local.
+
+    Usa o payment_id (ou collection_id) para buscar o pagamento; sem ele, ou se
+    não achar a consulta, sincroniza pelo external_reference.
+    """
     id_mp = payment_id or collection_id
     pagamento = None
     status = "pendente"
@@ -102,6 +124,10 @@ def processar_retorno(payment_id: str | None, collection_id: str | None, externa
 
 
 def processar_notificacao(id_pagamento: str | None, db: Session):
+    """Trata a notificação (webhook) do Mercado Pago e atualiza o pagamento.
+
+    Sem id ou sem consulta correspondente, devolve status "ignorado".
+    """
     if not id_pagamento:
         return {"status": "ignorado"}
 
@@ -113,6 +139,7 @@ def processar_notificacao(id_pagamento: str | None, db: Session):
 
 
 def _consulta_do_paciente(id_consulta: int, paciente: Paciente, db: Session) -> Consulta:
+    """Consulta do paciente; 404 se não existir ou for de outro paciente."""
     consulta = buscar_consulta_por_id(id_consulta, db)
     if consulta is None:
         raise ErroNegocio("Consulta nao encontrada.", 404)
@@ -122,6 +149,10 @@ def _consulta_do_paciente(id_consulta: int, paciente: Paciente, db: Session) -> 
 
 
 def _montar_preferencia(consulta: Consulta) -> dict:
+    """Monta o corpo da preferência: item, pagador, back_urls e referência.
+
+    Telefone e endereço só entram quando o usuário tem dados suficientes.
+    """
     usuario = consulta.paciente.usuario
     nome, sobrenome = _nome_e_sobrenome(usuario.nome)
     preferencia = {
@@ -166,6 +197,11 @@ def _montar_preferencia(consulta: Consulta) -> dict:
 
 
 def _sincronizar_por_referencia(consulta: Consulta, db: Session) -> Pagamento | None:
+    """Atualiza o pagamento local a partir da busca por external_reference.
+
+    Pagamento já aprovado não é consultado de novo. Entre os resultados, vale o
+    de status mais relevante.
+    """
     pagamento = consulta.pagamento or buscar_pagamento_por_consulta(consulta.id_consulta, db)
     if pagamento and pagamento.status == "aprovado":
         return pagamento
@@ -180,6 +216,11 @@ def _sincronizar_por_referencia(consulta: Consulta, db: Session) -> Pagamento | 
 
 
 def _aplicar_pagamento_mp(dados: dict, db: Session) -> Pagamento | None:
+    """Grava no pagamento local o status de um pagamento do Mercado Pago.
+
+    Cria o pagamento se ainda não existir. Devolve None se a referência não
+    apontar para uma consulta.
+    """
     id_consulta = _id_consulta_opcional(dados.get("external_reference"))
     if id_consulta is None:
         return None
@@ -196,6 +237,7 @@ def _aplicar_pagamento_mp(dados: dict, db: Session) -> Pagamento | None:
 
 
 def _pagamento_mais_relevante(resultados: list) -> dict:
+    """Escolhe o resultado de status mais forte (aprovado antes de pendente etc.)."""
     ordem = {
         "approved": 0,
         "authorized": 1,
@@ -210,10 +252,12 @@ def _pagamento_mais_relevante(resultados: list) -> dict:
 
 
 def _status_local(status_mp) -> str:
+    """Traduz o status do Mercado Pago; desconhecido vira "pendente"."""
     return STATUS_MP.get(str(status_mp), "pendente")
 
 
 def _nome_e_sobrenome(nome_completo: str):
+    """Separa o primeiro nome do resto, com valores padrão se faltar."""
     partes = (nome_completo or "").strip().split()
     if not partes:
         return "Paciente", "SimpleMark"
@@ -223,10 +267,12 @@ def _nome_e_sobrenome(nome_completo: str):
 
 
 def _somente_digitos(valor: str) -> str:
+    """Mantém só os dígitos do texto."""
     return "".join(caractere for caractere in (valor or "") if caractere.isdigit())
 
 
 def _telefone(telefone: str) -> dict | None:
+    """Telefone no formato do Mercado Pago, ou None se tiver menos de 10 dígitos."""
     digitos = _somente_digitos(telefone)
     if len(digitos) < 10:
         return None
@@ -237,6 +283,7 @@ def _telefone(telefone: str) -> dict | None:
 
 
 def _endereco(endereco) -> dict | None:
+    """Endereço no formato do Mercado Pago; o número só entra se tiver dígitos."""
     if endereco is None:
         return None
 
@@ -251,6 +298,7 @@ def _endereco(endereco) -> dict | None:
 
 
 def _id_consulta(external_reference: str) -> int:
+    """Converte o external_reference em id; inválido levanta ErroNegocio 400."""
     try:
         return int(str(external_reference))
     except (TypeError, ValueError):
@@ -258,6 +306,7 @@ def _id_consulta(external_reference: str) -> int:
 
 
 def _id_consulta_opcional(external_reference) -> int | None:
+    """Converte o external_reference em id, ou None se for inválido."""
     try:
         return int(str(external_reference))
     except (TypeError, ValueError):

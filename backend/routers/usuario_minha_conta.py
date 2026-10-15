@@ -1,4 +1,5 @@
 # CRIADO: JOAO MARCOS 
+"""Rotas da conta do usuário: dados pessoais, endereço, exclusão e inativação."""
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
@@ -35,6 +36,11 @@ router = APIRouter()
 # Endpoint responsável por altera as informações pessoais do usuário e retorna os dados atualizados.
 @router.put("/altera-info-pessoal", response_model=AltereInfoPessoalOutput)
 async def altera_info_pessoal(dados: AltereInfoPessoalInput, db: Session = Depends(get_db)):
+    """Altera nome, e-mail e telefone do usuário e devolve os dados atualizados.
+
+    Só muda os campos enviados. Rota sem autenticação. Responde 400 se o usuário
+    não existir ou se a gravação falhar.
+    """
     try:
         info_usuario = services_altera_info_pessoal(dados=dados, db=db)
         return info_usuario
@@ -49,6 +55,11 @@ async def altera_info_pessoal(dados: AltereInfoPessoalInput, db: Session = Depen
 # Endpoint responsável por altera o endereço do usuário e retorna os dados atualizados.
 @router.put("/altera-endereco", response_model=AltereEnderecoOutput)
 async def altera_endereco(dados: AltereEnderecoInput, db: Session = Depends(get_db)):
+    """Altera o endereço do usuário e devolve o endereço atualizado.
+
+    Só muda os campos enviados. Rota sem autenticação. Responde 400 se o endereço
+    não existir ou se a gravação falhar.
+    """
     try:
         endereco = service_altera_endereco(dados=dados, db=db)
         return endereco
@@ -63,6 +74,7 @@ async def altera_endereco(dados: AltereEnderecoInput, db: Session = Depends(get_
 # Endpoint responsável por buscar as informações de endereço do usuário
 @router.get("/buscar-info-endereco/{id_usuario}", response_model=BuscarInfoEnderecoOutput)
 async def buscar_info_endereco(id_usuario: uuid.UUID, db: Session = Depends(get_db)):
+    """Devolve o endereço do usuário. Rota sem autenticação."""
     try:
         endereco = repositories_buscar_endereco_por_usuario(id_usuario=id_usuario, db=db)
         return endereco
@@ -77,6 +89,7 @@ async def buscar_info_endereco(id_usuario: uuid.UUID, db: Session = Depends(get_
 # Endpoint responsável por buscar as informações do usuário
 @router.get("/buscar-info-usuario/{id_usuario}", response_model=BuscarInfoUsuarioOutput)
 async def buscar_info_usuario(id_usuario: uuid.UUID, db: Session = Depends(get_db)):
+    """Devolve as informações do usuário. Rota sem autenticação."""
     try:
         info_usuario = repositories_buscar_usuario_por_id(id_usuario=id_usuario, db=db)
         return info_usuario
@@ -92,6 +105,12 @@ async def buscar_info_usuario(id_usuario: uuid.UUID, db: Session = Depends(get_d
 # Endpoint responsável por excluir um usuário de acordo com o seu tipo
 @router.delete("/excluir-usuario")
 async def deletar_usuario(dados: ExcluirUsuarioInput, db: Session = Depends(get_db)):
+    """Exclui o paciente ou o profissional, conforme o tipo, e os dados ligados a ele.
+
+    Paciente leva as consultas e o endereço; profissional leva especialidades,
+    horários, conselhos e endereço. Rota sem autenticação. Responde 404 se o
+    usuário não existir, estiver inativo ou não for do tipo informado.
+    """
     try:
         if dados.tipo == "paciente":
             service_excluir_paciente(id_usuario=dados.id, db=db)
@@ -112,6 +131,10 @@ async def deletar_usuario(dados: ExcluirUsuarioInput, db: Session = Depends(get_
 # Endpoint responsável por inativa o usuário alterando seu status para False
 @router.patch("/inativar-usuario")
 async def inativar_usuario(id_usuario: uuid.UUID, db: Session = Depends(get_db)):
+    """Inativa a conta do usuário; o id_usuario vem na query string.
+
+    Rota sem autenticação. Responde 404 se o usuário não existir.
+    """
     try:
         service_inativar_usuario(id_usuario=id_usuario, db=db)
         return {"mensagem": "Usuário inativado com sucesso"}

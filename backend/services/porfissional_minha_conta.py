@@ -1,3 +1,5 @@
+"""Tela "Minha conta" do profissional: dados, especialidades, imagem e exclusão."""
+
 # CRIADO: JOAO MARCOS 
 
 from sqlalchemy.orm import Session
@@ -22,6 +24,11 @@ from repositories.usuario_minha_conta import (
 
 # Busca o usuário, verifica se está ativo e retorna o profissional associado
 def verificar_profissional_usuario(id_usuario, db: Session):
+    """Profissional ligado ao usuário.
+
+    Levanta ValueError se o usuário não existir, estiver inativo ou não for
+    profissional.
+    """
 
     usuario = repositories_buscar_usuario_por_id(id_usuario=id_usuario, db=db)
 
@@ -44,6 +51,7 @@ from datetime import datetime
 
 # Atualiza a imagem do profissional no diretório de uploads
 async def atualizar_imagem_profissional(imagem):
+    """Salva a imagem enviada em uploads/profissionais e devolve o caminho."""
 
     pasta = Path("uploads/profissionais")
     pasta.mkdir(parents=True, exist_ok=True)
@@ -66,6 +74,11 @@ async def atualizar_imagem_profissional(imagem):
 
 # Altera as informações do profissional, incluindo imagem e especialidades, e confirma as alterações no banco de dados.
 async def altera_info_profissional(dados, imagem, db: Session):
+    """Atualiza a descrição, a imagem e adiciona especialidades ao profissional.
+
+    Cada especialidade nova cria um conselho e um vínculo com o valor da consulta.
+    Levanta ValueError se uma especialidade não existir. Em erro faz rollback.
+    """
 
     try:
 
@@ -118,6 +131,7 @@ async def altera_info_profissional(dados, imagem, db: Session):
 
 # Busca as informações do profissional e suas especialidades vinculadas
 def buscar_info_profissional(id_usuario, db: Session):
+    """Descrição do profissional e suas especialidades com conselho e valor."""
 
     profissional = verificar_profissional_usuario(id_usuario=id_usuario, db=db)
 
@@ -153,6 +167,10 @@ def buscar_info_profissional(id_usuario, db: Session):
 
 # Altera o valor da consulta de uma especialidade do profissional
 def alterar_valor_consulta(dados, db: Session):
+    """Altera o valor da consulta do profissional em uma especialidade.
+
+    Levanta ValueError se o vínculo não existir ou se o valor for negativo.
+    """
     try:
 
         profissional = verificar_profissional_usuario(id_usuario=dados.id_usuario, db=db)
@@ -183,6 +201,10 @@ def alterar_valor_consulta(dados, db: Session):
 
 # Salva a imagem do profissional e adiciona o caminho no banco
 async def salvar_imagem_profissional(id_usuario, imagem, db: Session):
+    """Salva a imagem enviada e grava o caminho no profissional.
+
+    Devolve o caminho do arquivo. Em erro faz rollback e relança.
+    """
     try:
         profissional = verificar_profissional_usuario(id_usuario=id_usuario, db=db)
 
@@ -220,6 +242,7 @@ async def salvar_imagem_profissional(id_usuario, imagem, db: Session):
 
 # Busca o caminho da imagem do profissional
 def buscar_imagem_profissional(id_usuario, db: Session):
+    """Caminho da imagem do profissional; ValueError se não houver arquivo."""
 
     profissional = verificar_profissional_usuario(id_usuario=id_usuario, db=db)
 
@@ -235,6 +258,7 @@ def buscar_imagem_profissional(id_usuario, db: Session):
 
 # Exclui a imagem do profissional 
 async def deletar_imagem_profissional(nome_arquivo):
+    """Apaga o arquivo da imagem em uploads/profissionais, se existir."""
 
     caminho = Path("uploads/profissionais") / nome_arquivo
 
@@ -247,6 +271,11 @@ async def deletar_imagem_profissional(nome_arquivo):
 
 # Exclui o profissional e todos os dados relacionados a ele
 def excluir_profissional(id_usuario, db: Session):
+    """Exclui o profissional com vínculos, horários, conselhos, endereço e usuário.
+
+    Levanta ValueError se o usuário não for profissional ativo. Em erro faz
+    rollback e relança.
+    """
     try:
         
         profissional = verificar_profissional_usuario(id_usuario=id_usuario, db=db)
@@ -299,6 +328,10 @@ def excluir_profissional(id_usuario, db: Session):
 
 # Exclui uma especialidade do profissional
 def excluir_especialidade_profissional(id_usuario, id_especialidade: int, db: Session):
+    """Remove uma especialidade do profissional com seus horários e conselho.
+
+    Levanta ValueError se a especialidade não for do profissional.
+    """
     try:
 
         profissional = verificar_profissional_usuario(id_usuario=id_usuario, db=db)

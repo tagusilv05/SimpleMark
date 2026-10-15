@@ -1,3 +1,5 @@
+"""Listagem e detalhe das consultas do paciente."""
+
 from datetime import date
 from typing import Optional
 
@@ -19,6 +21,11 @@ from schemas.videochamada import link_visivel
 
 
 def _to_response(consulta: Consulta) -> ConsultaPacienteResponse:
+    """Monta a resposta da consulta para o paciente.
+
+    Inclui o profissional, o status do pagamento, a avaliação, se ainda pode
+    avaliar e o link da videochamada quando visível.
+    """
     profissional_especialidade = consulta.profissional_especialidade
     profissional = profissional_especialidade.profissional
 
@@ -60,6 +67,10 @@ def listar_consultas(
     skip: int,
     limit: int,
 ) -> ListaConsultasResponse:
+    """Consultas do paciente com filtros de status e período, paginadas.
+
+    Levanta HTTPException 400 se data_inicio for maior que data_fim.
+    """
     if data_inicio and data_fim and data_inicio > data_fim:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
@@ -78,6 +89,7 @@ def listar_consultas(
 def detalhar_consulta(
     db: Session, id_consulta: int, id_paciente: int
 ) -> ConsultaPacienteResponse:
+    """Detalhe de uma consulta do paciente; 404 se não existir ou for de outro."""
     consulta = buscar_por_id_e_paciente(db, id_consulta, id_paciente)
     if consulta is None:
         # Também retorna 404 para consultas de outros pacientes.
