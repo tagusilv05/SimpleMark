@@ -19,6 +19,7 @@ class ServicoAdministracao:
     """Consulta de IDs, banimento de contas e registro das ações do administrador."""
 
     def __init__(self, db: Session) -> None:
+        """Guarda a sessão do banco e monta o repositório de administração."""
         self.db = db
         self.repo = RepositorioAdministracao(db)
 

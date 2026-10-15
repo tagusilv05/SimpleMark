@@ -21,6 +21,7 @@ class ServicoSessao:
     """Controla a sessão de login: abertura, validação com renovação e encerramento."""
 
     def __init__(self, db: Session) -> None:
+        """Guarda a sessão do banco e monta o repositório de sessões de login."""
         self.db = db
         self.sessoes = RepositorioSessaoLogin(db)
 

@@ -1,3 +1,5 @@
+"""Entradas do cadastro de pacientes e profissionais e a lista de pendentes."""
+
 from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -30,26 +32,31 @@ class CadastroUsuarioEntrada(BaseModel):
     @field_validator("cpf")
     @classmethod
     def cpf_valido(cls, valor: str) -> str:
+        """Normaliza e valida o CPF."""
         return normalizar_cpf(valor)
 
     @field_validator("email")
     @classmethod
     def email_valido(cls, valor: str) -> str:
+        """Normaliza e valida o e-mail."""
         return normalizar_email(valor)
 
     @field_validator("cep")
     @classmethod
     def cep_valido(cls, valor: str) -> str:
+        """Normaliza e valida o CEP."""
         return normalizar_cep(valor)
 
     @field_validator("telefone")
     @classmethod
     def telefone_valido(cls, valor: str) -> str:
+        """Normaliza e valida o telefone."""
         return normalizar_telefone(valor)
 
     @field_validator("senha")
     @classmethod
     def senha_minima(cls, valor: str) -> str:
+        """Recusa senha com menos de 8 caracteres."""
         if len(valor) < 8:
             raise ValueError("A senha deve ter no mínimo 8 caracteres.")
         return valor
@@ -57,6 +64,7 @@ class CadastroUsuarioEntrada(BaseModel):
     @field_validator("consentimento_lgpd")
     @classmethod
     def consentimento_obrigatorio(cls, valor: bool) -> bool:
+        """Exige o consentimento LGPD marcado."""
         if valor is not True:
             raise ValueError(
                 "É preciso autorizar o consentimento para o tratamento dos dados pessoais."
@@ -66,6 +74,7 @@ class CadastroUsuarioEntrada(BaseModel):
     @field_validator("data_nascimento")
     @classmethod
     def nascimento_no_passado(cls, valor: date) -> date:
+        """Exige data de nascimento anterior a hoje."""
         if valor >= date.today():
             raise ValueError("A data de nascimento precisa ser anterior a hoje. Use o formato AAAA-MM-DD.")
         return valor
@@ -73,6 +82,7 @@ class CadastroUsuarioEntrada(BaseModel):
     @field_validator("complemento")
     @classmethod
     def complemento_opcional(cls, valor: str | None) -> str | None:
+        """Trata complemento em branco como ausente."""
         if valor is None:
             return None
         texto = valor.strip()
@@ -80,6 +90,10 @@ class CadastroUsuarioEntrada(BaseModel):
 
 
 class CadastroProfissionalEntrada(CadastroUsuarioEntrada):
+    """Corpo de POST /cadastro/profissional: dados do paciente mais conselho,
+    apresentação e especialidades.
+    """
+
     numero_conselho: str = Field(min_length=1, max_length=30)
     orgao_conselho: str = Field(min_length=2, max_length=30)
     info_profissional: str = Field(min_length=3)
@@ -88,6 +102,9 @@ class CadastroProfissionalEntrada(CadastroUsuarioEntrada):
     @field_validator("especialidades")
     @classmethod
     def especialidades_validas(cls, valor: list[str]) -> list[str]:
+        """Limpa a lista: tira itens vazios e repetidos (sem diferenciar
+        maiúsculas) e exige ao menos uma especialidade de até 100 caracteres.
+        """
         limpas: list[str] = []
         for item in valor:
             nome = item.strip()
@@ -103,6 +120,10 @@ class CadastroProfissionalEntrada(CadastroUsuarioEntrada):
 
 
 class ProfissionalPendenteResposta(BaseModel):
+    """Profissional aguardando validação, em GET
+    /administracao/profissionais/pendentes.
+    """
+
     id_profissional: int
     nome: str
     email: str
@@ -113,6 +134,7 @@ class ProfissionalPendenteResposta(BaseModel):
 
     @classmethod
     def de_profissional(cls, profissional: Profissional) -> "ProfissionalPendenteResposta":
+        """Monta a resposta com as especialidades e o primeiro conselho achado."""
         numero = None
         orgao = None
         nomes: list[str] = []

@@ -13,6 +13,7 @@ class RepositorioSessaoLogin:
     """Sessões de login: criação, busca e registro de atividade. Não aplica regra de negócio."""
 
     def __init__(self, db: Session) -> None:
+        """Guarda a sessão do banco usada nas consultas."""
         self.db = db
 
     def criar(self, id_usuario: uuid.UUID, agora: datetime) -> SessaoLogin:

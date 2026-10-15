@@ -25,6 +25,7 @@ TENTATIVAS_DE_SORTEIO = 10
 
 @dataclass
 class DesafioLogin:
+    """Resposta da primeira etapa do login: o desafio que espera o código."""
     id_desafio: uuid.UUID
     email_mascarado: str
     expira_em_segundos: int
@@ -37,7 +38,9 @@ def mascarar_email(email: str) -> str:
 
 
 class ServicoCodigoLogin:
+    """Emissão dos códigos de login enviados por e-mail."""
     def __init__(self, db: Session) -> None:
+        """Guarda a sessão do banco e monta o repositório de códigos de login."""
         self.db = db
         self.codigos = RepositorioCodigoLogin(db)
 
@@ -76,6 +79,11 @@ class ServicoCodigoLogin:
         )
 
     def _sortear_inedito(self, id_usuario: uuid.UUID) -> tuple[str, str]:
+        """Sorteia um código cujo hash ainda não existe para o usuário.
+
+        Devolve o código e o hash. Tenta até TENTATIVAS_DE_SORTEIO vezes e, se não
+        achar um livre, levanta ErroNegocio 503.
+        """
         for _ in range(TENTATIVAS_DE_SORTEIO):
             codigo = gerar_codigo_login()
             codigo_hash = calcular_hash_codigo_login(id_usuario, codigo)

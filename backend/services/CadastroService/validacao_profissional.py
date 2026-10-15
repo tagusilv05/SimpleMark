@@ -11,6 +11,7 @@ class ServicoValidacaoProfissional:
     """Lista e valida os profissionais que aguardam aprovação do administrador."""
 
     def __init__(self, db: Session) -> None:
+        """Guarda a sessão do banco."""
         self.db = db
 
     def listar_pendentes(self) -> list[Profissional]:

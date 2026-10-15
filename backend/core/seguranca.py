@@ -76,4 +76,5 @@ def calcular_hash_codigo_login(id_usuario: uuid.UUID, codigo: str) -> str:
 
 
 def codigo_login_confere(hash_guardado: str, id_usuario: uuid.UUID, codigo: str) -> bool:
+    """Compara o hash guardado com o do código informado, em tempo constante."""
     return hmac.compare_digest(hash_guardado, calcular_hash_codigo_login(id_usuario, codigo))

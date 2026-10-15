@@ -2,6 +2,7 @@
 #
 # A agenda é montada em cima de datas relativas a hoje: a busca recusa o
 # passado de propósito, então data fixa no código quebraria com o tempo.
+"""Testes da busca de profissionais por especialidade, data, horário e valor."""
 import uuid
 from datetime import date, datetime, time, timedelta
 
@@ -26,6 +27,7 @@ ONTEM = date.today() - timedelta(days=1)
 
 
 def _criar_profissional(db, nome: str, sufixo: int, ativo: bool = True) -> Profissional:
+    """Cria um usuário e o profissional ligado a ele."""
     usuario = Usuario(
         id=uuid.uuid4(),
         nome=nome,
@@ -50,6 +52,7 @@ def _criar_profissional(db, nome: str, sufixo: int, ativo: bool = True) -> Profi
 
 
 def _obter_especialidade(db, nome: str) -> Especialidade:
+    """Busca a especialidade pelo nome ou a cria se não existir."""
     existente = db.query(Especialidade).filter(Especialidade.especialidade == nome).first()
     if existente is not None:
         return existente
@@ -66,6 +69,7 @@ def _criar_vinculo(
     valor: float,
     avaliacao: float | None = None,
 ) -> ProfissionalEspecialidade:
+    """Vincula o profissional a uma especialidade com conselho e valor."""
     conselho = InfoConselho(numero_conselho="54321", orgao_conselho="CRM-PI")
     db.add(conselho)
     db.flush()
@@ -90,6 +94,7 @@ def _criar_horario(
     fim: time,
     ocupado: bool = False,
 ) -> DataHorario:
+    """Cria um horário de agenda para o vínculo informado."""
     horario = DataHorario(
         id_esp_prof=vinculo.id_esp_prof,
         data_consulta=dia,
@@ -123,10 +128,12 @@ def agenda(db):
 
 
 def _nomes(resposta) -> list[str]:
+    """Extrai os nomes dos profissionais da resposta da busca."""
     return [ficha["nome"] for ficha in resposta.json()]
 
 
 def test_sem_filtro_devolve_todos_os_profissionais_com_agenda(client, agenda):
+    """Sem filtros, a busca devolve os três profissionais com horário livre."""
     resposta = client.get(ROTA)
 
     assert resposta.status_code == 200
@@ -134,6 +141,7 @@ def test_sem_filtro_devolve_todos_os_profissionais_com_agenda(client, agenda):
 
 
 def test_filtra_pelo_id_da_especialidade(client, agenda):
+    """Filtrar pelo id da especialidade devolve só a pediatra."""
     resposta = client.get(
         ROTA, params={"id_especialidade": agenda["carla"].id_especialidade}
     )
@@ -143,6 +151,7 @@ def test_filtra_pelo_id_da_especialidade(client, agenda):
 
 
 def test_filtra_por_parte_do_nome_da_especialidade(client, agenda):
+    """Trecho do nome da especialidade, sem caixa, traz os dois cardiologistas."""
     resposta = client.get(ROTA, params={"especialidade": "cardio"})
 
     assert resposta.status_code == 200
@@ -150,6 +159,7 @@ def test_filtra_por_parte_do_nome_da_especialidade(client, agenda):
 
 
 def test_filtra_pelo_periodo_de_datas(client, agenda):
+    """Período de datas traz só quem tem horário nele e só esses horários."""
     resposta = client.get(
         ROTA, params={"data_inicio": DEPOIS.isoformat(), "data_fim": DEPOIS.isoformat()}
     )
@@ -162,6 +172,7 @@ def test_filtra_pelo_periodo_de_datas(client, agenda):
 
 
 def test_filtra_pela_faixa_de_horario(client, agenda):
+    """Faixa de horário traz só os horários que caem dentro dela."""
     resposta = client.get(ROTA, params={"hora_inicio": "13:00", "hora_fim": "18:00"})
 
     assert resposta.status_code == 200
@@ -170,6 +181,7 @@ def test_filtra_pela_faixa_de_horario(client, agenda):
 
 
 def test_filtra_pela_faixa_de_valor(client, agenda):
+    """Faixa de valor traz só o profissional com consulta dentro dela."""
     resposta = client.get(ROTA, params={"valor_min": 160, "valor_max": 250})
 
     assert resposta.status_code == 200
@@ -178,6 +190,7 @@ def test_filtra_pela_faixa_de_valor(client, agenda):
 
 
 def test_ordena_do_mais_barato_para_o_mais_caro(client, agenda):
+    """Ordenar por valor lista do mais barato para o mais caro."""
     resposta = client.get(ROTA, params={"ordenar_por": "valor"})
 
     assert resposta.status_code == 200
@@ -185,6 +198,7 @@ def test_ordena_do_mais_barato_para_o_mais_caro(client, agenda):
 
 
 def test_ordena_pela_avaliacao_e_deixa_sem_nota_no_fim(client, agenda):
+    """Ordenar por avaliação põe a maior nota primeiro e quem não tem nota no fim."""
     resposta = client.get(ROTA, params={"ordenar_por": "avaliacao"})
 
     assert resposta.status_code == 200
@@ -192,6 +206,7 @@ def test_ordena_pela_avaliacao_e_deixa_sem_nota_no_fim(client, agenda):
 
 
 def test_horario_marcado_como_ocupado_nao_aparece(client, db, agenda):
+    """Horário com a flag `ocupado` não aparece entre os disponíveis."""
     _criar_horario(db, agenda["carla"], DEPOIS, time(10, 0), time(10, 30), ocupado=True)
     db.commit()
 
@@ -242,6 +257,7 @@ def test_horario_com_consulta_agendada_nao_aparece_mesmo_sem_a_flag(client, db, 
 
 
 def test_profissional_sem_horario_livre_fica_fora_da_lista(client, db):
+    """Profissional sem nenhum horário livre não aparece na busca."""
     sem_agenda = _criar_profissional(db, "Davi Sem Agenda", 4)
     _criar_vinculo(db, sem_agenda, "Ortopedia", 100.0)
     db.commit()
@@ -253,6 +269,7 @@ def test_profissional_sem_horario_livre_fica_fora_da_lista(client, db):
 
 
 def test_profissional_inativo_nao_aparece(client, db):
+    """Profissional com usuário inativo fica fora da busca mesmo com agenda."""
     inativo = _criar_profissional(db, "Elisa Inativa", 5, ativo=False)
     vinculo = _criar_vinculo(db, inativo, "Neurologia", 100.0)
     _criar_horario(db, vinculo, AMANHA, time(9, 0), time(9, 30))
@@ -265,6 +282,7 @@ def test_profissional_inativo_nao_aparece(client, db):
 
 
 def test_data_passada_no_filtro_nao_traz_agenda_vencida(client, db, agenda):
+    """Data inicial no passado não faz aparecer horário já vencido."""
     _criar_horario(db, agenda["carla"], ONTEM, time(9, 0), time(9, 30))
     db.commit()
 
@@ -280,6 +298,7 @@ def test_data_passada_no_filtro_nao_traz_agenda_vencida(client, db, agenda):
 
 
 def test_horario_de_hoje_que_ja_passou_nao_aparece(client, db, agenda):
+    """Horário de hoje cuja hora já passou não aparece na busca."""
     agora = datetime.now()
     if agora.hour < 1:
         pytest.skip("Antes da 1h não existe horário de hoje já vencido para testar.")
@@ -297,6 +316,7 @@ def test_horario_de_hoje_que_ja_passou_nao_aparece(client, db, agenda):
 
 
 def test_periodo_invertido_recusa_a_busca(client, agenda):
+    """Data inicial posterior à final é recusada com 400 e mensagem clara."""
     resposta = client.get(
         ROTA, params={"data_inicio": DEPOIS.isoformat(), "data_fim": AMANHA.isoformat()}
     )
@@ -308,6 +328,7 @@ def test_periodo_invertido_recusa_a_busca(client, agenda):
 
 
 def test_faixa_de_valor_invertida_recusa_a_busca(client, agenda):
+    """Valor mínimo maior que o máximo é recusado com 400 e mensagem clara."""
     resposta = client.get(ROTA, params={"valor_min": 500, "valor_max": 100})
 
     assert resposta.status_code == 400
@@ -317,12 +338,14 @@ def test_faixa_de_valor_invertida_recusa_a_busca(client, agenda):
 
 
 def test_valor_negativo_e_recusado_na_validacao_da_rota(client, agenda):
+    """Valor negativo no filtro é barrado pela validação da rota com 422."""
     resposta = client.get(ROTA, params={"valor_min": -10})
 
     assert resposta.status_code == 422
 
 
 def test_ficha_traz_os_dados_que_o_paciente_usa_para_escolher(client, agenda):
+    """A ficha traz especialidade, valor, nota, conselho, perfil e horários."""
     resposta = client.get(ROTA, params={"especialidade": "Pediatria"})
 
     assert resposta.status_code == 200

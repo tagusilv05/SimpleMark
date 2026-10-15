@@ -1,4 +1,6 @@
 # routers/consulta_paciente_router.py
+"""Rotas do paciente logado para listar e detalhar as próprias consultas."""
+
 from datetime import date
 from typing import Optional
 
@@ -15,6 +17,7 @@ router = APIRouter(prefix="/consultas", tags=["Consultas do paciente"])
 
 
 def get_paciente_logado(usuario: UsuarioAtual) -> Paciente:
+    """Devolve o paciente da conta logada; outros perfis recebem 403."""
     paciente = usuario.paciente
     if paciente is None:
         raise HTTPException(
@@ -34,6 +37,11 @@ def minhas_consultas(
     paciente: Paciente = Depends(get_paciente_logado),
     db: Session = Depends(get_db),
 ):
+    """Lista as consultas do paciente logado, com filtros e paginação.
+
+    Somente pacientes (401 sem token, 403 para outros perfis). Filtra por status e
+    período; responde 400 se data_inicio for maior que data_fim.
+    """
     return listar_consultas(
         db,
         paciente.id_paciente,
@@ -51,4 +59,9 @@ def detalhar_minha_consulta(
     paciente: Paciente = Depends(get_paciente_logado),
     db: Session = Depends(get_db),
 ):
+    """Detalha uma consulta do paciente logado.
+
+    Somente pacientes. Responde 404 se a consulta não existir ou for de outro
+    paciente.
+    """
     return detalhar_consulta(db, id_consulta, paciente.id_paciente)

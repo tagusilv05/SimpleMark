@@ -1,4 +1,6 @@
 # routers/documento_qrcode.py
+"""Rota que gera o código de verificação e o QR-Code de um documento clínico."""
+
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
@@ -25,6 +27,12 @@ def gerar_qrcode(
     response: Response,
     db: Session = Depends(get_db),
 ):
+    """Gera o código de verificação e o QR-Code da receita ou do atestado.
+
+    Exige login e só o profissional responsável pela consulta pode gerar (403).
+    Responde 201 quando gera agora, 200 quando já existia, 404 se o documento não
+    existir e 500 se o código não puder ser gerado.
+    """
     try:
         documento, criado = gerar_qrcode_documento(
             db=db, id_documento=documento_id, usuario=usuario

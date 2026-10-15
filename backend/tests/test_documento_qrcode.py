@@ -1,4 +1,5 @@
 # Testes do endpoint POST /api/v1/documentos/{documento_id}/qrcode
+"""Testes do endpoint POST /api/v1/documentos/{documento_id}/qrcode."""
 import base64
 
 from models.models import DocumentoClinico
@@ -8,10 +9,12 @@ PNG_MAGICO = b"\x89PNG\r\n\x1a\n"
 
 
 def _rota(id_documento: int) -> str:
+    """Monta a rota de geração do QR-Code do documento."""
     return f"/api/v1/documentos/{id_documento}/qrcode"
 
 
 def test_gera_qrcode_com_sucesso(client, criar_documento, autenticar, db):
+    """Dono do documento gera o QR-Code com 201, PNG válido e dados gravados."""
     documento = criar_documento(dono=1)
     autenticar(1)
 
@@ -38,6 +41,7 @@ def test_gera_qrcode_com_sucesso(client, criar_documento, autenticar, db):
 
 
 def test_codigo_nao_e_sequencial(client, criar_documento, autenticar):
+    """O código de verificação é longo e não é o id do documento."""
     documento = criar_documento(dono=1)
     autenticar(1)
 
@@ -48,6 +52,7 @@ def test_codigo_nao_e_sequencial(client, criar_documento, autenticar):
 
 
 def test_idempotente_devolve_o_qrcode_existente(client, criar_documento, autenticar):
+    """Gerar de novo responde 200 com o mesmo QR-Code da primeira vez."""
     documento = criar_documento(dono=1)
     autenticar(1)
 
@@ -60,6 +65,7 @@ def test_idempotente_devolve_o_qrcode_existente(client, criar_documento, autenti
 
 
 def test_documento_inexistente_responde_404(client, cenario, autenticar):
+    """Documento que não existe responde 404."""
     autenticar(1)
 
     resposta = client.post(_rota(99999))
@@ -68,6 +74,7 @@ def test_documento_inexistente_responde_404(client, cenario, autenticar):
 
 
 def test_outro_profissional_responde_403(client, criar_documento, autenticar, db):
+    """Outro profissional recebe 403 e o documento continua sem código."""
     documento = criar_documento(dono=1)
     autenticar(2)
 
@@ -79,6 +86,7 @@ def test_outro_profissional_responde_403(client, criar_documento, autenticar, db
 
 
 def test_sem_autenticacao_responde_401(client, criar_documento):
+    """Gerar QR-Code sem estar logado responde 401."""
     documento = criar_documento(dono=1)
 
     resposta = client.post(_rota(documento.id_documento))
@@ -87,6 +95,7 @@ def test_sem_autenticacao_responde_401(client, criar_documento):
 
 
 def test_codigos_sao_unicos_entre_documentos(client, criar_documento, autenticar):
+    """Dois documentos recebem códigos de verificação diferentes."""
     primeiro = criar_documento(dono=1)
     segundo = criar_documento(dono=1)
     autenticar(1)
@@ -98,6 +107,7 @@ def test_codigos_sao_unicos_entre_documentos(client, criar_documento, autenticar
 
 
 def test_colisao_de_codigo_tenta_de_novo(client, criar_documento, autenticar, db, monkeypatch):
+    """Código já usado é descartado e um novo é sorteado sem mexer no antigo."""
     ocupado = criar_documento(dono=1)
     autenticar(1)
     codigo_ocupado = client.post(_rota(ocupado.id_documento)).json()["codigo_verificacao"]
@@ -117,6 +127,7 @@ def test_colisao_de_codigo_tenta_de_novo(client, criar_documento, autenticar, db
 def test_colisao_persistente_nao_grava_codigo_repetido(
     client, criar_documento, autenticar, db, monkeypatch
 ):
+    """Colisão em todas as tentativas responde 500 e não grava código."""
     ocupado = criar_documento(dono=1)
     autenticar(1)
     codigo_ocupado = client.post(_rota(ocupado.id_documento)).json()["codigo_verificacao"]

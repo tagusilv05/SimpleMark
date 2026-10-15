@@ -60,6 +60,7 @@ class ServicoAutenticacao:
     """Autentica o usuário e abre a sessão de login."""
 
     def __init__(self, db: Session) -> None:
+        """Guarda a sessão do banco e monta os repositórios usados no login."""
         self.db = db
         self.usuarios = RepositorioUsuario(db)
         self.credenciais = RepositorioCredencial(db)
@@ -148,6 +149,11 @@ class ServicoAutenticacao:
 
     # ---------------------------------------------------------------- auxiliares
     def _exigir_conta_ativa(self, usuario: Usuario) -> None:
+        """Barra conta banida ou inativa com ErroNegocio 403.
+
+        Profissional inativo recebe a mensagem de que o cadastro ainda aguarda a
+        validação do administrador.
+        """
         if RepositorioAdministracao(self.db).esta_banido(usuario.id):
             raise ErroNegocio("Esta conta foi banida pelo administrador.", 403)
 

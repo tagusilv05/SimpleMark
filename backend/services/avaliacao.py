@@ -1,3 +1,5 @@
+"""Avaliação de consultas pelo paciente e média de notas do profissional."""
+
 from datetime import datetime
 
 from fastapi import HTTPException, status
@@ -10,6 +12,11 @@ from schemas.avaliacao import (AvaliacaoCreate, AvaliacaoResponse, MediaProfissi
 def avaliar_consulta(
     db: Session, dados: AvaliacaoCreate, id_paciente: int
 ) -> AvaliacaoResponse:
+    """Registra a avaliação do paciente para uma consulta realizada.
+
+    Levanta HTTPException 404 se a consulta não existir, 403 se for de outro
+    paciente, 400 se não estiver "realizada" e 409 se já tiver sido avaliada.
+    """
     consulta = buscar_consulta(db, dados.id_consulta)
 
     if consulta is None:
@@ -53,6 +60,7 @@ def avaliar_consulta(
 def obter_media_profissional(
     db: Session, id_profissional: int
 ) -> MediaProfissionalResponse:
+    """Média das avaliações do profissional e o total de avaliações."""
     media, total = calcular_media_profissional(db, id_profissional)
     return MediaProfissionalResponse(
         id_profissional=id_profissional,

@@ -74,6 +74,7 @@ def _aplicar_periodo(query, filtro: FiltroBuscaProfissional, momento: datetime):
 
 
 def _aplicar_valor(query, filtro: FiltroBuscaProfissional):
+    """Filtra pela faixa de valor da consulta (valor_min e valor_max)."""
     if filtro.valor_min is not None:
         query = query.filter(ProfissionalEspecialidade.valor_consulta >= filtro.valor_min)
     if filtro.valor_max is not None:

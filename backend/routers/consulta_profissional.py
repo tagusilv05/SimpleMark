@@ -1,4 +1,6 @@
 # routers/profissional.py
+"""Rota que lista as consultas de um profissional."""
+
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -16,6 +18,11 @@ def consultas_do_profissional(
     data_fim: date | None = None,
     db: Session = Depends(get_db),
 ):
+    """Lista as consultas do profissional, com os dados do paciente.
+
+    Rota sem autenticação. Por padrão traz só as agendadas e aceita filtro por
+    período. Responde 404 se o profissional não existir.
+    """
     consultas = listar_consultas_do_profissional(
         db, id_profissional, status, data_inicio, data_fim
     )

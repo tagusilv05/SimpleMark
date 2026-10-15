@@ -68,6 +68,7 @@ class RepositorioAvaliacao:
     """Consultas de avaliacao. Não aplica regra de negócio."""
 
     def __init__(self, db: Session) -> None:
+        """Guarda a sessão do banco usada nas consultas."""
         self.db = db
 
     def buscar_consulta(self, id_consulta: int) -> Consulta | None:

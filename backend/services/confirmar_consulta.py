@@ -1,3 +1,5 @@
+"""Confirmação (gravação) de uma consulta entre paciente e profissional."""
+
 # CRIADO: JOAO MARCOS 
 
 from sqlalchemy.orm import Session
@@ -10,6 +12,11 @@ from services.usuario_minha_conta import verificar_paciente_usuario as servicer_
 
 # Recebe os dados da consulta para salvar no banco de dados.
 def confirmar_consulta(dados, db: Session):
+    """Grava a consulta do paciente com o profissional na especialidade.
+
+    Levanta ValueError se algum dos usuários não for válido ou se a especialidade
+    não for do profissional. Em qualquer erro faz rollback e relança.
+    """
 
     try:
 

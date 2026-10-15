@@ -1,9 +1,13 @@
+"""Entradas e saídas da emissão de receitas e atestados."""
+
 from datetime import date, datetime
 
 from pydantic import BaseModel, Field, field_validator
 
 
 class MedicamentoInput(BaseModel):
+    """Medicamento da receita. duracao_dias, se vier, vai de 1 a 365."""
+
     medicamento: str = Field(min_length=1, max_length=200)
     dosagem: str = Field(min_length=1, max_length=100)
     posologia: str = Field(min_length=1, max_length=300)
@@ -13,6 +17,7 @@ class MedicamentoInput(BaseModel):
     @field_validator("medicamento", "dosagem", "posologia", "quantidade")
     @classmethod
     def sem_espaco_sobrando(cls, valor: str) -> str:
+        """Tira os espaços das pontas e recusa campo em branco."""
         texto = valor.strip()
         if not texto:
             raise ValueError("Preencha todos os campos do medicamento.")
@@ -20,6 +25,10 @@ class MedicamentoInput(BaseModel):
 
 
 class EmitirReceitaInput(BaseModel):
+    """Corpo de POST /receitas: ao menos um medicamento; validade de 1 a 365
+    dias (30 por padrão).
+    """
+
     id_consulta: int
     medicamentos: list[MedicamentoInput] = Field(min_length=1)
     validade_dias: int = Field(default=30, gt=0, le=365)
@@ -27,6 +36,10 @@ class EmitirReceitaInput(BaseModel):
 
 
 class EmitirAtestadoInput(BaseModel):
+    """Corpo de POST /atestados: afastamento de 1 a 365 dias a partir de
+    data_inicio.
+    """
+
     id_consulta: int
     dias_afastamento: int = Field(gt=0, le=365)
     data_inicio: date
@@ -36,6 +49,8 @@ class EmitirAtestadoInput(BaseModel):
 
 
 class MedicamentoOutput(BaseModel):
+    """Medicamento da receita emitida."""
+
     medicamento: str
     dosagem: str
     posologia: str
@@ -44,6 +59,8 @@ class MedicamentoOutput(BaseModel):
 
 
 class PacienteDocumentoOutput(BaseModel):
+    """Identificação do paciente no documento emitido."""
+
     id_paciente: int
     nome: str
     cpf: str

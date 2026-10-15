@@ -46,12 +46,14 @@ def registrar_erros(app: FastAPI) -> None:
 
 
 def _erro_negocio(_request: Request, exc: Exception) -> JSONResponse:
+    """Converte ErroNegocio em JSON {mensagem}; no 401 envia WWW-Authenticate."""
     erro = exc if isinstance(exc, ErroNegocio) else ErroNegocio("Não foi possível concluir a solicitação.")
     headers = {"WWW-Authenticate": "Bearer"} if erro.status_code == 401 else None
     return JSONResponse(status_code=erro.status_code, content={"mensagem": erro.mensagem}, headers=headers)
 
 
 async def _erro_validacao(request: Request, exc: Exception) -> JSONResponse:
+    """Responde 422 com mensagens em português nas rotas /api/v1."""
     if not isinstance(exc, RequestValidationError) or not request.url.path.startswith("/api/v1"):
         if isinstance(exc, RequestValidationError):
             return await request_validation_exception_handler(request, exc)
@@ -62,6 +64,7 @@ async def _erro_validacao(request: Request, exc: Exception) -> JSONResponse:
 
 
 def _mensagem_validacao(erro: dict) -> str:
+    """Traduz um erro de validação do Pydantic para uma mensagem amigável."""
     tipo = str(erro.get("type", ""))
     texto = str(erro.get("msg", "Revise os dados enviados e tente novamente."))
     prefixo = "Value error, "
@@ -90,6 +93,7 @@ def _mensagem_validacao(erro: dict) -> str:
 
 
 def _rotulo(loc: object) -> str:
+    """Nome legível do campo a partir do loc do erro ("informado" se faltar)."""
     if not isinstance(loc, (tuple, list)) or not loc:
         return "informado"
     nome = str(loc[-1])

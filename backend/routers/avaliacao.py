@@ -1,3 +1,5 @@
+"""Rotas de avaliação das consultas e do resumo das notas dos profissionais."""
+
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Query
 from sqlalchemy.orm import Session
 
@@ -31,6 +33,12 @@ def avaliar_profissional(
     paciente: UsuarioAtual,
     db: Session = Depends(get_db),
 ):
+    """Avalia uma consulta realizada do paciente logado (fluxo antigo).
+
+    Somente pacientes (403 para outros perfis). Responde 404 se a consulta não
+    existir, 403 se for de outro paciente, 400 se ainda não foi realizada e 409 se
+    já foi avaliada.
+    """
     if paciente.paciente is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -44,6 +52,7 @@ def media_profissional(
     id_profissional: int,
     db: Session = Depends(get_db),
 ):
+    """Média e total das avaliações do profissional. Rota pública."""
     return obter_media_profissional(db, id_profissional)
 
 
@@ -80,6 +89,11 @@ def avaliar_consulta(
     servico: ServicoAvaliacaoDep,
     paciente: PacienteAtual,
 ) -> AvaliacaoResposta:
+    """Grava a avaliação da consulta: 1 a 5 estrelas (opcional) e comentário.
+
+    Somente o paciente da consulta. Responde 404 se a consulta não existir ou for de
+    outro paciente e 409 se ainda não foi realizada ou já foi avaliada.
+    """
     avaliacao = servico.avaliar(paciente, id_consulta, dados)
     return AvaliacaoResposta.model_validate(avaliacao, from_attributes=True)
 
@@ -99,6 +113,11 @@ def minha_avaliacao(
     servico: ServicoAvaliacaoDep,
     paciente: PacienteAtual,
 ) -> AvaliacaoResposta:
+    """Devolve a avaliação que o paciente logado deu à consulta.
+
+    Somente o paciente da consulta. Responde 404 se a consulta não existir, for de
+    outro paciente ou ainda não tiver sido avaliada.
+    """
     avaliacao = servico.minha_avaliacao(paciente, id_consulta)
     return AvaliacaoResposta.model_validate(avaliacao, from_attributes=True)
 
@@ -113,6 +132,10 @@ def resumo_avaliacoes(
     id_profissional: int,
     servico: ServicoAvaliacaoDep,
 ) -> ResumoAvaliacoesResposta:
+    """Média e distribuição das estrelas do profissional. Rota pública.
+
+    Responde 404 se o profissional não existir. Sem notas, a média vem nula.
+    """
     return servico.resumo_do_profissional(id_profissional)
 
 
@@ -127,4 +150,8 @@ def melhor_avaliados(
     id_especialidade: int | None = Query(default=None, description="Filtra por especialidade"),
     limite: int = Query(default=10, ge=1, le=50, description="Quantidade máxima de profissionais"),
 ) -> list[ProfissionalMelhorAvaliadoResposta]:
+    """Ranking dos profissionais ativos pela média bayesiana das estrelas.
+
+    Rota pública. Pode filtrar por especialidade e limitar a quantidade (1 a 50).
+    """
     return servico.ranking(id_especialidade, limite)

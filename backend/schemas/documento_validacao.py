@@ -1,3 +1,5 @@
+"""Saída da validação pública de documentos clínicos."""
+
 from datetime import date, datetime
 
 from pydantic import BaseModel

@@ -1,9 +1,19 @@
+"""Protótipo antigo da integração com o Mercado Pago, fora da API FastAPI.
+
+A integração em uso fica em services/PagamentoService.
+"""
+
 import os
 
 import mercadopago
 
 
 def gerar_link_pagamento(preco_consulta):
+    """Cria uma preferência no Mercado Pago e devolve o link de pagamento.
+
+    Usa MERCADOPAGO_ACCESS_TOKEN e levanta RuntimeError se ele não estiver
+    configurado. O item e as URLs de retorno são fixos (localhost).
+    """
     token = os.getenv("MERCADOPAGO_ACCESS_TOKEN")
     if not token:
         raise RuntimeError("MERCADOPAGO_ACCESS_TOKEN nao configurado.")

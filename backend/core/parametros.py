@@ -31,18 +31,22 @@ def base_url_validacao() -> str:
     return os.getenv("BASE_URL_VALIDACAO", "http://localhost:8080/api/v1")
 
 def smtp_host() -> str:
+    """Servidor SMTP do e-mail do código de login (padrão smtp.gmail.com)."""
     return os.getenv("SMTP_HOST", "smtp.gmail.com")
 
 
 def smtp_porta() -> int:
+    """Porta SMTP com SSL do e-mail do código de login (padrão 465)."""
     return int(os.getenv("SMTP_PORT", "465"))
 
 
 def smtp_email() -> str:
+    """Conta que envia o e-mail do código de login (SMTP_EMAIL)."""
     return os.getenv("SMTP_EMAIL", "")
 
 
 def smtp_senha_app() -> str:
+    """Senha de app da conta remetente (SMTP_SENHA_APP)."""
     return os.getenv("SMTP_SENHA_APP", "")
 
 

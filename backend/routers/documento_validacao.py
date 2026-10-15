@@ -1,4 +1,6 @@
 # routers/documento_validacao.py
+"""Rota pública de validação de documentos clínicos pelo código do QR-Code."""
+
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
@@ -13,6 +15,11 @@ router = APIRouter(prefix="/documentos", tags=["Documentos Clínicos"])
 # atestado foi mesmo emitido pela plataforma. Não exige autenticação.
 @router.get("/validar/{codigo_verificacao}", response_model=ValidacaoDocumentoOutput)
 def validar(codigo_verificacao: str, response: Response, db: Session = Depends(get_db)):
+    """Confere se a receita ou o atestado foi emitido pela plataforma.
+
+    Rota pública; a resposta não traz observações clínicas nem identifica o
+    paciente. Código desconhecido responde 404 com valido=false.
+    """
     resultado = validar_documento(db=db, codigo_verificacao=codigo_verificacao)
 
     if resultado is None:

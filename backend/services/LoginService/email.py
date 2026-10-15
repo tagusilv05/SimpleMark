@@ -1,3 +1,5 @@
+"""Envio por SMTP do e-mail com o código de confirmação do login."""
+
 import smtplib
 from email.message import EmailMessage
 
@@ -14,6 +16,11 @@ TIMEOUT_SMTP_SEGUNDOS = 15
 
 
 def enviar_codigo_login(destinatario: str, codigo: str) -> None:
+    """Manda o código de login ao destinatário por SMTP com SSL.
+
+    Levanta RuntimeError se o remetente ou a senha de app não estiverem
+    configurados. Erros de conexão e de envio do smtplib sobem para quem chama.
+    """
     remetente = smtp_email()
     senha_app = smtp_senha_app()
 

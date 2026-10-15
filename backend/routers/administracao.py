@@ -1,3 +1,9 @@
+"""Rotas do administrador: validação de profissionais, banimentos e log de ações.
+
+Todas exigem login de administrador: sem token responde 401 e, com outro
+perfil, 403.
+"""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Body
@@ -22,6 +28,10 @@ def listar_pendentes(
     administracao: ServicoAdministracaoDep,
     _admin: AdministradorAtual,
 ) -> list[ProfissionalPendenteResposta]:
+    """Lista os profissionais que aguardam validação, sem os banidos.
+
+    Somente administrador.
+    """
     pendentes = administracao.sem_banidos(servico.listar_pendentes())
     return [ProfissionalPendenteResposta.de_profissional(item) for item in pendentes]
 
@@ -43,6 +53,11 @@ def validar_profissional(
     administracao: ServicoAdministracaoDep,
     admin: AdministradorAtual,
 ) -> UsuarioPublico:
+    """Ativa a conta do profissional e registra a ação no log.
+
+    Somente administrador. Responde 404 se o profissional não existir e 409 se ele
+    já estiver validado ou banido.
+    """
     administracao.recusar_validacao_se_banido(id_profissional)
     usuario = servico.validar(id_profissional)
     administracao.registrar_validacao(admin, id_profissional, usuario.id)
@@ -59,6 +74,10 @@ def listar_ids_usuarios(
     administracao: ServicoAdministracaoDep,
     _admin: AdministradorAtual,
 ) -> IdsUsuariosResposta:
+    """Lista os IDs de profissionais e pacientes, sem os banidos.
+
+    Somente administrador.
+    """
     return administracao.listar_ids_usuarios()
 
 
@@ -79,6 +98,11 @@ def banir_profissional(
     admin: AdministradorAtual,
     dados: Annotated[BanirEntrada, Body()] = BanirEntrada(),
 ) -> MensagemResposta:
+    """Bane o profissional, encerra as sessões dele e registra no log.
+
+    Somente administrador; o motivo é opcional. Responde 404 se o profissional não
+    existir, 403 se a conta for de administrador e 409 se já estiver banida.
+    """
     administracao.banir_profissional(id_profissional, admin, dados.motivo)
     return MensagemResposta(mensagem="O profissional foi banido.")
 
@@ -100,6 +124,11 @@ def banir_paciente(
     admin: AdministradorAtual,
     dados: Annotated[BanirEntrada, Body()] = BanirEntrada(),
 ) -> MensagemResposta:
+    """Bane o paciente, encerra as sessões dele e registra no log.
+
+    Somente administrador; o motivo é opcional. Responde 404 se o paciente não
+    existir, 403 se a conta for de administrador e 409 se já estiver banida.
+    """
     administracao.banir_paciente(id_paciente, admin, dados.motivo)
     return MensagemResposta(mensagem="O paciente foi banido.")
 
@@ -114,4 +143,5 @@ def listar_logs(
     administracao: ServicoAdministracaoDep,
     _admin: AdministradorAtual,
 ) -> list[LogAcaoResposta]:
+    """Lista as ações registradas pelos administradores. Somente administrador."""
     return administracao.listar_logs()

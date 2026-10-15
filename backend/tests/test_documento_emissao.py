@@ -1,4 +1,5 @@
 # Testes da emissão de receitas e atestados
+"""Testes da emissão de receitas e atestados."""
 import base64
 
 from models.models import Atestado, DocumentoClinico, Receita, ReceitaMedicamento
@@ -36,14 +37,17 @@ ATESTADO = {
 
 
 def _corpo(modelo: dict, id_consulta: int) -> dict:
+    """Monta o corpo da requisição apontando para a consulta informada."""
     return {**modelo, "id_consulta": id_consulta}
 
 
 def _consulta(cenario, dono: int = 1) -> int:
+    """Devolve o id da consulta do profissional `dono` no cenário."""
     return cenario["consultas"][dono].id_consulta
 
 
 def test_emite_receita_vinculada_a_consulta_e_ao_paciente(client, cenario, autenticar, db):
+    """Receita é emitida com 201, ligada à consulta e gravada nas tabelas próprias."""
     autenticar(1)
 
     resposta = client.post("/api/v1/receitas", json=_corpo(RECEITA, _consulta(cenario)))
@@ -70,6 +74,7 @@ def test_emite_receita_vinculada_a_consulta_e_ao_paciente(client, cenario, auten
 
 
 def test_receita_ja_sai_com_qrcode(client, cenario, autenticar):
+    """Receita emitida já vem com código, QR-Code em PNG e URL de validação."""
     autenticar(1)
 
     corpo = client.post("/api/v1/receitas", json=_corpo(RECEITA, _consulta(cenario))).json()
@@ -80,6 +85,7 @@ def test_receita_ja_sai_com_qrcode(client, cenario, autenticar):
 
 
 def test_receita_emitida_e_validavel_pelo_qrcode(client, cenario, autenticar):
+    """A URL do QR-Code da receita valida o documento como RECEITA."""
     autenticar(1)
     corpo = client.post("/api/v1/receitas", json=_corpo(RECEITA, _consulta(cenario))).json()
 
@@ -92,6 +98,7 @@ def test_receita_emitida_e_validavel_pelo_qrcode(client, cenario, autenticar):
 
 
 def test_emite_atestado(client, cenario, autenticar, db):
+    """Atestado é emitido com 201, CID em maiúsculo e sem campos de receita."""
     autenticar(1)
 
     resposta = client.post("/api/v1/atestados", json=_corpo(ATESTADO, _consulta(cenario)))
@@ -108,6 +115,7 @@ def test_emite_atestado(client, cenario, autenticar, db):
 
 
 def test_atestado_e_validavel_e_identificado_como_atestado(client, cenario, autenticar):
+    """A validação do atestado emitido o identifica como ATESTADO."""
     autenticar(1)
     corpo = client.post("/api/v1/atestados", json=_corpo(ATESTADO, _consulta(cenario))).json()
 
@@ -117,6 +125,7 @@ def test_atestado_e_validavel_e_identificado_como_atestado(client, cenario, aute
 
 
 def test_cid_e_finalidade_sao_opcionais(client, cenario, autenticar):
+    """Atestado sem CID e sem finalidade é emitido com os dois nulos."""
     autenticar(1)
     sem_cid = {k: v for k, v in ATESTADO.items() if k not in {"cid", "finalidade"}}
 
@@ -127,6 +136,7 @@ def test_cid_e_finalidade_sao_opcionais(client, cenario, autenticar):
 
 
 def test_outro_profissional_nao_emite_na_consulta_alheia(client, cenario, autenticar, db):
+    """Profissional que não é dono da consulta recebe 403 e nada é gravado."""
     autenticar(2)
 
     resposta = client.post("/api/v1/receitas", json=_corpo(RECEITA, _consulta(cenario, dono=1)))
@@ -136,6 +146,7 @@ def test_outro_profissional_nao_emite_na_consulta_alheia(client, cenario, autent
 
 
 def test_consulta_inexistente_responde_404(client, cenario, autenticar):
+    """Emitir para consulta que não existe responde 404."""
     autenticar(1)
 
     resposta = client.post("/api/v1/receitas", json=_corpo(RECEITA, 99999))
@@ -144,12 +155,14 @@ def test_consulta_inexistente_responde_404(client, cenario, autenticar):
 
 
 def test_sem_autenticacao_responde_401(client, cenario):
+    """Emitir sem estar logado responde 401."""
     resposta = client.post("/api/v1/receitas", json=_corpo(RECEITA, _consulta(cenario)))
 
     assert resposta.status_code == 401
 
 
 def test_consulta_cancelada_nao_permite_emissao(client, cenario, autenticar, db):
+    """Consulta cancelada não aceita emissão: 400 e nenhum documento gravado."""
     consulta = cenario["consultas"][1]
     consulta.status = "cancelada"
     db.commit()
@@ -162,6 +175,7 @@ def test_consulta_cancelada_nao_permite_emissao(client, cenario, autenticar, db)
 
 
 def test_receita_sem_medicamento_e_recusada(client, cenario, autenticar, db):
+    """Receita sem medicamentos é recusada com 422 e nada é gravado."""
     autenticar(1)
     vazia = {**RECEITA, "medicamentos": []}
 
@@ -172,6 +186,7 @@ def test_receita_sem_medicamento_e_recusada(client, cenario, autenticar, db):
 
 
 def test_dias_de_afastamento_precisa_ser_positivo(client, cenario, autenticar):
+    """Atestado com zero dias de afastamento é recusado com 422."""
     autenticar(1)
     invalido = {**ATESTADO, "dias_afastamento": 0}
 
@@ -181,6 +196,7 @@ def test_dias_de_afastamento_precisa_ser_positivo(client, cenario, autenticar):
 
 
 def test_documentos_da_consulta_lista_os_emitidos(client, cenario, autenticar):
+    """A listagem da consulta traz receita e atestado, na ordem, com código."""
     autenticar(1)
     id_consulta = _consulta(cenario)
     client.post("/api/v1/receitas", json=_corpo(RECEITA, id_consulta))
@@ -195,6 +211,7 @@ def test_documentos_da_consulta_lista_os_emitidos(client, cenario, autenticar):
 
 
 def test_listagem_nao_vaza_para_outro_profissional(client, cenario, autenticar):
+    """Outro profissional recebe 403 ao listar documentos da consulta alheia."""
     autenticar(1)
     id_consulta = _consulta(cenario)
     client.post("/api/v1/receitas", json=_corpo(RECEITA, id_consulta))
@@ -204,6 +221,7 @@ def test_listagem_nao_vaza_para_outro_profissional(client, cenario, autenticar):
 
 
 def test_busca_documento_emitido_por_id(client, cenario, autenticar):
+    """Buscar o documento pelo id devolve o mesmo conteúdo da emissão."""
     autenticar(1)
     emitido = client.post("/api/v1/receitas", json=_corpo(RECEITA, _consulta(cenario))).json()
 
@@ -214,6 +232,7 @@ def test_busca_documento_emitido_por_id(client, cenario, autenticar):
 
 
 def test_documento_de_outro_profissional_responde_403(client, cenario, autenticar):
+    """Buscar documento emitido por outro profissional responde 403."""
     autenticar(1)
     emitido = client.post("/api/v1/receitas", json=_corpo(RECEITA, _consulta(cenario))).json()
     autenticar(2)
@@ -222,6 +241,7 @@ def test_documento_de_outro_profissional_responde_403(client, cenario, autentica
 
 
 def test_cada_documento_emitido_tem_codigo_proprio(client, cenario, autenticar):
+    """Receita e atestado da mesma consulta recebem códigos diferentes."""
     autenticar(1)
     id_consulta = _consulta(cenario)
 

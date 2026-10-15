@@ -12,6 +12,7 @@ class RepositorioUsuario:
     """Consultas da tabela usuario. Não aplica regra de negócio."""
 
     def __init__(self, db: Session) -> None:
+        """Guarda a sessão do banco usada nas consultas."""
         self.db = db
 
     def buscar_por_id(self, id_usuario: uuid.UUID) -> Usuario | None:

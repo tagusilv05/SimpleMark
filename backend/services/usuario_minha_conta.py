@@ -1,3 +1,5 @@
+"""Tela "Minha conta" do paciente: dados pessoais, endereço e exclusão."""
+
 # CRIADO: JOAO MARCOS 
 
 from sqlalchemy.orm import Session
@@ -13,6 +15,11 @@ from repositories.usuario_minha_conta import (
 
 # Busca o usuário, verifica se está ativo e retorna o paciente associado
 def verificar_paciente_usuario(id_usuario, db: Session):
+    """Paciente ligado ao usuário.
+
+    Levanta ValueError se o usuário não existir, estiver inativo ou não for
+    paciente.
+    """
 
     usuario = repositories_buscar_usuario_por_id(id_usuario=id_usuario,db=db)
 
@@ -32,6 +39,10 @@ def verificar_paciente_usuario(id_usuario, db: Session):
 
 # Altera as informações pessoais do usuário
 def altera_info_pessoal(dados, db: Session):
+    """Atualiza nome, e-mail e telefone que vierem preenchidos.
+
+    Levanta ValueError se o usuário não existir ou se o commit falhar.
+    """
 
     usuario = repositories_buscar_usuario_por_id(dados.id, db)
 
@@ -59,6 +70,10 @@ def altera_info_pessoal(dados, db: Session):
 
 # Altera as informações de endereço do usuário
 def altera_endereco(dados, db: Session):
+    """Atualiza os campos do endereço que vierem preenchidos.
+
+    Levanta ValueError se o endereço não existir ou se o commit falhar.
+    """
 
     endereco = repositories_buscar_endereco_por_usuario(dados.id_usuario, db)
 
@@ -96,6 +111,10 @@ def altera_endereco(dados, db: Session):
 
 # Exclui o paciente e os dados relacionados a ele
 def excluir_paciente(id_usuario, db: Session):
+    """Exclui o paciente, suas consultas e dados ligados, o endereço e o usuário.
+
+    Levanta ValueError se o usuário não for paciente ativo. Em erro faz rollback.
+    """
     try:
         paciente = verificar_paciente_usuario(id_usuario=id_usuario, db=db)
 
@@ -129,6 +148,7 @@ def excluir_paciente(id_usuario, db: Session):
 
 # Inativar o usuário no banco de dados.
 def inativar_usuario(id_usuario, db: Session):
+    """Marca o usuário como inativo; ValueError se ele não existir."""
     try:
         usuario = repositories_buscar_usuario_por_id(id_usuario=id_usuario, db=db)
 

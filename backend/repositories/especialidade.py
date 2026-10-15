@@ -10,6 +10,7 @@ class RepositorioEspecialidade:
     """Reaproveita a especialidade pelo nome, sem diferenciar maiúsculas."""
 
     def __init__(self, db: Session) -> None:
+        """Guarda a sessão do banco usada nas consultas."""
         self.db = db
 
     def obter_ou_criar(self, nome: str) -> Especialidade:

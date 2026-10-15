@@ -8,6 +8,7 @@ def normalizar_cpf(valor: str) -> str:
         raise ValueError("O CPF informado é inválido. Confira os números e tente novamente.")
 
     def digito(base: str) -> str:
+        """Calcula o dígito verificador do CPF para a base informada."""
         soma = sum(int(numero) * peso for numero, peso in zip(base, range(len(base) + 1, 1, -1)))
         resto = soma % 11
         if resto < 2:

@@ -1,4 +1,6 @@
 # routers/documento_emissao.py
+"""Rotas de emissão e consulta de receitas e atestados de uma consulta."""
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -51,6 +53,12 @@ def emitir_receita_medica(
     usuario: UsuarioAtual,
     db: Session = Depends(get_db),
 ):
+    """Emite a receita da consulta, já com código de verificação e QR-Code.
+
+    Exige login e só o profissional responsável pela consulta pode emitir (403).
+    Responde 404 se a consulta não existir, 400 se estiver cancelada e 500 se o
+    código não puder ser gerado.
+    """
     return _tratar(lambda: emitir_receita(db=db, dados=dados, usuario=usuario))
 
 
@@ -61,6 +69,12 @@ def emitir_atestado_medico(
     usuario: UsuarioAtual,
     db: Session = Depends(get_db),
 ):
+    """Emite o atestado da consulta, já com código de verificação e QR-Code.
+
+    Exige login e só o profissional responsável pela consulta pode emitir (403).
+    Responde 404 se a consulta não existir, 400 se estiver cancelada e 500 se o
+    código não puder ser gerado.
+    """
     return _tratar(lambda: emitir_atestado(db=db, dados=dados, usuario=usuario))
 
 
@@ -71,6 +85,11 @@ def documentos_da_consulta(
     usuario: UsuarioAtual,
     db: Session = Depends(get_db),
 ):
+    """Lista os documentos clínicos emitidos na consulta.
+
+    Exige login e só o profissional responsável pela consulta pode ver (403).
+    Responde 404 se a consulta não existir.
+    """
     return _tratar(lambda: listar_documentos(db=db, id_consulta=id_consulta, usuario=usuario))
 
 
@@ -81,4 +100,9 @@ def documento_emitido(
     usuario: UsuarioAtual,
     db: Session = Depends(get_db),
 ):
+    """Devolve um documento clínico emitido, por inteiro.
+
+    Exige login e só o profissional responsável pela consulta pode ver (403).
+    Responde 404 se o documento não existir.
+    """
     return _tratar(lambda: buscar_documento_emitido(db=db, id_documento=documento_id, usuario=usuario))

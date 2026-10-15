@@ -1,3 +1,5 @@
+"""Avaliações recebidas por um profissional em uma especialidade."""
+
 # CRIADO: JOAO MARCOS 
 
 from sqlalchemy.orm import Session
@@ -13,6 +15,12 @@ from services.porfissional_minha_conta import verificar_profissional_usuario as 
 
 
 def buscar_avaliacoes_profissional(dados, db: Session):
+    """Lista as avaliações do profissional na especialidade.
+
+    Devolve a lista (paciente, data, nota e feedback), o total e a contagem por
+    nota. Levanta ValueError se o usuário não for profissional ativo, se a
+    especialidade não for dele ou se não houver nenhuma avaliação.
+    """
 
     # 1. Verifica se o usuário é um profissional
     profissional = services_verificar_profissional_usuario(dados.id_usuario, db)

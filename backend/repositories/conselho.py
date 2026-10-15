@@ -10,6 +10,7 @@ class RepositorioConselho:
     """Consultas de conselhos profissionais. Não aplica regra de negócio."""
 
     def __init__(self, db: Session) -> None:
+        """Guarda a sessão do banco usada nas consultas."""
         self.db = db
 
     def buscar(self, numero_conselho: str, orgao_conselho: str) -> InfoConselho | None:

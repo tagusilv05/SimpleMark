@@ -4,6 +4,7 @@
 # rodam no import e exigem o PostgreSQL de verdade. Aqui subimos um app enxuto,
 # só com o router do QR-Code e o handler de erro do projeto, sobre um SQLite
 # em memória.
+"""Fixtures compartilhadas: app enxuto sobre SQLite em memória e dados de teste."""
 import os
 import uuid
 from datetime import date, time
@@ -43,6 +44,7 @@ from routers.videochamada import router as videochamada_router
 
 @pytest.fixture
 def engine():
+    """Cria o motor SQLite em memória com as tabelas e o SAVEPOINT funcionando."""
     motor = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -53,10 +55,12 @@ def engine():
     # SAVEPOINT usado no retry. Workaround recomendado pelo SQLAlchemy.
     @event.listens_for(motor, "connect")
     def _sem_begin_implicito(conexao_dbapi, _registro):
+        """Desliga a transação implícita do driver do SQLite."""
         conexao_dbapi.isolation_level = None
 
     @event.listens_for(motor, "begin")
     def _begin_explicito(conexao):
+        """Abre a transação explicitamente com BEGIN."""
         conexao.exec_driver_sql("BEGIN")
 
     Base.metadata.create_all(bind=motor)
@@ -66,6 +70,7 @@ def engine():
 
 @pytest.fixture
 def db(engine):
+    """Abre uma sessão do banco de teste e a fecha ao final."""
     Sessao = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     sessao = Sessao()
     try:
@@ -76,6 +81,7 @@ def db(engine):
 
 @pytest.fixture
 def app(db):
+    """Monta o app FastAPI com os routers testados usando a sessão de teste."""
     aplicacao = FastAPI()
     registrar_erros(aplicacao)
     aplicacao.include_router(busca_profissional_router, prefix="/api/v1")
@@ -91,10 +97,12 @@ def app(db):
 
 @pytest.fixture
 def client(app):
+    """Cliente HTTP de teste para o app."""
     return TestClient(app)
 
 
 def _criar_profissional(db, sufixo: int) -> Profissional:
+    """Cria um usuário ativo e o profissional vinculado a ele."""
     usuario = Usuario(
         id=uuid.uuid4(),
         nome=f"Profissional {sufixo}",
@@ -176,7 +184,9 @@ def cenario(db):
 
 @pytest.fixture
 def criar_documento(db, cenario):
+    """Fábrica de documentos clínicos ligados à consulta de um profissional."""
     def _criar(dono: int = 1, tipo: bool = True) -> DocumentoClinico:
+        """Grava um documento clínico na consulta do profissional `dono`."""
         documento = DocumentoClinico(
             id_consulta=cenario["consultas"][dono].id_consulta,
             observacoes="Receita do paciente.",
@@ -195,6 +205,7 @@ def autenticar(app, db, cenario):
     """Simula o profissional logado trocando a dependência real de sessão."""
 
     def _autenticar(sufixo: int):
+        """Loga o profissional de número `sufixo` e devolve o usuário dele."""
         profissional = cenario["profissionais"][sufixo]
         usuario = db.get(Usuario, profissional.id_usuario)
         app.dependency_overrides[usuario_atual] = lambda: usuario

@@ -9,6 +9,7 @@ from models.models import Consulta, Profissional, ProfissionalEspecialidade
 
 
 def _base_query(db: Session):
+    """Query de consulta com profissional, especialidade, avaliação e pagamento."""
     return (
         db.query(Consulta)
         .options(
