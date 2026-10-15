@@ -21,6 +21,7 @@ from routers.porfissional_minha_conta import router as routers_porfissional_minh
 from routers.usuario_minha_conta import router as routers_usuario_minha_conta
 from routers.buscar_avaliacao_profissional import router as router_buscar_avaliacao_profissional
 from routers.confirmar_consulta import router as router_confirmar_consulta
+from routers.pagamento import router as pagamento_router
 
 from seed.seed import criar_seed
 
@@ -67,6 +68,7 @@ app.include_router(routers_porfissional_minha_conta, prefix="/profissionais", ta
 app.include_router(routers_usuario_minha_conta, prefix="/usuario", tags=["Usuario"])
 app.include_router(router_buscar_avaliacao_profissional, prefix="/avaliacao", tags=["Avaliacao"])
 app.include_router(router_confirmar_consulta, prefix="/consulta", tags=["Consulta"])
+app.include_router(pagamento_router, prefix="/api/v1")
 
 @app.get("/")
 def home():
