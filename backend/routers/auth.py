@@ -3,7 +3,14 @@ from typing import Annotated
 from fastapi import APIRouter, Body
 
 from dependencies.autenticacao import ServicoAutenticacaoDep, ServicoSessaoDep, SessaoAtual, UsuarioAtual
-from schemas.auth import LoginEntrada, TokenResposta, UsuarioPublico, montar_usuario_publico
+from schemas.auth import (
+    ConfirmarLoginEntrada,
+    DesafioLoginResposta,
+    LoginEntrada,
+    TokenResposta,
+    UsuarioPublico,
+    montar_usuario_publico,
+)
 from schemas.comum import MensagemResposta
 
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
@@ -11,13 +18,18 @@ router = APIRouter(prefix="/auth", tags=["Autenticação"])
 
 @router.post(
     "/login",
-    response_model=TokenResposta,
-    summary="Entrar",
+    response_model=DesafioLoginResposta,
+    summary="Entrar, etapa 1: senha",
+    description=(
+        "Confere o e-mail ou CPF e a senha e envia um código de confirmação para o e-mail "
+        "da conta. Não devolve token: use o `id_desafio` e o código em `/auth/login/confirmar`."
+    ),
     responses={
         401: {"model": MensagemResposta},
         403: {"model": MensagemResposta},
         422: {"model": MensagemResposta},
         429: {"model": MensagemResposta},
+        503: {"model": MensagemResposta},
     },
 )
 def login(
@@ -43,8 +55,51 @@ def login(
             }
         ),
     ],
+) -> DesafioLoginResposta:
+    desafio = servico.iniciar_login(dados.identificador, dados.senha)
+    minutos = max(1, desafio.expira_em_segundos // 60)
+    unidade = "minuto" if minutos == 1 else "minutos"
+    return DesafioLoginResposta(
+        mensagem=(
+            f"Enviamos um código de confirmação para {desafio.email_mascarado}. "
+            f"Ele vale por {minutos} {unidade} e só pode ser usado uma vez."
+        ),
+        id_desafio=desafio.id_desafio,
+        email_mascarado=desafio.email_mascarado,
+        expira_em_segundos=desafio.expira_em_segundos,
+    )
+
+
+@router.post(
+    "/login/confirmar",
+    response_model=TokenResposta,
+    summary="Entrar, etapa 2: código do e-mail",
+    description="Confere o código recebido por e-mail. Se estiver certo, abre a sessão e devolve o token.",
+    responses={
+        401: {"model": MensagemResposta},
+        403: {"model": MensagemResposta},
+        422: {"model": MensagemResposta},
+        429: {"model": MensagemResposta},
+    },
+)
+def confirmar_login(
+    servico: ServicoAutenticacaoDep,
+    dados: Annotated[
+        ConfirmarLoginEntrada,
+        Body(
+            openapi_examples={
+                "codigo": {
+                    "summary": "Código recebido por e-mail",
+                    "value": {
+                        "id_desafio": "00000000-0000-0000-0000-000000000000",
+                        "codigo": "123456",
+                    },
+                }
+            }
+        ),
+    ],
 ) -> TokenResposta:
-    resultado = servico.autenticar(dados.identificador, dados.senha)
+    resultado = servico.confirmar_login(dados.id_desafio, dados.codigo)
     return TokenResposta(
         access_token=resultado.token,
         token_type="bearer",

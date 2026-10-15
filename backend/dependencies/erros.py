@@ -30,6 +30,8 @@ _ROTULOS = {
     "especialidades": "especialidades",
     "nota": "nota",
     "feedback": "comentário",
+    "id_desafio": "identificador da confirmação",
+    "codigo": "código",
 }
 
 
@@ -72,6 +74,10 @@ def _mensagem_validacao(erro: dict) -> str:
         return f"O campo {campo} não faz parte desta requisição. Remova-o e tente novamente."
     if tipo in {"date_parsing", "date_from_datetime_parsing"}:
         return "A data de nascimento é inválida. Use o formato AAAA-MM-DD."
+    if campo == "identificador da confirmação" and tipo.startswith("uuid"):
+        return "O identificador da confirmação é inválido. Entre novamente para receber outro código."
+    if campo == "código" and tipo == "string_type":
+        return "O código de confirmação deve ter 6 números."
     if campo == "nota" and tipo in {"int_type", "int_parsing"}:
         return "A nota deve ser um número inteiro de 1 a 5 estrelas."
     if campo == "limite" and tipo in {"int_parsing", "greater_than_equal", "less_than_equal"}:
