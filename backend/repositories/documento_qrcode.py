@@ -1,5 +1,7 @@
 # Consultas da tabela documento_clinico usadas na geração do QR-Code.
 # Não aplica regra de negócio.
+"""Consultas de documento_clinico usadas na geração do QR-Code."""
+
 from sqlalchemy.orm import Session
 
 from models.models import Consulta, DocumentoClinico, ProfissionalEspecialidade
@@ -34,6 +36,7 @@ def buscar_profissional_da_consulta(db: Session, id_consulta: int) -> int | None
 
 
 def existe_codigo_verificacao(db: Session, codigo: str) -> bool:
+    """Indica se o código de verificação já pertence a algum documento."""
     return (
         db.query(DocumentoClinico.id_documento)
         .filter(DocumentoClinico.codigo_verificacao == codigo)

@@ -18,11 +18,14 @@ MENSAGEM_TOKEN_INVALIDO = "Token inválido. Entre novamente."
 
 
 class ServicoSessao:
+    """Controla a sessão de login: abertura, validação com renovação e encerramento."""
+
     def __init__(self, db: Session) -> None:
         self.db = db
         self.sessoes = RepositorioSessaoLogin(db)
 
     def abrir(self, id_usuario: uuid.UUID) -> SessaoLogin:
+        """Cria a sessão do usuário e faz o commit."""
         sessao = self.sessoes.criar(id_usuario, agora_utc())
         self.db.commit()
         return sessao
@@ -49,5 +52,6 @@ class ServicoSessao:
         return sessao
 
     def encerrar(self, sessao: SessaoLogin) -> None:
+        """Marca a sessão como encerrada (logout) e faz o commit."""
         sessao.encerrada_em = agora_utc()
         self.db.commit()

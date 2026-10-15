@@ -7,12 +7,19 @@ from models.models import Usuario
 
 
 class PerfilUsuario(str, Enum):
+    """Perfis de acesso possíveis de uma conta."""
+
     PACIENTE = "paciente"
     PROFISSIONAL = "profissional"
     ADMINISTRADOR = "administrador"
 
 
 def perfil_de(usuario: Usuario) -> PerfilUsuario:
+    """Descobre o perfil da conta pelo registro vinculado.
+
+    A ordem de prioridade é administrador, profissional e paciente. Sem nenhum
+    deles, levanta ErroNegocio com 403.
+    """
     if usuario.administrador is not None:
         return PerfilUsuario.ADMINISTRADOR
     if usuario.profissional is not None:

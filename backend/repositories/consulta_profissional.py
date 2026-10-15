@@ -1,4 +1,6 @@
 # services/consulta_service.py
+"""Consultas da agenda do profissional."""
+
 from datetime import date
 from sqlalchemy.orm import Session, joinedload
 from models import Consulta, Paciente, ProfissionalEspecialidade
@@ -10,6 +12,11 @@ def listar_consultas_do_profissional(
     data_inicio: date | None = None,
     data_fim: date | None = None,
 ):
+    """Consultas do profissional em todas as especialidades, com o paciente carregado.
+
+    Filtros opcionais por status e intervalo de datas; ordena por data e hora
+    crescentes.
+    """
     query = (
         db.query(Consulta)
         .join(

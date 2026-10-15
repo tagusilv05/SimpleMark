@@ -27,7 +27,9 @@ class ConsultaPacienteResponse(BaseModel):
     profissional: ProfissionalResumo
     pagamento_status: Optional[str] = None
     avaliacao: Optional[AvaliacaoResumo] = None
-    pode_avaliar: bool 
+    pode_avaliar: bool
+    # Videochamada (Jitsi Meet): link nulo enquanto não gerado ou se a consulta foi cancelada.
+    meet_link: Optional[str] = None
 
 
 class ListaConsultasResponse(BaseModel):

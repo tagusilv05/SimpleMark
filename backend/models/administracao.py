@@ -1,5 +1,9 @@
-# Tabelas só da tela de administração. Ficam fora de models.py para não
-# alterar as tabelas do grupo (usuario, profissional, paciente, etc.).
+"""Tabelas só da tela de administração.
+
+Ficam fora de models.py para não alterar as tabelas do grupo (usuario,
+profissional, paciente, etc.).
+"""
+
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship

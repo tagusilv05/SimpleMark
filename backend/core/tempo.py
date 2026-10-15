@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 
 def agora_utc() -> datetime:
+    """Data e hora atuais com fuso UTC."""
     return datetime.now(timezone.utc)
 
 

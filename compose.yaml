@@ -12,6 +12,20 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
       BASE_URL_VALIDACAO: ${BASE_URL_VALIDACAO}
+      # Videochamada (Jitsi Meet): servidor onde as salas são abertas
+      JITSI_BASE_URL: ${JITSI_BASE_URL:-https://meet.jit.si}
+      # Retentativas do envio de e-mail
+      VIDEOCHAMADA_TENTATIVAS: ${VIDEOCHAMADA_TENTATIVAS:-3}
+      VIDEOCHAMADA_BACKOFF_SEGUNDOS: ${VIDEOCHAMADA_BACKOFF_SEGUNDOS:-2}
+      # E-mail ao paciente (SMTP). Para testes locais use o Mailpit abaixo:
+      # SMTP_HOST=mailpit, SMTP_PORT=1025, SMTP_USAR_TLS=false (ver README_VIDEOCHAMADA.md)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USUARIO: ${SMTP_USUARIO:-}
+      SMTP_SENHA: ${SMTP_SENHA:-}
+      SMTP_REMETENTE: ${SMTP_REMETENTE:-}
+      SMTP_USAR_TLS: ${SMTP_USAR_TLS:-true}
+      SMTP_SSL: ${SMTP_SSL:-false}
 
   db:
     image: postgres:16
@@ -30,6 +44,16 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  # Servidor SMTP falso para testes locais: captura os e-mails sem entregá-los.
+  # Caixa de entrada em http://localhost:8025
+  mailpit:
+    image: axllent/mailpit
+    container_name: mailpit
+    restart: always
+    ports:
+      - "8025:8025"
+      - "1025:1025"
 
   adminer:
     image: adminer
