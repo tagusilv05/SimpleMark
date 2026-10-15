@@ -34,6 +34,11 @@ class ServicoAvaliacao:
         self.avaliacoes = RepositorioAvaliacao(db)
 
     def avaliar(self, paciente: Paciente, id_consulta: int, dados: AvaliacaoEntrada) -> Avaliacao:
+        """Grava a avaliação da consulta e atualiza a média do profissional.
+
+        Consulta inexistente ou de outro paciente responde 404. Consulta ainda não
+        realizada ou já avaliada responde 409. Faz o commit.
+        """
         consulta = self.avaliacoes.buscar_consulta(id_consulta)
         # Consulta de outro paciente responde 404, para não revelar que ela existe.
         if consulta is None or consulta.id_paciente != paciente.id_paciente:
@@ -65,6 +70,10 @@ class ServicoAvaliacao:
         return avaliacao
 
     def minha_avaliacao(self, paciente: Paciente, id_consulta: int) -> Avaliacao:
+        """Devolve a avaliação que o paciente deu à consulta.
+
+        Responde 404 se a consulta não for dele ou ainda não tiver avaliação.
+        """
         consulta = self.avaliacoes.buscar_consulta(id_consulta)
         if consulta is None or consulta.id_paciente != paciente.id_paciente:
             raise ErroNegocio("Não encontramos esta consulta.", 404)
@@ -74,6 +83,10 @@ class ServicoAvaliacao:
         return avaliacao
 
     def resumo_do_profissional(self, id_profissional: int) -> ResumoAvaliacoesResposta:
+        """Média e distribuição das notas (1 a 5 estrelas) do profissional.
+
+        Responde 404 se o profissional não existir. Sem notas, a média é None.
+        """
         if self.avaliacoes.buscar_profissional(id_profissional) is None:
             raise ErroNegocio("Não encontramos este profissional de saúde.", 404)
         contagem = self.avaliacoes.contar_notas_do_profissional(id_profissional)
@@ -118,6 +131,7 @@ class ServicoAvaliacao:
         ]
 
     def _atualizar_media(self, id_esp_prof: int) -> None:
+        """Recalcula a média do vínculo profissional-especialidade, sem fazer commit."""
         vinculo = self.avaliacoes.buscar_vinculo_para_atualizar(id_esp_prof)
         if vinculo is None:
             return

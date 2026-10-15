@@ -1,3 +1,10 @@
+"""Ponto de entrada da API SimpleMark.
+
+Na importação, cria as tabelas, aplica as migrações, cria o administrador
+inicial e roda o seed; depois monta o app FastAPI com CORS, tratadores de erro
+e rotas.
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database.connection import Base, engine
@@ -72,4 +79,5 @@ app.include_router(pagamento_router, prefix="/api/v1")
 
 @app.get("/")
 def home():
+    """Verifica se a API está no ar."""
     return {"msg": "API funcionando!"}

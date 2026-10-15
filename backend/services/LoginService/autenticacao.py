@@ -24,6 +24,7 @@ MENSAGEM_CREDENCIAL_INVALIDA = (
 
 
 def _mensagem_bloqueio(restante: timedelta) -> str:
+    """Mensagem de bloqueio com o tempo restante arredondado para cima, em minutos."""
     minutos = max(1, math.ceil(restante.total_seconds() / 60))
     unidade = "minuto" if minutos == 1 else "minutos"
     return (
@@ -34,11 +35,15 @@ def _mensagem_bloqueio(restante: timedelta) -> str:
 
 @dataclass
 class ResultadoLogin:
+    """Token de acesso e usuário devolvidos pelo login."""
+
     token: str
     usuario: Usuario
 
 
 class ServicoAutenticacao:
+    """Autentica o usuário e abre a sessão de login."""
+
     def __init__(self, db: Session) -> None:
         self.db = db
         self.usuarios = RepositorioUsuario(db)
@@ -91,6 +96,10 @@ class ServicoAutenticacao:
         return ResultadoLogin(token=gerar_token_acesso(usuario.id, sessao.id), usuario=usuario)
 
     def _bloqueio_restante(self, credencial: Credencial, agora: datetime) -> timedelta | None:
+        """Tempo que falta de bloqueio, ou None.
+
+        Bloqueio vencido é limpo junto com a contagem de falhas, sem commit.
+        """
         if credencial.bloqueado_ate is None:
             return None
         limite = como_utc(credencial.bloqueado_ate)
@@ -101,6 +110,10 @@ class ServicoAutenticacao:
         return None
 
     def _registrar_falha(self, credencial: Credencial, agora: datetime) -> timedelta | None:
+        """Conta a senha errada e bloqueia a conta ao atingir o limite de tentativas.
+
+        Devolve a duração do bloqueio quando ele começa, ou None. Faz o commit.
+        """
         credencial.tentativas_login_falhas += 1
         restante = None
         if credencial.tentativas_login_falhas >= login_max_tentativas():
@@ -112,6 +125,10 @@ class ServicoAutenticacao:
         return restante
 
     def _localizar(self, identificador: str) -> Usuario | None:
+        """Busca o usuário por e-mail (se houver "@") ou por CPF.
+
+        Identificador mal formatado responde 422.
+        """
         texto = identificador.strip()
         if "@" in texto:
             try:

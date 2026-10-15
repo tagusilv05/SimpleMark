@@ -34,6 +34,11 @@ _ROTULOS = {
 
 
 def registrar_erros(app: FastAPI) -> None:
+    """Registra no app os tratadores de ErroNegocio e de erro de validação.
+
+    Erros de validação viram mensagens em português só nas rotas /api/v1; as
+    demais mantêm a resposta padrão do FastAPI.
+    """
     app.add_exception_handler(ErroNegocio, _erro_negocio)
     app.add_exception_handler(RequestValidationError, _erro_validacao)
 

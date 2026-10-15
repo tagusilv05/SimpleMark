@@ -1,3 +1,5 @@
+"""Consultas da tabela especialidade."""
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -11,6 +13,11 @@ class RepositorioEspecialidade:
         self.db = db
 
     def obter_ou_criar(self, nome: str) -> Especialidade:
+        """Especialidade com esse nome, criada se ainda não existir.
+
+        Compara com casefold em Python, carregando todas as especialidades.
+        Quando cria, faz flush para o id já ficar disponível.
+        """
         existentes = self.db.scalars(select(Especialidade)).all()
         for item in existentes:
             if item.especialidade.casefold() == nome.casefold():

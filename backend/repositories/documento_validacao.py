@@ -1,5 +1,7 @@
 # Consulta da tabela documento_clinico usada na validação pública do QR-Code.
 # Não aplica regra de negócio.
+"""Consulta de documento_clinico usada na validação pública do QR-Code."""
+
 from sqlalchemy.orm import Session, joinedload
 
 from models.models import Consulta, DocumentoClinico, Profissional, ProfissionalEspecialidade

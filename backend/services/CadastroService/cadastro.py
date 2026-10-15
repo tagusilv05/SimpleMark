@@ -36,11 +36,17 @@ class ServicoCadastro:
         self.conselhos = RepositorioConselho(db)
 
     def cadastrar_paciente(self, dados: CadastroUsuarioEntrada) -> Usuario:
+        """Cria o usuário já ativo, com perfil de paciente, e faz o commit."""
         usuario = self._criar_usuario(dados, status=True)
         usuario.paciente = Paciente()
         return self._concluir(usuario)
 
     def cadastrar_profissional(self, dados: CadastroProfissionalEntrada) -> Usuario:
+        """Cria o profissional inativo, com conselho e especialidades.
+
+        Conselho (número e órgão) já cadastrado responde 409. Especialidade que
+        não existe é criada na hora, e o valor da consulta começa em zero.
+        """
         if self.conselhos.buscar(dados.numero_conselho, dados.orgao_conselho) is not None:
             raise ErroNegocio(
                 "Já existe um profissional com este número de conselho. Verifique os dados ou faça login.",
@@ -67,6 +73,7 @@ class ServicoCadastro:
         return self._concluir(usuario)
 
     def _criar_usuario(self, dados: CadastroUsuarioEntrada, status: bool) -> Usuario:
+        """Monta usuário, endereço e credencial com a senha em hash, sem fazer commit."""
         self._garantir_unicidade(dados.cpf, dados.email)
         usuario = Usuario(
             nome=dados.nome,
@@ -99,6 +106,7 @@ class ServicoCadastro:
         return usuario
 
     def _garantir_unicidade(self, cpf: str, email: str) -> None:
+        """Responde 409 se o CPF ou o e-mail já estiverem cadastrados."""
         if self.usuarios.buscar_por_cpf(cpf) is not None:
             raise ErroNegocio(
                 "Já existe um cadastro com este CPF. Faça login ou utilize outro CPF.",
@@ -111,6 +119,7 @@ class ServicoCadastro:
             )
 
     def _concluir(self, usuario: Usuario) -> Usuario:
+        """Faz o commit; conflito de unicidade no banco vira ErroNegocio 409."""
         try:
             self.db.commit()
         except IntegrityError:
