@@ -1,3 +1,5 @@
+"""Consultas do paciente, com profissional, especialidade, avaliação e pagamento carregados."""
+
 from datetime import date
 from typing import Optional, Tuple
 
@@ -30,6 +32,11 @@ def listar_por_paciente(
     skip: int = 0,
     limit: int = 20,
 ) -> Tuple[list[Consulta], int]:
+    """Página de consultas do paciente e o total sem paginação.
+
+    Filtros opcionais por status e intervalo de datas; ordena da consulta mais
+    recente para a mais antiga.
+    """
     query = _base_query(db).filter(Consulta.id_paciente == id_paciente)
 
     if status:
@@ -52,6 +59,7 @@ def listar_por_paciente(
 def buscar_por_id_e_paciente(
     db: Session, id_consulta: int, id_paciente: int
 ) -> Optional[Consulta]:
+    """Consulta pelo id, só se pertencer ao paciente; senão None."""
     return (
         _base_query(db)
         .filter(

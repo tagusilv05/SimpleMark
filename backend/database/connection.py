@@ -1,3 +1,5 @@
+"""Engine do SQLAlchemy, fábrica de sessões (SessionLocal) e Base declarativa dos modelos."""
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 

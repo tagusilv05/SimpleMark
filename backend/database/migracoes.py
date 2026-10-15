@@ -11,6 +11,11 @@ from database.connection import engine
 
 
 def aplicar_migracoes() -> None:
+    """Acrescenta colunas que faltam em tabelas já existentes.
+
+    Só roda no PostgreSQL; em outros bancos (ex.: SQLite dos testes) não faz nada.
+    Hoje adiciona a coluna nota (1 a 5) em avaliacao, se ainda não existir.
+    """
     if engine.dialect.name != "postgresql":
         return
     with engine.begin() as conexao:

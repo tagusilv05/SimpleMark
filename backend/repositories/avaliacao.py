@@ -1,3 +1,5 @@
+"""Consultas de avaliações e das médias de nota dos profissionais."""
+
 from typing import Optional, Tuple
 
 from sqlalchemy.orm import Session
@@ -17,6 +19,7 @@ from models.models import (
 
 
 def buscar_consulta(db: Session, id_consulta: int) -> Optional[Consulta]:
+    """Consulta pelo id, ou None se não existir."""
     return (
         db.query(Consulta)
         .filter(Consulta.id_consulta == id_consulta)
@@ -25,6 +28,7 @@ def buscar_consulta(db: Session, id_consulta: int) -> Optional[Consulta]:
 
 
 def buscar_avaliacao(db: Session, id_consulta: int) -> Optional[Avaliacao]:
+    """Avaliação da consulta, ou None se ainda não houver."""
     return (
         db.query(Avaliacao)
         .filter(Avaliacao.id_consulta == id_consulta)
@@ -33,6 +37,7 @@ def buscar_avaliacao(db: Session, id_consulta: int) -> Optional[Avaliacao]:
 
 
 def criar_avaliacao(db: Session, avaliacao: Avaliacao) -> Avaliacao:
+    """Grava a avaliação com commit e a devolve recarregada do banco."""
     db.add(avaliacao)
     db.commit()
     db.refresh(avaliacao)
@@ -42,6 +47,10 @@ def criar_avaliacao(db: Session, avaliacao: Avaliacao) -> Avaliacao:
 def calcular_media_profissional(
     db: Session, id_profissional: int
 ) -> Tuple[Optional[float], int]:
+    """Média (duas casas) e total de avaliações do profissional.
+
+    Soma todas as especialidades dele. A média é None quando não há avaliação.
+    """
     media, total = (
         db.query(func.avg(Avaliacao.avaliacao), func.count(Avaliacao.id_consulta))
         .join(Consulta, Consulta.id_consulta == Avaliacao.id_consulta)
@@ -62,16 +71,20 @@ class RepositorioAvaliacao:
         self.db = db
 
     def buscar_consulta(self, id_consulta: int) -> Consulta | None:
+        """Consulta pelo id, ou None se não existir."""
         return self.db.get(Consulta, id_consulta)
 
     def buscar_por_consulta(self, id_consulta: int) -> Avaliacao | None:
+        """Avaliação pela chave da consulta, ou None se não houver."""
         return self.db.get(Avaliacao, id_consulta)
 
     def adicionar(self, avaliacao: Avaliacao) -> Avaliacao:
+        """Inclui a avaliação na sessão, sem flush nem commit."""
         self.db.add(avaliacao)
         return avaliacao
 
     def buscar_profissional(self, id_profissional: int) -> Profissional | None:
+        """Profissional pelo id, ou None se não existir."""
         return self.db.get(Profissional, id_profissional)
 
     def buscar_vinculo_para_atualizar(self, id_esp_prof: int) -> ProfissionalEspecialidade | None:
@@ -84,6 +97,10 @@ class RepositorioAvaliacao:
         return self.db.scalar(comando)
 
     def media_do_vinculo(self, id_esp_prof: int) -> float | None:
+        """Média das notas das consultas de um vínculo profissional-especialidade.
+
+        Ignora avaliações sem nota; devolve None se não houver nenhuma.
+        """
         comando = (
             select(func.avg(Avaliacao.nota))
             .join(Consulta, Consulta.id_consulta == Avaliacao.id_consulta)
@@ -130,6 +147,10 @@ class RepositorioAvaliacao:
         ]
 
     def nomes_especialidades(self, ids_profissionais: list[int]) -> dict[int, list[str]]:
+        """Nomes das especialidades de cada profissional, em ordem alfabética.
+
+        Lista de ids vazia devolve dicionário vazio sem consultar o banco.
+        """
         if not ids_profissionais:
             return {}
         comando = (

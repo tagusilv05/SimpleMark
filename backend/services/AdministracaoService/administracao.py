@@ -16,18 +16,23 @@ from schemas.administracao import (
 
 
 class ServicoAdministracao:
+    """Consulta de IDs, banimento de contas e registro das ações do administrador."""
+
     def __init__(self, db: Session) -> None:
         self.db = db
         self.repo = RepositorioAdministracao(db)
 
     def esta_banido(self, id_usuario) -> bool:
+        """Diz se o usuário tem banimento registrado."""
         return self.repo.esta_banido(id_usuario)
 
     def sem_banidos(self, profissionais: list[Profissional]) -> list[Profissional]:
+        """Remove da lista os profissionais cujas contas estão banidas."""
         banidos = self.repo.ids_usuarios_banidos()
         return [item for item in profissionais if item.id_usuario not in banidos]
 
     def listar_ids_usuarios(self) -> IdsUsuariosResposta:
+        """Lista os IDs de profissionais e pacientes, deixando de fora os banidos."""
         banidos = self.repo.ids_usuarios_banidos()
         profissionais = [
             ProfissionalIdResposta.de_profissional(item)
@@ -42,6 +47,7 @@ class ServicoAdministracao:
         return IdsUsuariosResposta(profissionais=profissionais, pacientes=pacientes)
 
     def registrar_validacao(self, admin: Usuario, id_profissional: int, id_usuario_alvo) -> None:
+        """Grava no log a validação do profissional e faz o commit."""
         self._registrar_log(
             admin=admin,
             acao="validar_profissional",
@@ -53,15 +59,24 @@ class ServicoAdministracao:
         self.db.commit()
 
     def recusar_se_banido(self, id_usuario) -> None:
+        """Responde 409 se o usuário estiver banido, impedindo a validação."""
         if self.repo.esta_banido(id_usuario):
             raise ErroNegocio("Este profissional foi banido e não pode ser validado.", 409)
 
     def recusar_validacao_se_banido(self, id_profissional: int) -> None:
+        """Recusa a validação (409) se o profissional estiver banido.
+
+        Profissional inexistente passa sem erro.
+        """
         profissional = self.repo.buscar_profissional(id_profissional)
         if profissional is not None:
             self.recusar_se_banido(profissional.id_usuario)
 
     def banir_profissional(self, id_profissional: int, admin: Usuario, motivo: str | None) -> None:
+        """Bane a conta do profissional.
+
+        Responde 404 se ele não existir. As demais regras ficam em _banir.
+        """
         profissional = self.repo.buscar_profissional(id_profissional)
         if profissional is None:
             raise ErroNegocio("Não encontramos este profissional de saúde.", 404)
@@ -75,6 +90,10 @@ class ServicoAdministracao:
         )
 
     def banir_paciente(self, id_paciente: int, admin: Usuario, motivo: str | None) -> None:
+        """Bane a conta do paciente.
+
+        Responde 404 se ele não existir. As demais regras ficam em _banir.
+        """
         paciente = self.repo.buscar_paciente(id_paciente)
         if paciente is None:
             raise ErroNegocio("Não encontramos este paciente.", 404)
@@ -88,6 +107,7 @@ class ServicoAdministracao:
         )
 
     def listar_logs(self) -> list[LogAcaoResposta]:
+        """Lista as ações registradas pelos administradores."""
         return [LogAcaoResposta.de_log(item) for item in self.repo.listar_logs()]
 
     def _banir(
@@ -99,6 +119,11 @@ class ServicoAdministracao:
         alvo_id: int,
         motivo: str | None,
     ) -> None:
+        """Registra o banimento, encerra as sessões abertas do usuário e grava o log.
+
+        Administrador não pode ser banido (403) e conta já banida responde 409.
+        Faz o commit.
+        """
         if usuario.administrador is not None:
             raise ErroNegocio("Não é permitido banir um administrador.", 403)
         if self.repo.esta_banido(usuario.id):
@@ -134,6 +159,7 @@ class ServicoAdministracao:
         id_usuario_alvo,
         detalhe: str | None,
     ) -> None:
+        """Adiciona o registro da ação do administrador, sem fazer commit."""
         self.repo.adicionar_log(
             LogAcaoAdministrador(
                 id_administrador=admin.administrador.id_administrador,

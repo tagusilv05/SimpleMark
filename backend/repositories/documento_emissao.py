@@ -1,5 +1,7 @@
 # Consultas usadas na emissão de receitas e atestados.
 # Não aplica regra de negócio.
+"""Consultas de consultas e documentos clínicos usadas na emissão."""
+
 from sqlalchemy.orm import Session, joinedload
 
 from models.models import Consulta, DocumentoClinico, Paciente, ProfissionalEspecialidade, Profissional
@@ -17,6 +19,7 @@ def _carregar_contexto():
 
 
 def buscar_consulta(db: Session, id_consulta: int) -> Consulta | None:
+    """Consulta pelo id, com paciente e profissional carregados, ou None."""
     return (
         db.query(Consulta)
         .filter(Consulta.id_consulta == id_consulta)
@@ -26,6 +29,7 @@ def buscar_consulta(db: Session, id_consulta: int) -> Consulta | None:
 
 
 def buscar_documento(db: Session, id_documento: int) -> DocumentoClinico | None:
+    """Documento pelo id, com receita, atestado e consulta carregados, ou None."""
     return (
         db.query(DocumentoClinico)
         .filter(DocumentoClinico.id_documento == id_documento)
@@ -39,6 +43,7 @@ def buscar_documento(db: Session, id_documento: int) -> DocumentoClinico | None:
 
 
 def listar_documentos_da_consulta(db: Session, id_consulta: int) -> list[DocumentoClinico]:
+    """Documentos emitidos para a consulta, em ordem de id."""
     return (
         db.query(DocumentoClinico)
         .filter(DocumentoClinico.id_consulta == id_consulta)

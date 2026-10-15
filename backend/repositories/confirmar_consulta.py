@@ -1,11 +1,14 @@
 # CRIADO: JOAO MARCOS 
 
+"""Gravação da consulta confirmada pelo paciente."""
+
 from sqlalchemy.orm import Session
 
 from models.models import Consulta
 
 # Adiciona uma nova consulta ao banco de dados e retorna a consulta cadastrada.
 def adicionar_consulta(dados, id_paciente, id_esp_prof, db: Session):
+    """Cria a consulta com os dados recebidos, faz commit e a devolve recarregada."""
 
     consulta = Consulta(
         id_paciente=id_paciente,
