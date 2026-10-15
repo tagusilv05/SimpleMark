@@ -43,6 +43,7 @@ def atualizar_por_id(db, id_horario: int, novo_inicio: time, novo_fim: time):
 
     Devolve None se o horário não existir.
     """
+    """Atualiza o horário pelo id, ou None se não existir."""
     horario = buscar_por_id(db, id_horario)
     if horario:
         horario.hora_inicio = novo_inicio

@@ -29,3 +29,23 @@ def sessao_inatividade_horas() -> int:
 def base_url_validacao() -> str:
     """Base da URL pública que o QR-Code do documento clínico aponta."""
     return os.getenv("BASE_URL_VALIDACAO", "http://localhost:8080/api/v1")
+
+def smtp_host() -> str:
+    return os.getenv("SMTP_HOST", "smtp.gmail.com")
+
+
+def smtp_porta() -> int:
+    return int(os.getenv("SMTP_PORT", "465"))
+
+
+def smtp_email() -> str:
+    return os.getenv("SMTP_EMAIL", "")
+
+
+def smtp_senha_app() -> str:
+    return os.getenv("SMTP_SENHA_APP", "")
+
+
+def codigo_login_validade_minutos() -> int:
+    """Quanto tempo o código de confirmação do login vale, em minutos."""
+    return int(os.getenv("CODIGO_LOGIN_VALIDADE_MINUTOS", "5"))

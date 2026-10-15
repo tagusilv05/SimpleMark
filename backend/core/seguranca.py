@@ -1,5 +1,8 @@
 """Hash Argon2 da senha e JWT ligado à sessão de login."""
 
+import hashlib
+import hmac
+import secrets
 import uuid
 from datetime import timedelta
 
@@ -10,6 +13,8 @@ from core.parametros import segredo_jwt
 from core.tempo import agora_utc
 
 _ALGORITMO = "HS256"
+
+TAMANHO_CODIGO_LOGIN = 6
 _hasher = PasswordHash.recommended()
 
 
@@ -53,3 +58,22 @@ def ler_token_acesso(token: str) -> dict:
     if "sub" not in dados or "sid" not in dados:
         raise TokenInvalido("Token inválido.")
     return dados
+
+
+def gerar_codigo_login() -> str:
+    """Código numérico de 6 dígitos, sorteado com o gerador seguro do sistema."""
+    return f"{secrets.randbelow(10 ** TAMANHO_CODIGO_LOGIN):0{TAMANHO_CODIGO_LOGIN}d}"
+
+
+def calcular_hash_codigo_login(id_usuario: uuid.UUID, codigo: str) -> str:
+    """HMAC do código, ligado ao usuário. O código em si nunca vai para o banco.
+
+    Com só 1 milhão de combinações, nenhum hash esconde o código de quem tem o
+    banco. A proteção real é o prazo curto, o uso único e o bloqueio por tentativas.
+    """
+    mensagem = f"login:{id_usuario}:{codigo}".encode("utf-8")
+    return hmac.new(segredo_jwt().encode("utf-8"), mensagem, hashlib.sha256).hexdigest()
+
+
+def codigo_login_confere(hash_guardado: str, id_usuario: uuid.UUID, codigo: str) -> bool:
+    return hmac.compare_digest(hash_guardado, calcular_hash_codigo_login(id_usuario, codigo))

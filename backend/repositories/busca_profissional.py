@@ -41,6 +41,7 @@ def _horario_ja_agendado():
 
 
 def _aplicar_especialidade(query, filtro: FiltroBuscaProfissional):
+    """Filtra por especialidade, se o filtro tiver algum valor."""
     if filtro.id_especialidade is not None:
         query = query.filter(
             ProfissionalEspecialidade.id_especialidade == filtro.id_especialidade
@@ -53,6 +54,7 @@ def _aplicar_especialidade(query, filtro: FiltroBuscaProfissional):
 
 
 def _aplicar_periodo(query, filtro: FiltroBuscaProfissional, momento: datetime):
+    """Filtra por período, se o filtro tiver algum valor."""
     if filtro.data_inicio is not None:
         query = query.filter(DataHorario.data_consulta >= filtro.data_inicio)
     if filtro.data_fim is not None:
