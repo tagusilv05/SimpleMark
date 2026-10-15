@@ -15,6 +15,7 @@ from schemas.consulta_paciente import (
     ListaConsultasResponse,
     ProfissionalResumo,
 )
+from schemas.videochamada import link_visivel
 
 
 def _to_response(consulta: Consulta) -> ConsultaPacienteResponse:
@@ -46,6 +47,7 @@ def _to_response(consulta: Consulta) -> ConsultaPacienteResponse:
         pode_avaliar=(
             consulta.status == "realizada" and consulta.avaliacao is None
         ),
+        meet_link=link_visivel(consulta),
     )
 
 

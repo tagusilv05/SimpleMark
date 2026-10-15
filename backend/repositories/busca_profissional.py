@@ -1,5 +1,7 @@
 # Consulta ao banco usada na busca de profissionais. Não aplica regra de
 # negócio: recebe o filtro já normalizado pelo service e devolve as linhas.
+"""Consulta de horários livres usada na busca de profissionais."""
+
 from datetime import datetime
 
 from sqlalchemy import or_, select

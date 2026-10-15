@@ -23,6 +23,7 @@ class TokenInvalido(Exception):
 
 
 def gerar_hash_senha(senha: str) -> str:
+    """Gera o hash da senha com o algoritmo recomendado (Argon2)."""
     return _hasher.hash(senha)
 
 
@@ -46,6 +47,10 @@ def gerar_token_acesso(id_usuario: uuid.UUID, id_sessao: uuid.UUID) -> str:
 
 
 def ler_token_acesso(token: str) -> dict:
+    """Valida assinatura e prazo do JWT e devolve o payload.
+
+    Levanta TokenInvalido se o token não decodificar ou não tiver sub e sid.
+    """
     try:
         dados = jwt.decode(token, segredo_jwt(), algorithms=[_ALGORITMO])
     except jwt.PyJWTError as exc:

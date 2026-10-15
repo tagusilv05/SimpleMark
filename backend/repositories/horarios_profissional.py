@@ -1,3 +1,5 @@
+"""Consultas da tabela data_horario usadas na agenda do profissional."""
+
 from models.models import DataHorario
 from typing import Optional
 from datetime import date, time
@@ -8,6 +10,7 @@ def listar(db, id_esp_prof: int, data_consulta: Optional[date] = None):
 
     Se id_esp_prof for None, não filtra por vínculo e devolve todos os horários.
     """
+    
     
     query = db.query(DataHorario)
     if id_esp_prof is not None:
@@ -36,6 +39,10 @@ def criar(db, horario: DataHorario):
     return horario
 
 def atualizar_por_id(db, id_horario: int, novo_inicio: time, novo_fim: time):
+    """Altera início e fim do horário na sessão, sem commit.
+
+    Devolve None se o horário não existir.
+    """
     """Atualiza o horário pelo id, ou None se não existir."""
     horario = buscar_por_id(db, id_horario)
     if horario:

@@ -28,6 +28,7 @@ from routers.porfissional_minha_conta import router as routers_porfissional_minh
 from routers.usuario_minha_conta import router as routers_usuario_minha_conta
 from routers.buscar_avaliacao_profissional import router as router_buscar_avaliacao_profissional
 from routers.confirmar_consulta import router as router_confirmar_consulta
+from routers.videochamada import router as videochamada_router
 from routers.pagamento import router as pagamento_router
 
 from seed.seed import criar_seed
@@ -64,6 +65,7 @@ app.include_router(consulta_profissional_router, prefix="/api/v1")
 app.include_router(documento_qrcode_router, prefix="/api/v1")
 app.include_router(documento_validacao_router, prefix="/api/v1")
 app.include_router(documento_emissao_router, prefix="/api/v1")
+app.include_router(videochamada_router, prefix="/api/v1")
 
 
 # app.include_router(avaliacao.router)

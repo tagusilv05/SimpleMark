@@ -1,4 +1,6 @@
 # services/consulta_service.py
+"""Consultas da agenda do profissional."""
+
 from datetime import date
 from sqlalchemy.orm import Session, joinedload
 from models import Consulta, Paciente, ProfissionalEspecialidade

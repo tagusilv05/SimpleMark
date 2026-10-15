@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     SmallInteger,
@@ -154,9 +155,17 @@ class DataHorario(Base):
 
 
 class Consulta(Base):
-    """Consulta de um paciente com um profissional numa especialidade (status padrão "agendada")."""
+    """Consulta de um paciente com um profissional numa especialidade (status padrão "agendada").
+
+    As colunas meet_link e data_geracao_link guardam a videochamada do Jitsi
+    Meet (ver services/videochamada.py). O índice único garante um link por
+    consulta e que duas consultas nunca dividam a mesma sala.
+    """
 
     __tablename__ = "consulta"
+    __table_args__ = (
+        Index("ix_consulta_meet_link", "meet_link", unique=True),
+    )
 
     id_consulta = Column(Integer, primary_key=True, index=True)
     id_paciente = Column(Integer, ForeignKey("paciente.id_paciente"), nullable=False)
@@ -166,6 +175,8 @@ class Consulta(Base):
     tipo = Column(String(30), nullable=False)
     status = Column(String(30), nullable=False, default="agendada")
     valor = Column(Numeric(10, 2), nullable=False)
+    meet_link = Column(String(255), nullable=True)
+    data_geracao_link = Column(DateTime(timezone=True), nullable=True)
 
     paciente = relationship("Paciente", back_populates="consultas")
     profissional_especialidade = relationship("ProfissionalEspecialidade", back_populates="consultas")

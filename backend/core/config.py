@@ -1,4 +1,8 @@
-# Configura a URL de conexão com o banco de dados usando variáveis de ambiente.
+"""URL de conexão com o banco, lida das variáveis de ambiente (.env).
+
+Levanta ValueError na importação se DATABASE_URL não estiver definida.
+"""
+
 import os
 from dotenv import load_dotenv
 

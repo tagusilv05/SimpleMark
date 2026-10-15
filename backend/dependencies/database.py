@@ -1,5 +1,3 @@
-# Cria e fornece uma sessão do banco de dados para as requisições,
-# garantindo que a sessão seja fechada após o uso.
 """Dependência que fornece a sessão do banco para cada requisição."""
 
 from database.connection import SessionLocal

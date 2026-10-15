@@ -1,5 +1,8 @@
-# Campos de login que não existem na tabela usuario do grupo.
-# A senha, o bloqueio e a sessão ficam aqui para não alterar as colunas deles.
+"""Campos de login que não existem na tabela usuario do grupo.
+
+A senha, o bloqueio e a sessão ficam aqui para não alterar as colunas deles.
+"""
+
 import uuid
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint

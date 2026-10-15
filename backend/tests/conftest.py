@@ -36,6 +36,9 @@ from routers.busca_profissional import router as busca_profissional_router
 from routers.documento_qrcode import router as documento_qrcode_router
 from routers.documento_emissao import router as documento_emissao_router
 from routers.documento_validacao import router as documento_validacao_router
+from routers.confirmar_consulta import router as confirmar_consulta_router
+from routers.consulta_paciente import router as consulta_paciente_router
+from routers.videochamada import router as videochamada_router
 
 
 @pytest.fixture
@@ -79,6 +82,9 @@ def app(db):
     aplicacao.include_router(documento_qrcode_router, prefix="/api/v1")
     aplicacao.include_router(documento_validacao_router, prefix="/api/v1")
     aplicacao.include_router(documento_emissao_router, prefix="/api/v1")
+    aplicacao.include_router(videochamada_router, prefix="/api/v1")
+    aplicacao.include_router(confirmar_consulta_router, prefix="/consulta")
+    aplicacao.include_router(consulta_paciente_router)
     aplicacao.dependency_overrides[get_db] = lambda: db
     return aplicacao
 
