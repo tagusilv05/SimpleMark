@@ -1,4 +1,12 @@
 services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.front
+    container_name: vueJS
+    ports:
+      - "80:8000"
+
   backend:
     build:
       context: .
@@ -9,6 +17,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
     environment:
       DATABASE_URL: ${DATABASE_URL}
       BASE_URL_VALIDACAO: ${BASE_URL_VALIDACAO}
@@ -19,6 +28,7 @@ services:
       VIDEOCHAMADA_BACKOFF_SEGUNDOS: ${VIDEOCHAMADA_BACKOFF_SEGUNDOS:-2}
       # E-mail ao paciente (SMTP). Para testes locais use o Mailpit abaixo:
       # SMTP_HOST=mailpit, SMTP_PORT=1025, SMTP_USAR_TLS=false (ver README_VIDEOCHAMADA.md)
+      
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USUARIO: ${SMTP_USUARIO:-}
@@ -26,10 +36,12 @@ services:
       SMTP_REMETENTE: ${SMTP_REMETENTE:-}
       SMTP_USAR_TLS: ${SMTP_USAR_TLS:-true}
       SMTP_SSL: ${SMTP_SSL:-false}
-      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
-      SMTP_PORT: ${SMTP_PORT:-465}
-      SMTP_EMAIL: ${SMTP_EMAIL}
-      SMTP_SENHA_APP: ${SMTP_SENHA_APP}
+      # SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      # SMTP_PORT: ${SMTP_PORT:-465}
+      # SMTP_EMAIL: ${SMTP_EMAIL}
+      # SMTP_SENHA_APP: ${SMTP_SENHA_APP}
+
+      # Mercado Pago
       MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN}
       MERCADOPAGO_RETURN_URL: ${MERCADOPAGO_RETURN_URL}
 

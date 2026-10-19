@@ -38,25 +38,3 @@ Para remover os containers em execução:
 ```bash
 docker compose down
 ```
-# Estrutura do Projeto
-```
-SimpleMark
-├─ backend
-│  ├─ core
-│  │  └─ config.py
-│  ├─ database
-│  │  └─ connection.py
-│  ├─ dependencies
-│  │  └─ database.py
-│  ├─ models
-│  │  └─ models.py
-│  ├─ repositories
-│  ├─ routers
-│  ├─ schemas
-│  ├─ services
-|  └─ main.py
-├─ compose.yaml
-├─ Dockerfile.back
-├─ README.md
-└─ requirements.txt
-```
