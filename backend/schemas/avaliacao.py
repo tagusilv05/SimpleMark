@@ -1,7 +1,7 @@
 # schemas/avaliacao.py
 
 """Entradas e saídas das rotas de avaliação de consultas (/avaliacoes)."""
-
+import uuid
 from datetime import date, time
 from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict, ConfigDict, StrictInt, field_validator, model_validator
@@ -105,6 +105,7 @@ class ProfissionalMelhorAvaliadoResposta(BaseModel):
 
     posicao: int
     id_profissional: int
+    id_usuario: uuid.UUID | None = None
     nome: str
     especialidades: list[str]
     media: float

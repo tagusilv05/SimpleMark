@@ -164,3 +164,15 @@ class RepositorioAvaliacao:
         for id_prof, nome in self.db.execute(comando):
             nomes.setdefault(int(id_prof), []).append(nome)
         return nomes
+
+    def ids_usuarios(self, ids_profissionais: list[int]) -> dict:
+        """id do usuário (UUID) de cada profissional, para o front buscar a foto.
+
+        Lista de ids vazia devolve dicionário vazio sem consultar o banco.
+        """
+        if not ids_profissionais:
+            return {}
+        comando = select(Profissional.id_profissional, Profissional.id_usuario).where(
+            Profissional.id_profissional.in_(ids_profissionais)
+        )
+        return {int(id_prof): id_usuario for id_prof, id_usuario in self.db.execute(comando)}
