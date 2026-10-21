@@ -18,6 +18,7 @@ class ConsultaProfissionalOut(BaseModel):
     """Item de GET /consultas_profissionais/{id_profissional}/consultas."""
 
     id_consulta: int
+    id_esp_prof: int
     data: date
     hora: time
     tipo: str

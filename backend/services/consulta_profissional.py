@@ -43,6 +43,7 @@ def _para_schema(c: Consulta) -> ConsultaProfissionalOut:
     usuario = c.paciente.usuario
     return ConsultaProfissionalOut(
         id_consulta=c.id_consulta,
+        id_esp_prof=c.id_esp_prof,
         data=c.data,
         hora=c.hora,
         tipo=c.tipo,
