@@ -122,11 +122,14 @@ class ServicoAvaliacao:
             linhas,
             key=lambda linha: (-pontuacao(linha[2], linha[3]), -linha[3], linha[1]),
         )[:limite]
-        especialidades = self.avaliacoes.nomes_especialidades([linha[0] for linha in ordenadas])
+        ids_ordenados = [linha[0] for linha in ordenadas]
+        especialidades = self.avaliacoes.nomes_especialidades(ids_ordenados)
+        usuarios = self.avaliacoes.ids_usuarios(ids_ordenados)
         return [
             ProfissionalMelhorAvaliadoResposta(
                 posicao=posicao,
                 id_profissional=id_prof,
+                id_usuario=usuarios.get(id_prof),
                 nome=nome,
                 especialidades=especialidades.get(id_prof, []),
                 media=round(media, 2),
