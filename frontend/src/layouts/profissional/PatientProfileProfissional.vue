@@ -7,6 +7,7 @@ import FormCardDadosPessoais from '@/components/shared/FormCardDadosPessoais.vue
 import FormCardEndereco from '@/components/shared/FormCardEndereco.vue'
 import FormCardSeguranca from '@/components/shared/FormCardSeguranca.vue'
 import FormCardExcluirConta from '@/components/shared/FormCardExcluirConta.vue'
+import ProfessionalManagement from '@/components/profissional/ProfessionalManagement.vue'
 
 const router = useRouter()
 
@@ -52,6 +53,37 @@ function buscarCep() {
   // TODO: abrir a página de busca de CEP dos Correios
   window.open('https://buscacepinter.correios.com.br/app/endereco/index.php', '_blank')
 }
+
+const profissional = ref({
+  fotoUrl: '',
+  verificado: true,
+  apresentacao: 'Cardiologista com mais de 15 anos de experiência clínica, especializado em diagnóstico cardiovascular e telemedicina preventiva.',
+  especialidades: [
+    { id: 1, name: 'Cardiologia Clínica', registration: 'CRM 12345-SP', council: 'CREMESP', price: 'R$ 200,00' },
+  ],
+})
+
+const especialidadesDisponiveis = ['Cardiologia', 'Dermatologia', 'Pediatria', 'Ortopedia']
+
+function trocarFoto(file) {
+  // TODO: enviar para a API. Por enquanto só mostra o preview.
+  profissional.value.fotoUrl = URL.createObjectURL(file)
+}
+
+function salvarProfissional() {
+  // TODO: enviar para a API
+  console.log('Salvar profissional:', profissional.value)
+}
+
+function desativarConta() {
+  // TODO: chamar a API para deixar a conta inativa
+  console.log('Desativar conta')
+}
+
+function excluirConta() {
+  // TODO: chamar a API para excluir a conta
+  console.log('Excluir conta')
+}
 </script>
 
 <template>
@@ -90,12 +122,24 @@ function buscarCep() {
         @excluir="excluirConta"
       />
       
+      <ProfessionalManagement
+        v-else-if="aba === 'perfil'"
+        v-model:bio="profissional.apresentacao"
+        v-model:specialties="profissional.especialidades"
+        :photo="profissional.fotoUrl"
+        :verified="profissional.verificado"
+        :specialty-options="especialidadesDisponiveis"
+        @photo-change="trocarFoto"
+        @save="salvarProfissional"
+      />
+
       <!-- Outras abas: ainda não criadas -->
       <section
         v-else
         class="rounded-xl bg-white p-8 text-gray-500 shadow-[0_2px_12px_rgba(11,47,91,0.08)]"
       >
-        Em breve.
+        <!-- Mostra a chave da aba clicada: use-a no v-else-if do painel acima -->
+        Em breve. (aba: {{ aba }})
       </section>
     </div>
   </div>

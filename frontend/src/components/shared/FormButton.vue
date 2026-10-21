@@ -13,16 +13,20 @@
  *   <FormButton variant="danger" icon="M6 18 18 6M6 6l12 12">    // destrutivo, com ícone
  *     Excluir Conta
  *   </FormButton>
+ *   <FormButton variant="outline" icon="...">Editar</FormButton>          // branco com borda
+ *   <FormButton variant="outline-danger" icon="...">Excluir</FormButton>  // branco com borda, texto vermelho
  *   <FormButton :disabled="carregando">Enviar</FormButton>       // desabilitado
  *   <FormButton @click="salvar">Salvar</FormButton>              // o click é repassado ao <button>
  *
  * PROPS
  *   variant   String  (padrão: 'primary')
  *               aparência do botão. Valores aceitos:
- *               - 'primary' -> azul escuro, preenchido (ação principal)
- *               - 'text'    -> só texto, sem fundo (ex.: "Voltar")
- *               - 'soft'    -> azul claro (ação secundária, ex.: "Deixar Conta Inativa")
- *               - 'danger'  -> vermelho, preenchido (ação destrutiva, ex.: "Excluir Conta")
+ *               - 'primary'        -> azul escuro, preenchido (ação principal)
+ *               - 'text'           -> só texto, sem fundo (ex.: "Voltar")
+ *               - 'soft'           -> azul claro (ação secundária, ex.: "Deixar Conta Inativa")
+ *               - 'danger'         -> vermelho, preenchido (ação destrutiva, ex.: "Excluir Conta")
+ *               - 'outline'        -> fundo branco com borda cinza (ex.: "Editar")
+ *               - 'outline-danger' -> igual ao outline, texto vermelho (ex.: "Excluir")
  *               Qualquer outro valor gera aviso no console (validator).
  *   type      String  (padrão: 'button')
  *               tipo nativo do <button>: 'button', 'submit' ou 'reset'.
@@ -55,7 +59,7 @@ defineProps({
   variant: {
     type: String,
     default: 'primary',
-    validator: (v) => ['primary', 'text', 'soft', 'danger'].includes(v),
+    validator: (v) => ['primary', 'text', 'soft', 'danger', 'outline', 'outline-danger'].includes(v),
   },
   type: { type: String, default: 'button' },
   icon: { type: String, default: '' },
@@ -67,6 +71,8 @@ const styles = {
   text: 'px-4 text-gray-700 hover:text-[#042d5c]',
   soft: 'bg-[#e1e8fb] px-6 text-[#0b2f5b] hover:bg-[#d3ddf8]',
   danger: 'bg-red-700 px-6 text-white hover:bg-red-800',
+  outline: 'border border-gray-200 bg-white px-4 text-[#0b2f5b] hover:bg-gray-50',
+  'outline-danger': 'border border-gray-200 bg-white px-4 text-red-700 hover:bg-red-50',
 }
 </script>
 
