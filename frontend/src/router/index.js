@@ -35,9 +35,26 @@ const router = createRouter({
       component: () => import('@/views/paciente/grenciarContaPaciente.vue'),
     },
     {
-      path: '/profissional/conta',
-      name: 'gerenciarContaDoProfissional',
-      component: () => import('@/views/profissional/gerenciarContaProfissional.vue'),
+      path: '/profissional',
+      children: [
+        {
+          path: 'dashboard',
+          name: 'dashboardDoProfissional',
+          component: () => import('@/views/profissional/dashboardProfissional.vue'),
+        },
+        {
+          path: 'conta',
+          name: 'gerenciarContaDoProfissional',
+          component: () => import('@/views/profissional/gerenciarContaProfissional.vue'),
+          meta: { voltar: true },
+        },
+        {
+          path: 'configuracao-agenda',
+          name: 'configuracaoAgendaDoProfissional',
+          component: () => import('@/views/profissional/configuraçãoAgendaProfissional.vue'),
+          meta: { voltar: true },
+        }
+      ]
     },
   ],
 })
