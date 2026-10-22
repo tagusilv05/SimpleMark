@@ -113,6 +113,21 @@ const router = createRouter({
       component: () => import('@/views/paciente/grenciarContaPaciente.vue'),
     },
     {
+      path: '/administracao',
+      children: [
+        {
+          path: 'usuarios',
+          name: 'gestaoDeUsuarios',
+          component: () => import('@/views/administracao/GestaoUsuarios.vue'),
+        },
+        {
+          path: 'validacao-profissionais',
+          name: 'validacaoDeProfissionais',
+          component: () => import('@/views/administracao/ValidacaoProfissionais.vue'),
+        },
+      ],
+    },
+    {
       path: '/profissional',
       children: [
         {
