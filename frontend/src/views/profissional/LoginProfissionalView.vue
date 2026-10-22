@@ -47,7 +47,7 @@ async function entrar() {
 }
 
 function irParaCadastro() {
-  router.push({ name: 'cadastro' })
+  router.push({ name: 'cadastro/profissional' })
 }
 </script>
 
@@ -97,7 +97,7 @@ function irParaCadastro() {
               </label>
 
               <RouterLink
-                to="/esqueci-senha"
+                :to="{ name: 'login/profissional/recuperarsenha' }"
                 class="text-sm font-bold text-[#042d5c] hover:underline"
               >
                 Esqueceu a senha?
