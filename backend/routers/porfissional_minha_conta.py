@@ -180,5 +180,3 @@ def excluir_especialidade(dados: ExcluirEpecialidadeInput, db: Session = Depends
     except Exception as erro:
         print(f"ERRO REAL: {erro}")
         raise HTTPException(status_code=500,detail="Erro ao remover especialidade do profissional")
-
-
