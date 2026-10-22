@@ -19,6 +19,10 @@
  *   <FormField label="Estado" type="select" v-model="uf"
  *              :options="[{ value: 'PI', label: 'Piauí' }]" />             // select com { value, label }
  *   <FormField label="CPF" v-model="cpf" locked />                         // bloqueado (somente leitura)
+ *   <FormField label="E-mail" v-model="email" variant="outline" />         // caixa branca com borda (telas de login)
+ *   <FormField label="CPF" v-model="cpf" inputmode="numeric"
+ *              :error="erros.cpf" />                                       // teclado numérico + mensagem de erro
+ *   <FormField label="CEP" v-model="cep" indent />                         // sem ícone, mas alinhado como se tivesse
  *
  *   <FormField label="CEP" v-model="cep">                                  // slot "hint" ao lado do rótulo
  *     <template #hint>
@@ -37,11 +41,25 @@
  *                  (qualquer type nativo de <input>) ou 'select' para lista suspensa.
  *                  - 'password' -> ganha botão de olho para mostrar/esconder a senha.
  *                  - 'select'   -> renderiza <select> com seta à direita.
+ *   variant      String  (padrão: 'filled')
+ *                  aparência da caixa:
+ *                  - 'filled'  -> fundo azul claro, sem borda (padrão)
+ *                  - 'outline' -> fundo branco com borda cinza (telas de login e cadastro)
  *   icon         String  (padrão: '')
  *                  caminho "d" de um SVG 24x24 (ex.: dos Heroicons), exibido à
  *                  esquerda dentro da caixa. Vazio = sem ícone.
+ *   indent       Boolean  (padrão: false)
+ *                  mantém o recuo à esquerda do texto mesmo sem ícone (alinha com
+ *                  os campos que têm ícone).
  *   placeholder  String  (padrão: '')
- *                  texto de dica dentro do input. Não se aplica ao select.
+ *                  texto de dica dentro do input. No select, vira a primeira opção
+ *                  (desabilitada, em cinza) enquanto nada foi escolhido.
+ *   inputmode    String  (padrão: '')
+ *                  teclado sugerido em celulares: 'numeric', 'tel', 'email'...
+ *                  Vazio = não define.
+ *   error        String  (padrão: '')
+ *                  mensagem de erro exibida abaixo da caixa (vermelha). A caixa
+ *                  também ganha destaque vermelho. Vazio = sem erro.
  *   options      Array  (padrão: [])
  *                  só para type="select". Aceita:
  *                  - lista simples: ['Masculino', 'Feminino']
@@ -59,6 +77,12 @@
  *                       Atenção: no select o valor sempre chega como String,
  *                       mesmo que o `value` da opção seja um número.
  *
+ * FILTRO DE DIGITAÇÃO
+ *   Se a página alterar o valor recebido (máscara de CPF, só números etc.), o
+ *   campo passa a mostrar o valor final, inclusive quando ele não muda (ex.: uma
+ *   letra digitada num campo numérico é descartada na hora). Por isso o campo
+ *   precisa estar ligado a um v-model (ou :model-value + @update:model-value).
+ *
  * ESTILO
  *   Já vem com Tailwind: caixa h-13 com fundo azul claro, cantos arredondados e
  *   anel de foco na cor turquesa. Para ajustar cores ou altura, edite as classes
@@ -71,19 +95,29 @@
 
 
 
-import { computed, ref, useId } from 'vue'
+import { computed, nextTick, ref, useId } from 'vue'
 
 // Campo com rótulo + caixa (input ou select) + ícone.
 // type: 'text' | 'email' | 'tel' | 'date' | 'password' | ... | 'select'
 // type="password" ganha o botão de olho para mostrar/esconder a senha.
 // options (só para select): ['Masculino', ...] ou [{ value, label }]
 // locked: campo bloqueado (somente leitura), mostra cadeado à direita
+// variant: 'filled' (padrão) | 'outline'
+// error: mensagem de erro abaixo da caixa
 const props = defineProps({
   label: { type: String, required: true },
   modelValue: { type: [String, Number], default: '' },
   type: { type: String, default: 'text' },
+  variant: {
+    type: String,
+    default: 'filled',
+    validator: (v) => ['filled', 'outline'].includes(v),
+  },
   icon: { type: String, default: '' },
+  indent: { type: Boolean, default: false },
   placeholder: { type: String, default: '' },
+  inputmode: { type: String, default: '' },
+  error: { type: String, default: '' },
   options: { type: Array, default: () => [] },
   locked: { type: Boolean, default: false },
 })
@@ -100,12 +134,35 @@ const paths = {
     'M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88',
 }
 
+// Aparência da caixa (fundo e borda); com erro, ganha destaque vermelho
+const boxStyle = computed(() => {
+  if (props.variant === 'outline') {
+    return props.error ? 'border border-red-500 bg-white' : 'border border-gray-300 bg-white'
+  }
+  return props.error ? 'bg-[#eef1fe] ring-2 ring-red-400' : 'bg-[#eef1fe]'
+})
+
+// Recuo à esquerda: com ícone, ou quando `indent` pede o mesmo alinhamento
+const hasIndent = computed(() => !!props.icon || props.indent)
+
 // Senha: alterna entre escondida e visível
 const visible = ref(false)
 const inputType = computed(() => (props.type === 'password' && visible.value ? 'text' : props.type))
 
 const optionValue = (o) => (typeof o === 'object' ? o.value : o)
 const optionLabel = (o) => (typeof o === 'object' ? o.label : o)
+
+// Emite o valor digitado e, depois que a página responde, garante que o campo mostre
+// o valor final (máscara/filtro). Sem isso, uma tecla descartada (ex.: letra num campo
+// numérico) continuaria aparecendo, porque o valor do v-model não mudou.
+function onInput(event) {
+  const el = event.target
+  emit('update:modelValue', el.value)
+  nextTick(() => {
+    const final = String(props.modelValue ?? '')
+    if (el.value !== final) el.value = final
+  })
+}
 </script>
 
 <template>
@@ -138,10 +195,16 @@ const optionLabel = (o) => (typeof o === 'object' ? o.label : o)
         :id="id"
         :value="modelValue"
         :disabled="locked"
-        class="h-13 w-full cursor-pointer appearance-none rounded-lg bg-[#eef1fe] pr-11 text-[15px] text-gray-700 outline-none transition focus:ring-2 focus:ring-[#0a9ba5] disabled:cursor-not-allowed disabled:text-gray-400"
-        :class="icon ? 'pl-12' : 'pl-4'"
+        :aria-invalid="!!error"
+        class="h-13 w-full cursor-pointer appearance-none rounded-lg pr-11 text-[15px] outline-none transition focus:ring-2 focus:ring-[#0a9ba5] disabled:cursor-not-allowed disabled:text-gray-400"
+        :class="[
+          boxStyle,
+          hasIndent ? 'pl-12' : 'pl-4',
+          modelValue === '' && placeholder ? 'text-gray-400' : 'text-gray-700',
+        ]"
         @change="emit('update:modelValue', $event.target.value)"
       >
+        <option v-if="placeholder" value="" disabled>{{ placeholder }}</option>
         <option v-for="o in options" :key="optionValue(o)" :value="optionValue(o)">
           {{ optionLabel(o) }}
         </option>
@@ -155,9 +218,11 @@ const optionLabel = (o) => (typeof o === 'object' ? o.label : o)
         :value="modelValue"
         :placeholder="placeholder"
         :readonly="locked"
-        class="h-13 w-full rounded-lg bg-[#eef1fe] pr-11 text-[15px] text-gray-800 outline-none transition placeholder:text-gray-400 focus:ring-2 focus:ring-[#0a9ba5] read-only:cursor-not-allowed read-only:text-gray-400 read-only:focus:ring-0"
-        :class="icon ? 'pl-12' : 'pl-4'"
-        @input="emit('update:modelValue', $event.target.value)"
+        :inputmode="inputmode || undefined"
+        :aria-invalid="!!error"
+        class="h-13 w-full rounded-lg pr-11 text-[15px] text-gray-800 outline-none transition placeholder:text-gray-400 focus:ring-2 focus:ring-[#0a9ba5] read-only:cursor-not-allowed read-only:text-gray-400 read-only:focus:ring-0"
+        :class="[boxStyle, hasIndent ? 'pl-12' : 'pl-4']"
+        @input="onInput"
       />
 
       <!-- Olho da senha (mostrar / esconder) -->
@@ -201,5 +266,8 @@ const optionLabel = (o) => (typeof o === 'object' ? o.label : o)
         />
       </svg>
     </div>
+
+    <!-- Mensagem de erro -->
+    <p v-if="error" class="text-xs font-medium text-red-600" role="alert">{{ error }}</p>
   </div>
 </template>
