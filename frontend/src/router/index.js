@@ -27,6 +27,24 @@ const router = createRouter({
       name: 'login/profissional',
       component: () => import('@/views/profissional/LoginProfissionalView.vue'),
     },
+    // Recuperar senha do profissional
+    {
+      path: '/login/profissional/recuperarsenha',
+      name: 'login/profissional/recuperarsenha',
+      component: () => import('@/views/profissional/RecuperarSenhaProfissionalView.vue'),
+    },
+    // Redefinir senha do profissional (código + nova senha)
+    {
+      path: '/login/profissional/redefinirsenha',
+      name: 'login/profissional/redefinirsenha',
+      component: () => import('@/views/profissional/RedefinirSenhaProfissionalView.vue'),
+    },
+    // Sucesso na redefinição de senha do profissional
+    {
+      path: '/login/profissional/sucessoredefinirsenha',
+      name: 'login/profissional/sucessoredefinirsenha',
+      component: () => import('@/views/profissional/SenhaRedefinidaProfissionalView.vue'),
+    },
     //Cadastro do paciente
     {
       path: '/cadastro/paciente',
@@ -57,8 +75,26 @@ const router = createRouter({
     name: 'login/paciente/sucessoredefinirsenha',
     component: () => import('@/views/paciente/SenhaRedefinidaView.vue'),
    },
+    // Cadastro do profissional de saúde
+    {
+      path: '/cadastro/profissional',
+      name: 'cadastro/profissional',
+      component: () => import('@/views/profissional/CadastroProfissionalView.vue'),
+    },
+    // Sucesso do cadastro do profissional
+    {
+      path: '/cadastro/profissional/sucesso',
+      name: 'cadastro/profissional/sucesso',
+      component: () => import('@/views/profissional/CadastroProfissionalSucessoView.vue'),
+    },
+    //Login do Admin
+    {
+      path: '/login/administrador',
+      name: 'login/administrador',
+      component: () => import('@/views/administracao/LoginAdminView.vue'),
+    },
     // Telas ainda não criadas: usam a página provisória "Em breve".
-    ...['cadastro', 'cadastro/profissional', 'login/administrador'].map(
+    ...['cadastro'].map(
       (path) => ({ path: `/${path}`, name: path, component: () => import('@/views/EmBreve.vue') }),
     ),
     {
