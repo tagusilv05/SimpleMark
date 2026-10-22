@@ -9,40 +9,51 @@ import FeatureItem from '@/components/shared/FeatureItem.vue'
 import SpecialtyChip from '@/components/shared/SpecialtyChip.vue'
 import DoctorCard from '@/components/shared/DoctorCard.vue'
 import { listarEspecialidades, maisAvaliados } from '@/services/profissionais'
-import heroImage from '@/assets/hero-medica.jpg'
+import heroImage from '@/assets/imagemhome.png'
 
 const router = useRouter()
 
 // ---- Dados vindos do backend ----
 const especialidades = ref([])
 const carregandoEspecialidades = ref(true)
-const erroEspecialidades = ref('')
 
 const medicos = ref([])
 const totalProfissionais = ref(0)
 const carregandoMedicos = ref(true)
-const erroMedicos = ref('')
 
 // A tela mostra no máximo 12 especialidades (2 linhas de 6) e 4 médicos
 const MAX_ESPECIALIDADES = 12
 const MAX_MEDICOS = 4
 
+// Dados fictícios (os mesmos do design): usados quando o backend falha ou ainda não tem dados
+const ESPECIALIDADES_FICTICIAS = [
+  'Dermatologia', 'Pediatria', 'Ginecologia', 'Ortopedia', 'Psicologia', 'Psiquiatria',
+  'Reumatologia', 'Neurologia', 'Esteta', 'Cardiologia', 'Traumatologia', 'Nutrição',
+].map((especialidade, i) => ({ id_especialidade: i + 1, especialidade }))
+
+const MEDICOS_FICTICIOS = [
+  { id_profissional: 1, nome: 'Dr. Nome Profissional', especialidade: 'Cardiologia', avaliacao: 5.0, total_avaliacoes: 124 },
+  { id_profissional: 2, nome: 'Dr. Nome Profissional', especialidade: 'Psicologo', avaliacao: 4.9, total_avaliacoes: 98 },
+  { id_profissional: 3, nome: 'Dr. Nome Profissional', especialidade: 'Pediatria', avaliacao: 5.0, total_avaliacoes: 156 },
+  { id_profissional: 4, nome: 'Dr. Nome Profissional', especialidade: 'Clínico Geral', avaliacao: 4.8, total_avaliacoes: 82 },
+]
+
 const especialidadesEmDestaque = computed(() => especialidades.value.slice(0, MAX_ESPECIALIDADES))
 
-// Só afirma um número quando o backend o confirma
+// Com dados reais mostra o total do backend; com os fictícios, o texto do design
 const subtitulo = computed(() =>
   totalProfissionais.value > 0
     ? `${totalProfissionais.value} ${totalProfissionais.value === 1 ? 'especialista de saúde está pronto' : 'especialistas de saúde estão prontos'} para te ajudar`
-    : 'Especialistas de saúde prontos para te ajudar',
+    : 'Mais de 50 especialistas de saúde estão prontos para te ajudar',
 )
 
 async function carregarEspecialidades() {
   carregandoEspecialidades.value = true
-  erroEspecialidades.value = ''
   try {
-    especialidades.value = await listarEspecialidades()
-  } catch (erro) {
-    erroEspecialidades.value = erro.message
+    const lista = await listarEspecialidades()
+    especialidades.value = lista?.length ? lista : ESPECIALIDADES_FICTICIAS
+  } catch {
+    especialidades.value = ESPECIALIDADES_FICTICIAS
   } finally {
     carregandoEspecialidades.value = false
   }
@@ -50,13 +61,13 @@ async function carregarEspecialidades() {
 
 async function carregarMedicos() {
   carregandoMedicos.value = true
-  erroMedicos.value = ''
   try {
     const { destaques, total } = await maisAvaliados(MAX_MEDICOS)
-    medicos.value = destaques
-    totalProfissionais.value = total
-  } catch (erro) {
-    erroMedicos.value = erro.message
+    medicos.value = destaques.length ? destaques : MEDICOS_FICTICIOS
+    totalProfissionais.value = destaques.length ? total : 0
+  } catch {
+    medicos.value = MEDICOS_FICTICIOS
+    totalProfissionais.value = 0
   } finally {
     carregandoMedicos.value = false
   }
@@ -118,10 +129,10 @@ const destaques = [
         <img
           :src="heroImage"
           alt=""
-          class="absolute inset-y-0 right-0 -z-10 hidden h-full w-3/5 object-cover object-top md:block"
+          class="absolute inset-0 -z-10 hidden size-full object-cover object-right md:block"
         />
         <div
-          class="absolute inset-0 -z-10 hidden bg-linear-to-r from-[#f8faff] from-40% via-[#f8faff]/70 via-55% to-transparent to-75% md:block"
+          class="absolute inset-0 -z-10 hidden bg-linear-to-r from-[#f8faff]/80 from-25% to-transparent to-55% md:block"
           aria-hidden="true"
         />
 
@@ -159,21 +170,6 @@ const destaques = [
           <div v-for="n in MAX_ESPECIALIDADES" :key="n" class="h-11 animate-pulse rounded-lg bg-gray-200" />
         </div>
 
-        <div v-else-if="erroEspecialidades" class="flex flex-col items-start gap-3" role="alert">
-          <p class="text-sm text-red-700">{{ erroEspecialidades }}</p>
-          <button
-            type="button"
-            class="cursor-pointer text-sm font-semibold text-[#0b2f5b] underline underline-offset-4"
-            @click="carregarEspecialidades"
-          >
-            Tentar novamente
-          </button>
-        </div>
-
-        <p v-else-if="!especialidadesEmDestaque.length" class="text-sm text-gray-500">
-          Nenhuma especialidade cadastrada ainda.
-        </p>
-
         <div v-else class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           <SpecialtyChip
             v-for="e in especialidadesEmDestaque"
@@ -200,21 +196,6 @@ const destaques = [
             <div v-for="n in MAX_MEDICOS" :key="n" class="h-56 animate-pulse rounded-xl bg-gray-200" />
           </div>
 
-          <div v-else-if="erroMedicos" class="flex flex-col items-start gap-3" role="alert">
-            <p class="text-sm text-red-700">{{ erroMedicos }}</p>
-            <button
-              type="button"
-              class="cursor-pointer text-sm font-semibold text-[#0b2f5b] underline underline-offset-4"
-              @click="carregarMedicos"
-            >
-              Tentar novamente
-            </button>
-          </div>
-
-          <p v-else-if="!medicos.length" class="text-sm text-gray-500">
-            Ainda não há profissionais com horários disponíveis.
-          </p>
-
           <div v-else class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             <DoctorCard
               v-for="m in medicos"
@@ -222,6 +203,7 @@ const destaques = [
               :name="m.nome"
               :specialty="m.especialidade"
               :rating="m.avaliacao"
+              :count="m.total_avaliacoes ?? null"
               @view="verPerfil(m)"
             />
           </div>

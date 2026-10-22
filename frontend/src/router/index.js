@@ -9,14 +9,8 @@ const router = createRouter({
       name: 'home',
       component: () => import('@/views/home/HomeView.vue'),
     },
-    {
-      path: '/login',
-      name: 'login',
-      component: () => import('@/views/auth/ModalidadeView.vue'),
-      meta: { modo: 'login' },
-    },
     // Telas ainda não criadas: usam a página provisória "Em breve".
-    ...['cadastro/paciente', 'cadastro/profissional', 'login/paciente', 'login/profissional', 'login/administrador'].map(
+    ...['login', 'cadastro', 'cadastro/paciente', 'cadastro/profissional', 'login/paciente', 'login/profissional', 'login/administrador'].map(
       (path) => ({ path: `/${path}`, name: path, component: () => import('@/views/EmBreve.vue') }),
     ),
     {
@@ -71,6 +65,8 @@ const router = createRouter({
         }
       ]
     },
+    // Qualquer outra rota (links do header/rodapé ainda sem tela) cai na página "Em breve"
+    { path: '/:pathMatch(.*)*', name: 'em-breve', component: () => import('@/views/EmBreve.vue') },
   ],
 })
 
