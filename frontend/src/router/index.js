@@ -110,7 +110,22 @@ const router = createRouter({
           name: 'configuracaoAgendaDoProfissional',
           component: () => import('@/views/profissional/configuraçãoAgendaProfissional.vue'),
           meta: { voltar: true },
-        }
+        },
+        {
+          path: 'atendimento',
+          name: 'chamadaDoAtendimento',
+          component: () => import('@/views/profissional/chamadaAtendimento.vue'),
+        },
+        {
+          path: 'atendimento/receita',
+          name: 'receitaDoAtendimento',
+          component: () => import('@/views/profissional/receitaMedica.vue'),
+        },
+        {
+          path: 'atendimento/atestado',
+          name: 'atestadoDoAtendimento',
+          component: () => import('@/views/profissional/atestadoMedico.vue'),
+        },
       ]
     },
     // Qualquer outra rota (links do header/rodapé ainda sem tela) cai na página "Em breve"
