@@ -9,8 +9,56 @@ const router = createRouter({
       name: 'home',
       component: () => import('@/views/home/HomeView.vue'),
     },
+    // Escolha da modalidade de login (destino do botão "Entrar" da home)
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/views/auth/ModalidadeView.vue'),
+    },
+    // Login do paciente
+    {
+      path: '/login/paciente',
+      name: 'login/paciente',
+      component: () => import('@/views/paciente/LoginPacienteView.vue'),
+   },
+    // Login do profissional
+    {
+      path: '/login/profissional',
+      name: 'login/profissional',
+      component: () => import('@/views/profissional/LoginProfissionalView.vue'),
+    },
+    //Cadastro do paciente
+    {
+      path: '/cadastro/paciente',
+      name: 'cadastro/paciente',
+      component: () => import('@/views/paciente/CadastroPacienteView.vue'),
+   },
+   //sucesso cadastro do paciente
+    {
+     path: '/cadastro/paciente/sucesso',
+     name: 'cadastro/paciente/sucesso',
+    component: () => import('@/views/paciente/CadastroPacienteSucessoView.vue'),
+   },
+   //Recuperar senha do paciente
+   {
+    path: '/login/paciente/recuperarsenha',
+    name: 'login/paciente/recuperarsenha',
+    component: () => import('@/views/paciente/RecuperarSenhaView.vue'),
+   },
+   //Redefinir senha do paciente
+   {
+    path: '/login/paciente/redefinirsenha',
+    name: 'login/paciente/redefinirsenha',
+    component: () => import('@/views/paciente/RedefinirSenhaView.vue'),
+   },
+   //sucesso na redefinicao de senha do paciente
+   {
+    path: '/login/paciente/sucessoredefinirsenha',
+    name: 'login/paciente/sucessoredefinirsenha',
+    component: () => import('@/views/paciente/SenhaRedefinidaView.vue'),
+   },
     // Telas ainda não criadas: usam a página provisória "Em breve".
-    ...['login', 'cadastro', 'cadastro/paciente', 'cadastro/profissional', 'login/paciente', 'login/profissional', 'login/administrador'].map(
+    ...['cadastro', 'cadastro/profissional', 'login/administrador'].map(
       (path) => ({ path: `/${path}`, name: path, component: () => import('@/views/EmBreve.vue') }),
     ),
     {
