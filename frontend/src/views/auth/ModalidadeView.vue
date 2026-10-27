@@ -1,28 +1,37 @@
 <script setup>
 /**
- * ModalidadeView — escolha da modalidade de login
+ * ModalidadeView — escolha da modalidade de login ou cadastro
  *
- * Tela exibida ao clicar em "Entrar" na home (rota /login). A pessoa escolhe se
- * entra como paciente, profissional de saúde ou administrador e segue para o
- * login correspondente.
+ * A pessoa escolhe se deseja entrar ou se cadastrar como paciente ou profissional
+ * de saúde. A modalidade de administrador está disponível somente no login.
  *
  * Estrutura:
  *   - Coluna esquerda: logo + cartão com os botões de modalidade
  *   - Coluna direita: imagem ilustrativa (escondida em telas < lg)
  */
 
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import FormButton from '@/components/shared/FormButton.vue'
 import heroImage from '@/assets/imagemprofissional.png'
 
 const router = useRouter()
+const route = useRoute()
+const isCadastro = computed(() => route.name === 'cadastro')
 
 // `rota` é o name da rota no router (src/router/index.js)
-const modalidades = [
-  { label: 'Paciente', rota: 'login/paciente' },
-  { label: 'Profissional de Saúde', rota: 'login/profissional' },
-  { label: 'Administrador', rota: 'login/administrador' },
-]
+const modalidades = computed(() =>
+  isCadastro.value
+    ? [
+        { label: 'Paciente', rota: 'cadastro/paciente' },
+        { label: 'Profissional de Saúde', rota: 'cadastro/profissional' },
+      ]
+    : [
+        { label: 'Paciente', rota: 'login/paciente' },
+        { label: 'Profissional de Saúde', rota: 'login/profissional' },
+        { label: 'Administrador', rota: 'login/administrador' },
+      ],
+)
 
 function escolher(rota) {
   router.push({ name: rota })
@@ -42,14 +51,19 @@ function escolher(rota) {
       <div class="mb-auto mt-8 w-full max-w-111.75 lg:ml-16 lg:mt-12">
         <div class="rounded-2xl border border-gray-200 bg-white p-6 sm:p-10">
           <header>
-            <h1 class="text-2xl font-medium text-[#00507a]">Escolha sua modalidade para login:</h1>
+            <h1 class="text-2xl font-medium text-[#00507a]">
+              Escolha sua modalidade para {{ isCadastro ? 'cadastro' : 'login' }}:
+            </h1>
             <p class="mt-3 text-[15px] leading-6 text-gray-700">
-              Bem-vindo à área de login da Simple Mark, selecione sua modalidade para seguir no
-              login.
+              Bem-vindo à área de {{ isCadastro ? 'cadastro' : 'login' }} da Simple Mark, selecione
+              sua modalidade para continuar.
             </p>
           </header>
 
-          <nav class="mt-8 flex flex-col gap-8" aria-label="Modalidades de login">
+          <nav
+            class="mt-8 flex flex-col gap-8"
+            :aria-label="`Modalidades de ${isCadastro ? 'cadastro' : 'login'}`"
+          >
             <FormButton
               v-for="m in modalidades"
               :key="m.rota"
