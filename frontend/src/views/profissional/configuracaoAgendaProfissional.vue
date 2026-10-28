@@ -31,18 +31,16 @@ const hhmm = (s) => (s ? s.slice(0, 5) : '')
 const toISODate = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
-const logErro = (e) => console.error(e.response?.status, e.response?.data ?? e.message)
-
 // ---------- Especialidade e valor ----------
 async function carregarEspecialidades() {
-  try {
-    const { data } = await api.get('/profissionais/me/especialidades')
-    especialidades.value = data
-    if (data.length) especialidadeId.value = data[0].id
-  } catch (e) {
-    erro.value = 'Não foi possível carregar as especialidades.'
-    logErro(e)
-  }
+  const { data } = await api.get(`/profissionais/buscar-info-profissional/${user.value.id}`)
+  especialidades.value = data.especialidade.map((especialidade) => ({
+    id: especialidade.id_especialidade,
+    id_esp_prof: especialidade.id_esp_prof,
+    nome: especialidade.nome,
+    valor_consulta: Number(especialidade.valor),
+  }))
+  if (especialidades.value.length) especialidadeId.value = especialidades.value[0].id
 }
 
 watch(especialidadeId, (id) => {
@@ -54,91 +52,160 @@ async function salvarValor() {
   const esp = especialidades.value.find((e) => String(e.id) === String(especialidadeId.value))
   if (!esp) return
   try {
-    await api.patch(`/profissionais/me/especialidades/${esp.id}`, { valor_consulta: valor.value })
+    await api.put('/profissionais/alterar-valor-consulta', {
+      id_usuario: user.value.id,
+      id_especialidade: esp.id,
+      valor_consulta: valor.value,
+    })
     esp.valor_consulta = valor.value
     erro.value = null
   } catch (e) {
-    erro.value = 'Não foi possível salvar o valor da consulta.'
-    logErro(e)
+    erro.value = e.message || 'Não foi possível salvar o valor da consulta.'
   }
 }
 
-// TODO: criar essa rota (ou trocar pelo nome real)
-const gerenciarEspecialidades = () => router.push({ name: 'gerenciarEspecialidadesDoProfissional' })
+const gerenciarEspecialidades = () => router.push({ name: 'gerenciarContaDoProfissional' })
 
 // ---------- Faixas e horários do dia ----------
 async function carregarFaixas() {
-  try {
-    const { data } = await api.get('/profissionais/me/faixas-horario', {
-      params: { data: toISODate(dataSelecionada.value) },
-    })
-    faixas.value = data.faixas.map((f, i) => ({
-      key: f.id ?? `f-${i}`,
-      inicio: hhmm(f.inicio),
-      fim: hhmm(f.fim),
-    }))
-  } catch (e) {
-    erro.value = 'Não foi possível carregar as faixas de horário.'
-    logErro(e)
+  const especialidade = especialidades.value.find(
+    (item) => String(item.id) === String(especialidadeId.value),
+  )
+  if (!especialidade) {
+    faixas.value = []
+    horarios.value = []
+    return
   }
-}
 
-async function carregarHorarios() {
+  faixas.value = []
+  horarios.value = []
   carregandoHorarios.value = true
   try {
-    const { data } = await api.get('/profissionais/me/horarios', {
-      params: { data: toISODate(dataSelecionada.value) },
+    const { data } = await api.get('/profissional/horarios', {
+      params: {
+        id_esp_prof: especialidade.id_esp_prof,
+        data: toISODate(dataSelecionada.value),
+      },
     })
-    horarios.value = data.map((h) => ({ ...h, inicio: hhmm(h.inicio), fim: hhmm(h.fim) }))
+    horarios.value = data.map((horario) => ({
+      id: horario.id_horario,
+      inicio: hhmm(horario.hora_inicio),
+      fim: hhmm(horario.hora_fim),
+      ocupado: horario.ocupado,
+      especialidade: especialidade.nome,
+    }))
+    faixas.value = horarios.value.map((horario) => ({
+      key: String(horario.id),
+      inicio: horario.inicio,
+      fim: horario.fim,
+    }))
+    erro.value = null
   } catch (e) {
-    erro.value = 'Não foi possível carregar os horários.'
-    logErro(e)
+    erro.value = e.message || 'Não foi possível carregar os horários.'
   } finally {
     carregandoHorarios.value = false
   }
 }
 
 async function carregarCalendario() {
+  if (!user.value?.id_profissional) return
   try {
-    const { data } = await api.get('/profissionais/me/calendario', {
-      params: { ano: mesVisivel.value.ano, mes: mesVisivel.value.mes },
-    })
-    diasComConsultas.value = data.dias_com_consultas
+    const primeiroDia = new Date(mesVisivel.value.ano, mesVisivel.value.mes - 1, 1)
+    const ultimoDia = new Date(mesVisivel.value.ano, mesVisivel.value.mes, 0)
+    const { data } = await api.get(
+      `/api/v1/consultas_profissionais/${user.value.id_profissional}/consultas`,
+      {
+        params: {
+          status: '',
+          data_inicio: toISODate(primeiroDia),
+          data_fim: toISODate(ultimoDia),
+        },
+      },
+    )
+    diasComConsultas.value = [
+      ...new Set(
+        data
+          .filter((consulta) => !['cancelada', 'cancelado'].includes(consulta.status))
+          .map((consulta) => Number(consulta.data.slice(8, 10))),
+      ),
+    ]
   } catch (e) {
-    logErro(e)
+    erro.value = e.message || 'Não foi possível carregar o calendário.'
   }
 }
 
-// salva automaticamente a cada alteração; faixas incompletas esperam o preenchimento
 async function salvarFaixas() {
+  const esp = especialidades.value.find(
+    (item) => String(item.id) === String(especialidadeId.value),
+  )
+  if (!esp) return
+
   const preenchidas = faixas.value.filter((f) => f.inicio && f.fim)
   if (preenchidas.some((f) => f.inicio >= f.fim)) {
     erro.value = 'O horário final deve ser depois do horário inicial.'
     return
   }
+
   try {
-    await api.put('/profissionais/me/faixas-horario', {
-      data: toISODate(dataSelecionada.value),
-      faixas: preenchidas.map(({ inicio, fim }) => ({ inicio, fim })),
+    const porId = new Map(horarios.value.map((horario) => [String(horario.id), horario]))
+    const existentes = preenchidas.filter((faixa) => porId.has(faixa.key))
+    const novos = preenchidas.filter((faixa) => !porId.has(faixa.key))
+    const removidos = horarios.value.filter(
+      (horario) => !preenchidas.some((faixa) => faixa.key === String(horario.id)),
+    )
+
+    const alterandoHorarioOcupado = existentes.some((faixa) => {
+      const anterior = porId.get(faixa.key)
+      return anterior.ocupado && (faixa.inicio !== anterior.inicio || faixa.fim !== anterior.fim)
     })
+    if (alterandoHorarioOcupado || removidos.some((horario) => horario.ocupado)) {
+      erro.value = 'Horários já reservados não podem ser alterados ou removidos.'
+      await carregarFaixas()
+      return
+    }
+
+    for (const horario of removidos) {
+      await api.delete(`/profissional/horarios/${horario.id}`)
+    }
+    for (const faixa of existentes) {
+      const anterior = porId.get(faixa.key)
+      if (faixa.inicio !== anterior.inicio || faixa.fim !== anterior.fim) {
+        await api.put(`/profissional/horarios/${anterior.id}`, {
+          hora_inicio: faixa.inicio,
+          hora_fim: faixa.fim,
+        })
+      }
+    }
+    if (novos.length) {
+      await api.post('/profissional/horarios', {
+        id_esp_prof: esp.id_esp_prof,
+        datas: [toISODate(dataSelecionada.value)],
+        lista_horarios: novos.map((faixa) => ({
+          hora_inicio: faixa.inicio,
+          hora_fim: faixa.fim,
+        })),
+      })
+    }
+
     erro.value = null
-    await Promise.all([carregarHorarios(), carregarCalendario()])
+    await Promise.all([carregarFaixas(), carregarCalendario()])
   } catch (e) {
-    erro.value = 'Não foi possível salvar as faixas de horário.'
-    logErro(e)
+    erro.value = e.message || 'Não foi possível salvar as faixas de horário.'
+    await carregarFaixas()
   }
 }
 
 async function bloquearHorario(h) {
-  const anterior = horarios.value
-  horarios.value = anterior.filter((x) => x.id !== h.id) // otimista
+  if (h.ocupado) {
+    erro.value = 'Horários já reservados não podem ser bloqueados.'
+    return
+  }
   try {
-    await api.post(`/profissionais/me/horarios/${h.id}/bloquear`)
-    carregarCalendario()
+    await api.delete(`/profissional/horarios/${h.id}`)
+    erro.value = null
+    await carregarFaixas()
   } catch (e) {
-    horarios.value = anterior
-    erro.value = 'Não foi possível bloquear o horário.'
-    logErro(e)
+    erro.value = e.message || 'Não foi possível bloquear o horário.'
   }
 }
 
@@ -159,27 +226,28 @@ function irParaHoje() {
 
 watch(dataSelecionada, () => {
   carregarFaixas()
-  carregarHorarios()
 })
+watch(especialidadeId, carregarFaixas)
 watch(mesVisivel, carregarCalendario)
 
 function logout() {
   api.clearAccessToken()
   user.value = null
+  router.push({ name: 'login/profissional' })
 }
 
 onMounted(async () => {
   try {
     const { data } = await api.get('/api/v1/auth/eu')
-    user.value = { name: data.nome, role: 'Profissional' }
+    if (data.perfil !== 'profissional' || !data.id_profissional) {
+      throw new Error('Esta página está disponível apenas para profissionais.')
+    }
+    user.value = { ...data, name: data.nome, role: 'Profissional' }
+    await carregarEspecialidades()
+    await Promise.all([carregarFaixas(), carregarCalendario()])
   } catch (e) {
-    erro.value = `Não foi possível carregar o perfil: ${e.message}`
+    erro.value = e.message || 'Não foi possível carregar o perfil.'
   }
-
-  carregarEspecialidades()
-  carregarFaixas()
-  carregarHorarios()
-  carregarCalendario()
 })
 </script>
 

@@ -15,6 +15,12 @@ const router = createRouter({
       name: 'login',
       component: () => import('@/views/auth/ModalidadeView.vue'),
     },
+    // Escolha da modalidade de cadastro
+    {
+      path: '/cadastro',
+      name: 'cadastro',
+      component: () => import('@/views/auth/ModalidadeView.vue'),
+    },
     // Login do paciente
     {
       path: '/login/paciente',
@@ -93,10 +99,6 @@ const router = createRouter({
       name: 'login/administrador',
       component: () => import('@/views/administracao/LoginAdminView.vue'),
     },
-    // Telas ainda não criadas: usam a página provisória "Em breve".
-    ...['cadastro'].map(
-      (path) => ({ path: `/${path}`, name: path, component: () => import('@/views/EmBreve.vue') }),
-    ),
     {
       path: '/busca',
       name: 'busca-profissionais',
@@ -111,6 +113,24 @@ const router = createRouter({
       path: '/paciente/conta',
       name: 'geranciarContaDoPaciente',
       component: () => import('@/views/paciente/grenciarContaPaciente.vue'),
+    },
+    {
+      path: '/paciente',
+      component: () => import('@/layouts/paciente/consultasAgendadasLayout.vue'),
+      children: [
+        {
+          path: 'agendamentos',
+          name: 'meusAgendamentos',
+          component: () => import('@/views/paciente/consultasAgendadas.vue'),
+          meta: { voltar: true },
+        },
+        {
+          path: 'agendamentos/:id/avaliar',
+          name: 'avaliarConsulta',
+          component: () => import('@/views/paciente/avaliarConsulta.vue'),
+          meta: { voltar: true },
+        },
+      ],
     },
     {
       path: '/administracao',
@@ -144,7 +164,7 @@ const router = createRouter({
         {
           path: 'configuracao-agenda',
           name: 'configuracaoAgendaDoProfissional',
-          component: () => import('@/views/profissional/configuraçãoAgendaProfissional.vue'),
+          component: () => import('@/views/profissional/configuracaoAgendaProfissional.vue'),
           meta: { voltar: true },
         },
         {
