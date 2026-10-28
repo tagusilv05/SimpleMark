@@ -122,13 +122,13 @@ function onSelect(item) {
       </RouterLink>
 
       <!-- Links -->
-      <nav class="flex items-center gap-20" aria-label="Navegação principal">
+        <nav class="flex items-center gap-10 lg:gap-24 xl:gap-60" aria-label="Navegação principal">
         <RouterLink
           v-for="link in links"
           :key="link.label"
           :to="link.to"
-          class="text-[15px] font-semibold text-[#0b2f5b] transition-opacity hover:opacity-70"
-          active-class="underline underline-offset-8"
+          class="rounded-lg px-4 py-2 text-[15px] font-semibold text-[#0b2f5b] transition-colors hover:opacity-70"
+          active-class="bg-[#e1e8fb]"
         >
           {{ link.label }}
         </RouterLink>
