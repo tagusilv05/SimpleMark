@@ -19,6 +19,15 @@
  *   icon         String  (padrão: '')   caminho "d" de um SVG 24x24 (Heroicons), exibido à
  *                                       esquerda, alinhado à primeira linha. Vazio = sem ícone.
  *   indent       Boolean (padrão: false) mantém o recuo à esquerda mesmo sem ícone.
+ *   variant      String  (padrão: 'outline') aparência da caixa, igual ao FormField:
+ *                                       'outline' -> fundo branco com borda cinza
+ *                                       'filled'  -> fundo azul claro, sem borda
+ *   counter      Boolean (padrão: true)  com `maxlength`, mostra o contador "n/limite" abaixo
+ *                                       da caixa. Use false para exibi-lo você mesma
+ *                                       (ex.: no slot "hint", ao lado do rótulo).
+ *
+ * SLOTS
+ *   hint   conteúdo opcional à direita do rótulo (ex.: contador de caracteres).
  *   error        String  (padrão: '')   mensagem de erro (vermelha) abaixo da caixa.
  *
  * EVENTOS
@@ -38,6 +47,8 @@ const props = defineProps({
   maxlength: { type: Number, default: 0 },
   icon: { type: String, default: '' },
   indent: { type: Boolean, default: false },
+  variant: { type: String, default: 'outline', validator: (v) => ['outline', 'filled'].includes(v) },
+  counter: { type: Boolean, default: true },
   error: { type: String, default: '' },
 })
 
@@ -47,6 +58,14 @@ const id = useId()
 
 // Recuo à esquerda: com ícone, ou quando `indent` pede o mesmo alinhamento
 const hasIndent = computed(() => !!props.icon || props.indent)
+
+// Aparência da caixa (fundo e borda); com erro, ganha destaque vermelho
+const boxStyle = computed(() => {
+  if (props.variant === 'filled') {
+    return props.error ? 'bg-[#eef1fe] ring-2 ring-red-400' : 'bg-[#eef1fe]'
+  }
+  return props.error ? 'border border-red-500 bg-white' : 'border border-gray-300 bg-white'
+})
 
 function onInput(event) {
   const el = event.target
@@ -60,7 +79,10 @@ function onInput(event) {
 
 <template>
   <div class="flex flex-col gap-2">
-    <label :for="id" class="text-sm font-bold text-gray-900">{{ label }}</label>
+    <div class="flex items-center justify-between gap-2">
+      <label :for="id" class="text-sm font-bold text-gray-900">{{ label }}</label>
+      <slot name="hint" />
+    </div>
 
     <div class="relative">
       <!-- Ícone da esquerda (alinhado à primeira linha do texto) -->
@@ -84,8 +106,8 @@ function onInput(event) {
         :placeholder="placeholder"
         :maxlength="maxlength || undefined"
         :aria-invalid="!!error"
-        class="w-full resize-none rounded-lg border bg-white py-3 pr-4 text-[15px] leading-5 text-gray-800 outline-none transition placeholder:text-gray-400 focus:ring-2 focus:ring-[#0a9ba5]"
-        :class="[error ? 'border-red-500' : 'border-gray-300', hasIndent ? 'pl-12' : 'pl-4']"
+        class="w-full resize-none rounded-lg py-3 pr-4 text-[15px] leading-5 text-gray-800 outline-none transition placeholder:text-gray-400 focus:ring-2 focus:ring-[#0a9ba5]"
+        :class="[boxStyle, hasIndent ? 'pl-12' : 'pl-4']"
         @input="onInput"
       />
     </div>
@@ -93,7 +115,7 @@ function onInput(event) {
     <div class="flex justify-between gap-2">
       <p v-if="error" class="text-xs font-medium text-red-600" role="alert">{{ error }}</p>
       <span v-else />
-      <span v-if="maxlength" class="text-xs text-gray-500">
+      <span v-if="maxlength && counter" class="text-xs text-gray-500">
         {{ modelValue.length }}/{{ maxlength }}
       </span>
     </div>

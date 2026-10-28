@@ -15,11 +15,11 @@ const router = createRouter({
       name: 'login',
       component: () => import('@/views/auth/ModalidadeView.vue'),
     },
-    // Escolha da modalidade de cadastro
+    // Escolha da modalidade de cadastro (destino do botão "Cadastrar-se" da home)
     {
       path: '/cadastro',
       name: 'cadastro',
-      component: () => import('@/views/auth/ModalidadeView.vue'),
+      component: () => import('@/views/auth/ModalidadeCadastroView.vue'),
     },
     // Login do paciente
     {
@@ -99,6 +99,45 @@ const router = createRouter({
       name: 'login/administrador',
       component: () => import('@/views/administracao/LoginAdminView.vue'),
     },
+    //Como Funciona 
+    {
+      path: '/como-funciona',
+      name: 'como-funciona',
+      component: () => import('@/views/home/ComoFuncionaView.vue'),
+   },
+    // Sobre Nós
+    {
+      path: '/sobre-nos',
+      name: 'sobre-nos',
+      component: () => import('@/views/home/SobreNosView.vue'),
+    },
+    // Ouvidoria
+    {
+      path: '/ouvidoria',
+      name: 'ouvidoria',
+      component: () => import('@/views/home/OuvidoriaView.vue'),
+    },
+    // Páginas institucionais (links do rodapé)
+    {
+      path: '/quem-somos',
+      name: 'quem-somos',
+      component: () => import('@/views/home/QuemSomosView.vue'),
+    },
+    {
+      path: '/termos',
+      name: 'termos',
+      component: () => import('@/views/home/TermosCondicoesView.vue'),
+    },
+    {
+      path: '/privacidade',
+      name: 'privacidade',
+      component: () => import('@/views/home/PoliticaPrivacidadeView.vue'),
+    },
+    {
+      path: '/duvidas-frequentes',
+      name: 'duvidas-frequentes',
+      component: () => import('@/views/home/DuvidasFrequentesView.vue'),
+    },
     {
       path: '/busca',
       name: 'busca-profissionais',
@@ -115,6 +154,7 @@ const router = createRouter({
       name: 'perfil-profissional',
       component: () => import('@/views/paciente/PerfilProfissional.vue'),
     },
+
     
     // {
     //   path: '/paciente/conta',
