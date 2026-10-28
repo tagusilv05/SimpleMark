@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import ProfileCard from '@/components/shared/ProfileCard.vue'
 import SideMenu from '@/components/shared/SideMenu.vue'
@@ -9,20 +9,31 @@ import FormCardSeguranca from '@/components/shared/FormCardSeguranca.vue'
 import FormCardExcluirConta from '@/components/shared/FormCardExcluirConta.vue'
 import ProfessionalManagement from '@/components/profissional/ProfessionalManagement.vue'
 
+// 'paciente' | 'profissional'
+const props = defineProps({
+  role: {
+    type: String,
+    default: 'paciente',
+    validator: (v) => ['paciente', 'profissional'].includes(v),
+  },
+})
+
 const router = useRouter()
+
+const isProfissional = computed(() => props.role === 'profissional')
+const roleLabel = computed(() => (isProfissional.value ? 'Profissional' : 'Paciente'))
 
 // Aba selecionada no menu lateral
 const aba = ref('dados')
 
-// Valores iniciais. A "key" é o nome do campo dentro do formulário.
 const dados = ref({
-  nome: 'Nome Paciente',
+  nome: isProfissional.value ? 'Nome Profissional' : 'Nome Paciente',
   cpf: '123.456.789-00',
   orgao: 'SSP / PI',
   nascimento: '14/06/1988',
   genero: 'Masculino',
   telefone: '(11) 98765-4321',
-  email: 'nomepaciente@email.com',
+  email: 'nome@email.com',
 })
 
 const endereco = ref({
@@ -33,6 +44,19 @@ const endereco = ref({
   bairro: 'Meu Bairro',
   complemento: 'Sem Informação',
 })
+
+// Dados exclusivos do profissional (só usados quando role === 'profissional')
+const profissional = ref({
+  fotoUrl: '',
+  verificado: true,
+  apresentacao:
+    'Cardiologista com mais de 15 anos de experiência clínica, especializado em diagnóstico cardiovascular e telemedicina preventiva.',
+  especialidades: [
+    { id: 1, name: 'Cardiologia Clínica', registration: 'CRM 12345-SP', council: 'CREMESP', price: 'R$ 200,00' },
+  ],
+})
+
+const especialidadesDisponiveis = ['Cardiologia', 'Dermatologia', 'Pediatria', 'Ortopedia']
 
 function salvar(valores) {
   // TODO: enviar para a API
@@ -50,20 +74,8 @@ function salvarSenha({ atual, nova }) {
 }
 
 function buscarCep() {
-  // TODO: abrir a página de busca de CEP dos Correios
   window.open('https://buscacepinter.correios.com.br/app/endereco/index.php', '_blank')
 }
-
-const profissional = ref({
-  fotoUrl: '',
-  verificado: true,
-  apresentacao: 'Cardiologista com mais de 15 anos de experiência clínica, especializado em diagnóstico cardiovascular e telemedicina preventiva.',
-  especialidades: [
-    { id: 1, name: 'Cardiologia Clínica', registration: 'CRM 12345-SP', council: 'CREMESP', price: 'R$ 200,00' },
-  ],
-})
-
-const especialidadesDisponiveis = ['Cardiologia', 'Dermatologia', 'Pediatria', 'Ortopedia']
 
 function trocarFoto(file) {
   // TODO: enviar para a API. Por enquanto só mostra o preview.
@@ -88,17 +100,16 @@ function excluirConta() {
 
 <template>
   <div class="flex flex-col gap-6">
-    <!-- Lê o "dados" salvo: só muda depois de clicar em Salvar -->
     <ProfileCard
       :name="dados.nome"
-      role="Paciente"
+      :role="roleLabel"
       :email="dados.email"
       :phone="dados.telefone"
       member-since="Fevereiro de 2026"
     />
 
     <div class="grid grid-cols-1 items-start gap-8 md:grid-cols-[16rem_1fr]">
-      <SideMenu v-model="aba" role="profissional" />
+      <SideMenu v-model="aba" :role="role" />
 
       <FormCardDadosPessoais
         v-if="aba === 'dados'"
@@ -121,9 +132,10 @@ function excluirConta() {
         @desativar="desativarConta"
         @excluir="excluirConta"
       />
-      
+
+      <!-- Aba exclusiva do profissional -->
       <ProfessionalManagement
-        v-else-if="aba === 'perfil'"
+        v-else-if="aba === 'perfil' && isProfissional"
         v-model:bio="profissional.apresentacao"
         v-model:specialties="profissional.especialidades"
         :photo="profissional.fotoUrl"
@@ -138,7 +150,6 @@ function excluirConta() {
         v-else
         class="rounded-xl bg-white p-8 text-gray-500 shadow-[0_2px_12px_rgba(11,47,91,0.08)]"
       >
-        <!-- Mostra a chave da aba clicada: use-a no v-else-if do painel acima -->
         Em breve. (aba: {{ aba }})
       </section>
     </div>
