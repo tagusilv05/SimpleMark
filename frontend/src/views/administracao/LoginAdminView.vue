@@ -17,6 +17,7 @@
  */
 
 import { reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import FormField from '@/components/shared/FormField.vue'
 import FormButton from '@/components/shared/FormButton.vue'
 import heroImage from '@/assets/imagemadministrador.png'
@@ -28,6 +29,7 @@ const form = reactive({
 })
 
 const carregando = ref(false)
+const router = useRouter()
 
 // Caminhos "d" dos ícones (Heroicons 24x24)
 const icons = {
@@ -42,7 +44,7 @@ async function entrar() {
   try {
     // TODO: chamar o serviço de autenticação do administrador
     // await authService.loginAdmin({ email: form.email, senha: form.senha, lembrar: form.lembrar })
-    // router.push({ name: '<painel do administrador>' })  (importar useRouter de 'vue-router')
+    router.push({ name: 'validacaoDeProfissionais' })
   } finally {
     carregando.value = false
   }
