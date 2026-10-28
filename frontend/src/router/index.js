@@ -20,7 +20,7 @@ const router = createRouter({
       path: '/login/paciente',
       name: 'login/paciente',
       component: () => import('@/views/paciente/LoginPacienteView.vue'),
-   },
+    },
     // Login do profissional
     {
       path: '/login/profissional',
@@ -50,31 +50,31 @@ const router = createRouter({
       path: '/cadastro/paciente',
       name: 'cadastro/paciente',
       component: () => import('@/views/paciente/CadastroPacienteView.vue'),
-   },
-   //sucesso cadastro do paciente
+    },
+    //sucesso cadastro do paciente
     {
-     path: '/cadastro/paciente/sucesso',
-     name: 'cadastro/paciente/sucesso',
-    component: () => import('@/views/paciente/CadastroPacienteSucessoView.vue'),
-   },
-   //Recuperar senha do paciente
-   {
-    path: '/login/paciente/recuperarsenha',
-    name: 'login/paciente/recuperarsenha',
-    component: () => import('@/views/paciente/RecuperarSenhaView.vue'),
-   },
-   //Redefinir senha do paciente
-   {
-    path: '/login/paciente/redefinirsenha',
-    name: 'login/paciente/redefinirsenha',
-    component: () => import('@/views/paciente/RedefinirSenhaView.vue'),
-   },
-   //sucesso na redefinicao de senha do paciente
-   {
-    path: '/login/paciente/sucessoredefinirsenha',
-    name: 'login/paciente/sucessoredefinirsenha',
-    component: () => import('@/views/paciente/SenhaRedefinidaView.vue'),
-   },
+      path: '/cadastro/paciente/sucesso',
+      name: 'cadastro/paciente/sucesso',
+      component: () => import('@/views/paciente/CadastroPacienteSucessoView.vue'),
+    },
+    //Recuperar senha do paciente
+    {
+      path: '/login/paciente/recuperarsenha',
+      name: 'login/paciente/recuperarsenha',
+      component: () => import('@/views/paciente/RecuperarSenhaView.vue'),
+    },
+    //Redefinir senha do paciente
+    {
+      path: '/login/paciente/redefinirsenha',
+      name: 'login/paciente/redefinirsenha',
+      component: () => import('@/views/paciente/RedefinirSenhaView.vue'),
+    },
+    //sucesso na redefinicao de senha do paciente
+    {
+      path: '/login/paciente/sucessoredefinirsenha',
+      name: 'login/paciente/sucessoredefinirsenha',
+      component: () => import('@/views/paciente/SenhaRedefinidaView.vue'),
+    },
     // Cadastro do profissional de saúde
     {
       path: '/cadastro/profissional',
@@ -103,14 +103,28 @@ const router = createRouter({
       component: () => import('@/views/EmBreve.vue'),
     },
     {
-      path: '/profissionais/:id',
-      name: 'perfil-profissional',
-      component: () => import('@/views/EmBreve.vue'),
+      path: '/profissionais/:id?/avaliacoes',
+      name: 'avaliacoesDoProfissional',
+      component: () => import('@/views/paciente/AvaliacoesProfissional.vue'),
+      alias: ['/avaliacoes-profissional'],
     },
+    {
+      path: '/profissionais/:id?',
+      name: 'perfil-profissional',
+      component: () => import('@/views/paciente/PerfilProfissional.vue'),
+    },
+    
+    // {
+    //   path: '/paciente/conta',
+    //   name: 'geranciarContaDoPaciente',
+    //   component: () => import('@/views/paciente/grenciarContaPaciente.vue'),
+    // },
+
     {
       path: '/paciente/conta',
       name: 'geranciarContaDoPaciente',
-      component: () => import('@/views/paciente/grenciarContaPaciente.vue'),
+      component: () => import('@/views/shared/GerenciarConta.vue'),
+      props: { role: 'paciente' },
     },
     {
       path: '/administracao',
@@ -135,10 +149,17 @@ const router = createRouter({
           name: 'dashboardDoProfissional',
           component: () => import('@/views/profissional/dashboardProfissional.vue'),
         },
+        // {
+        //   path: 'conta',
+        //   name: 'gerenciarContaDoProfissional',
+        //   component: () => import('@/views/profissional/gerenciarContaProfissional.vue'),
+        //   meta: { voltar: true },
+        // },
         {
           path: 'conta',
           name: 'gerenciarContaDoProfissional',
-          component: () => import('@/views/profissional/gerenciarContaProfissional.vue'),
+          component: () => import('@/views/shared/GerenciarConta.vue'),
+          props: { role: 'profissional' },
           meta: { voltar: true },
         },
         {
