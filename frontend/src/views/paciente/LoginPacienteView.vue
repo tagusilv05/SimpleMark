@@ -42,7 +42,7 @@ async function entrar() {
   try {
     // TODO: chamar o serviço de autenticação do paciente
     // await authService.loginPaciente({ email: form.email, senha: form.senha, lembrar: form.lembrar })
-    // router.push({ name: 'geranciarContaDoPaciente' })
+    router.push({ name: 'meusAgendamentos' })
   } finally {
     carregando.value = false
   }

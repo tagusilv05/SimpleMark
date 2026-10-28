@@ -72,7 +72,6 @@ export const api = {
   post: (path, body, options) => request(path, { ...options, method: 'POST', body }),
 }
 
-
 function url(path) {
   return new URL(path, baseURL).toString()
 }

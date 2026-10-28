@@ -139,6 +139,16 @@ const router = createRouter({
       component: () => import('@/views/home/DuvidasFrequentesView.vue'),
     },
     {
+      path: '/pagamento',
+      name: 'pagamento',
+      component: () => import('@/views/pagamento/PagamentoView.vue'),
+    },
+    {
+      path: '/pagamento/:idConsulta',
+      name: 'pagamento-consulta',
+      component: () => import('@/views/pagamento/PagamentoView.vue'),
+    },
+    {
       path: '/busca',
       name: 'busca-profissionais',
       component: () => import('@/views/EmBreve.vue'),
