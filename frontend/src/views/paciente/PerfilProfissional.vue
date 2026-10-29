@@ -21,9 +21,12 @@ function verAvaliacoes() {
   })
 }
 
-function agendar({ data, horario }) {
-  // TODO: enviar para a API
-  console.log('Agendar consulta:', data, horario)
+// A escolha de dia e horário é finalizada na tela de Agendamento, com a agenda real do profissional
+function agendar() {
+  router.push({
+    name: 'agendamento',
+    query: route.params.id ? { profissional: route.params.id } : {},
+  })
 }
 </script>
 

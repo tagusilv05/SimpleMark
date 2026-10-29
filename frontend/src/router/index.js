@@ -138,6 +138,17 @@ const router = createRouter({
       name: 'duvidas-frequentes',
       component: () => import('@/views/home/DuvidasFrequentesView.vue'),
     },
+    // Agendamento de consulta (paciente) -> confirmação -> pagamento
+    {
+      path: '/agendamento',
+      name: 'agendamento',
+      component: () => import('@/views/paciente/AgendamentoView.vue'),
+    },
+    {
+      path: '/agendamento/confirmacao/:idConsulta',
+      name: 'confirmacaoAgendamento',
+      component: () => import('@/views/paciente/ConfirmacaoAgendamentoView.vue'),
+    },
     {
       path: '/pagamento',
       name: 'pagamento',
