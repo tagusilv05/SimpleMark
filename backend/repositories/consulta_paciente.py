@@ -5,7 +5,10 @@ from typing import Optional, Tuple
 
 from sqlalchemy.orm import Session, joinedload
 
-from models.models import Consulta, Profissional, ProfissionalEspecialidade
+from models.models import Consulta, DataHorario, Profissional, ProfissionalEspecialidade
+
+# Consulta cancelada devolve o horário para a agenda; as demais o mantêm preso.
+STATUS_QUE_OCUPAM = ("agendada", "confirmada", "realizada", "em andamento")
 
 
 def _base_query(db: Session):
@@ -69,3 +72,53 @@ def buscar_por_id_e_paciente(
         )
         .first()
     )
+
+
+def buscar_horario_para_agendar(db: Session, id_horario: int) -> Optional[DataHorario]:
+    """Horário da agenda com profissional e especialidade, travado até o commit.
+
+    O FOR UPDATE impede que dois pacientes agendem o mesmo horário ao mesmo tempo.
+    """
+    return (
+        db.query(DataHorario)
+        .options(
+            joinedload(DataHorario.profissional_especialidade)
+            .joinedload(ProfissionalEspecialidade.profissional)
+            .joinedload(Profissional.usuario),
+        )
+        .filter(DataHorario.id_horario == id_horario)
+        .with_for_update(of=DataHorario)
+        .first()
+    )
+
+
+def existe_consulta_no_horario(db: Session, horario: DataHorario) -> bool:
+    """Se já há consulta ativa no vínculo, data e hora do horário."""
+    return (
+        db.query(Consulta.id_consulta)
+        .filter(
+            Consulta.id_esp_prof == horario.id_esp_prof,
+            Consulta.data == horario.data_consulta,
+            Consulta.hora == horario.hora_inicio,
+            Consulta.status.in_(STATUS_QUE_OCUPAM),
+        )
+        .first()
+        is not None
+    )
+
+
+def criar_consulta_no_horario(db: Session, horario: DataHorario, id_paciente: int) -> Consulta:
+    """Grava a consulta no horário e marca o horário como ocupado (sem commit)."""
+    consulta = Consulta(
+        id_paciente=id_paciente,
+        id_esp_prof=horario.id_esp_prof,
+        data=horario.data_consulta,
+        hora=horario.hora_inicio,
+        tipo="consulta",
+        status="agendada",
+        valor=horario.profissional_especialidade.valor_consulta,
+    )
+    db.add(consulta)
+    horario.ocupado = True
+    db.flush()
+    return consulta

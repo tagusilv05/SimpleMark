@@ -1,17 +1,22 @@
 # routers/consulta_paciente_router.py
-"""Rotas do paciente logado para listar e detalhar as próprias consultas."""
+"""Rotas do paciente logado para agendar, listar e detalhar as próprias consultas."""
 
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from dependencies.autenticacao import UsuarioAtual
 from dependencies.database import get_db
 from models.models import Paciente
-from schemas.consulta_paciente import ConsultaPacienteResponse, ListaConsultasResponse
-from services.consulta_paciente import detalhar_consulta, listar_consultas
+from schemas.consulta_paciente import (
+    AgendarConsultaInput,
+    ConsultaPacienteResponse,
+    ListaConsultasResponse,
+)
+from services.consulta_paciente import agendar_consulta, detalhar_consulta, listar_consultas
+from services.videochamada import enviar_email_confirmacao, gerar_link_nova_consulta
 
 router = APIRouter(prefix="/consultas", tags=["Consultas do paciente"])
 
@@ -25,6 +30,29 @@ def get_paciente_logado(usuario: UsuarioAtual) -> Paciente:
             "Apenas pacientes podem acessar suas consultas.",
         )
     return paciente
+
+
+@router.post(
+    "/agendar",
+    response_model=ConsultaPacienteResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def agendar(
+    dados: AgendarConsultaInput,
+    tarefas: BackgroundTasks,
+    paciente: Paciente = Depends(get_paciente_logado),
+    db: Session = Depends(get_db),
+):
+    """Agenda uma consulta do paciente logado num horário livre.
+
+    Somente pacientes. Responde 404 se o horário não existir e 409 se ele não
+    estiver mais livre. Gera o link da videochamada e envia o e-mail de
+    confirmação em segundo plano.
+    """
+    consulta = agendar_consulta(db, dados.id_horario, paciente.id_paciente)
+    gerar_link_nova_consulta(db, consulta.id_consulta)
+    tarefas.add_task(enviar_email_confirmacao, consulta.id_consulta)
+    return detalhar_consulta(db, consulta.id_consulta, paciente.id_paciente)
 
 
 @router.get("/minhas", response_model=ListaConsultasResponse)

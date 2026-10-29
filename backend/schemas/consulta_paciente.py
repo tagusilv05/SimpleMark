@@ -43,6 +43,12 @@ class ConsultaPacienteResponse(BaseModel):
     meet_link: Optional[str] = None
 
 
+class AgendarConsultaInput(BaseModel):
+    """Corpo de POST /consultas/agendar: o horário livre escolhido na busca."""
+
+    id_horario: int
+
+
 class ListaConsultasResponse(BaseModel):
     """Resposta de GET /consultas/minhas."""
 

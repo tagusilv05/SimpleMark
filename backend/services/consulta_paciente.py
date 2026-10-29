@@ -6,9 +6,13 @@ from typing import Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from core.tempo import agora_local
 from models.models import Consulta
 from repositories.consulta_paciente import (
+    buscar_horario_para_agendar,
     buscar_por_id_e_paciente,
+    criar_consulta_no_horario,
+    existe_consulta_no_horario,
     listar_por_paciente,
 )
 from schemas.consulta_paciente import (
@@ -97,3 +101,39 @@ def detalhar_consulta(
             status.HTTP_404_NOT_FOUND, "Consulta não encontrada."
         )
     return _to_response(consulta)
+
+
+def agendar_consulta(
+    db: Session, id_horario: int, id_paciente: int
+) -> Consulta:
+    """Agenda a consulta do paciente num horário livre da agenda do profissional.
+
+    Profissional, especialidade, data, hora e valor saem do próprio horário, então
+    o paciente não escolhe o preço. Responde 404 se o horário não existir e 409 se
+    ele já passou, já foi ocupado ou o profissional está inativo.
+    """
+    horario = buscar_horario_para_agendar(db, id_horario)
+    if horario is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Horário não encontrado.")
+
+    agora = agora_local()
+    ja_passou = horario.data_consulta < agora.date() or (
+        horario.data_consulta == agora.date() and horario.hora_inicio < agora.time()
+    )
+    profissional_ativo = horario.profissional_especialidade.profissional.usuario.status
+
+    if ja_passou or not profissional_ativo:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Este horário não está mais disponível.")
+    if horario.ocupado or existe_consulta_no_horario(db, horario):
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Este horário acabou de ser reservado. Escolha outro.")
+
+    try:
+        consulta = criar_consulta_no_horario(db, horario, id_paciente)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    return consulta

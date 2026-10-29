@@ -12,6 +12,9 @@
  *   Vem de VITE_API_URL (arquivo .env do frontend). Sem ela, usa http://localhost:8080,
  *   que é a porta da API no docker compose.
  *
+ * AUTENTICAÇÃO
+ *   Se houver token salvo com setAccessToken, ele vai no cabeçalho Authorization.
+ *
  * ERROS
  *   Respostas fora de 2xx lançam um ApiError com `status` e `message`.
  *   `message` já vem em português quando o backend envia `detail`.
@@ -49,12 +52,16 @@ function extrairMensagem(corpo, status) {
 }
 
 async function request(path, { method = 'GET', params, body, signal } = {}) {
+  const token = sessionStorage.getItem(ACCESS_TOKEN_KEY)
   let resposta
   try {
     resposta = await fetch(montarUrl(path, params), {
       method,
       signal,
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      headers: {
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: body ? JSON.stringify(body) : undefined,
     })
   } catch (erro) {
