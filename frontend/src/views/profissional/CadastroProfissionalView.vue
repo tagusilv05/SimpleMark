@@ -22,6 +22,7 @@ import FormField from '@/components/shared/FormField.vue'
 import FormTextarea from '@/components/shared/FormTextarea.vue'
 import FormButton from '@/components/shared/FormButton.vue'
 import heroImage from '@/assets/imagemprofissional.png'
+import { cadastrarProfissional } from '@/services/authService'
 
 const router = useRouter()
 
@@ -52,6 +53,7 @@ const INFO_MAX = 500 // limite de caracteres de "Informações Profissionais"
 
 const generos = ['Masculino', 'Feminino', 'Outro']
 
+
 const form = reactive({
   nome: '',
   nascimento: '',
@@ -61,14 +63,23 @@ const form = reactive({
   email: '',
   celular: '',
   cep: '',
-  endereco: '',
-  registro: '',
+  cidade: '',
+  logradouro: '',
+  numero: '',
+  bairro: '',
+  complemento: '',
+  numeroConselho: '',
+  orgaoConselho: '',
+  especialidades: '',
   informacoes: '',
   senha: '',
   confirmarSenha: '',
+  consentimentoLgpD: false,
 })
+
 const errors = reactive({})
 const carregando = ref(false)
+const erroCadastro = ref('')
 
 /* ---------- Filtros / máscaras ---------- */
 
@@ -125,17 +136,27 @@ const filtros = {
   email: filtroEmail,
   celular: mascaraCelular,
   cep: mascaraCep,
-  endereco: (v) => v.replace(/^\s/, '').replace(/\s{2,}/g, ' ').slice(0, 150),
-  // Registro (ex.: CRM 12345/PI): letras, números, espaço, "/" e "-"
-  registro: (v) =>
-    v
-      .replace(/[^\p{L}\d\s/-]/gu, '')
-      .replace(/\s{2,}/g, ' ')
-      .replace(/^\s/, '')
-      .slice(0, 30),
-  informacoes: (v) => v.slice(0, INFO_MAX),
-  senha: (v) => v.replace(/\s/g, '').slice(0, 64), // sem espaços
-  confirmarSenha: (v) => v.replace(/\s/g, '').slice(0, 64),
+  cidade: (v) =>
+  v.replace(/[^\p{L}\s'-]/gu, '').replace(/\s{2,}/g, ' ').slice(0, 100),
+
+  logradouro: (v) =>
+    v.replace(/[^\p{L}\d\s,.\-/ºª#]/gu, '').replace(/\s{2,}/g, ' ').slice(0, 150),
+
+  numero: (v) => v.replace(/[^\p{L}\d/-]/gu, '').slice(0, 20),
+
+  bairro: (v) =>
+    v.replace(/[^\p{L}\d\s'-]/gu, '').replace(/\s{2,}/g, ' ').slice(0, 100),
+
+  complemento: (v) => v.slice(0, 150),
+
+  numeroConselho: (v) => v.replace(/[^\p{L}\d./-]/gu, '').slice(0, 30),
+
+  orgaoConselho: (v) => soLetras(v).slice(0, 30),
+
+  especialidades: (v) => v.slice(0, 300),
+    informacoes: (v) => v.slice(0, INFO_MAX),
+    senha: (v) => v.replace(/\s/g, '').slice(0, 64), // sem espaços
+    confirmarSenha: (v) => v.replace(/\s/g, '').slice(0, 64),
 }
 
 function atualizar(campo, valor) {
@@ -187,48 +208,102 @@ function validar() {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email)) e.email = 'Informe um e-mail válido.'
   if (soNumeros(form.celular).length !== 11) e.celular = 'Informe o celular com DDD.'
   if (soNumeros(form.cep).length !== 8) e.cep = 'CEP inválido.'
-  if (form.endereco.trim().length < 5) e.endereco = 'Informe seu endereço.'
-  if (form.registro.trim().length < 3) e.registro = 'Informe seu registro profissional.'
-  if (form.senha.length < 8) e.senha = 'A senha deve ter no mínimo 8 caracteres.'
-  if (!form.confirmarSenha) e.confirmarSenha = 'Confirme sua senha.'
-  else if (form.confirmarSenha !== form.senha) e.confirmarSenha = 'As senhas não conferem.'
+  if (form.cidade.trim().length < 2)
+  e.cidade = 'Informe sua cidade.'
 
-  Object.keys(errors).forEach((k) => delete errors[k])
-  Object.assign(errors, e)
-  return Object.keys(e).length === 0
+  if (form.logradouro.trim().length < 2)
+    e.logradouro = 'Informe seu logradouro.'
+
+  if (!form.numero.trim())
+    e.numero = 'Informe o número.'
+
+  if (form.bairro.trim().length < 2)
+    e.bairro = 'Informe seu bairro.'
+
+  if (form.numeroConselho.trim().length < 1)
+    e.numeroConselho = 'Informe o número do conselho.'
+
+  if (form.orgaoConselho.trim().length < 2)
+    e.orgaoConselho = 'Informe o órgão do conselho.'
+
+  const listaEspecialidades = form.especialidades
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+  if (listaEspecialidades.length === 0)
+    e.especialidades = 'Informe pelo menos uma especialidade.'
+
+  if (listaEspecialidades.some((item) => item.length > 100))
+    e.especialidades = 'Cada especialidade deve ter no máximo 100 caracteres.'
+
+  if (form.informacoes.trim().length < 3)
+    e.informacoes = 'Informe seus dados profissionais.'
+
+  if (form.consentimentoLgpD !== true)
+    e.consentimentoLgpD = 'É necessário aceitar o consentimento para continuar.'
+    if (form.senha.length < 8) e.senha = 'A senha deve ter no mínimo 8 caracteres.'
+    if (!form.confirmarSenha) e.confirmarSenha = 'Confirme sua senha.'
+    else if (form.confirmarSenha !== form.senha) e.confirmarSenha = 'As senhas não conferem.'
+
+    Object.keys(errors).forEach((k) => delete errors[k])
+    Object.assign(errors, e)
+    return Object.keys(e).length === 0
 }
 
 /* ---------- Ações ---------- */
 
+
 async function criarConta() {
   if (carregando.value) return
+
+  erroCadastro.value = ''
+
   if (!validar()) {
-    // Leva o foco até o primeiro campo com erro (o formulário é longo e rola)
     document.querySelector('[aria-invalid="true"]')?.focus()
     return
   }
 
   carregando.value = true
-  try {
-    // TODO: enviar o cadastro do profissional para o backend, por exemplo:
-    // await authService.cadastrarProfissional({
-    //   nome: form.nome.trim(),
-    //   nascimento: form.nascimento,
-    //   genero: form.genero,
-    //   cpf: soNumeros(form.cpf),
-    //   orgao_emissor: form.orgaoEmissor.trim(),
-    //   email: form.email,
-    //   celular: soNumeros(form.celular),
-    //   cep: soNumeros(form.cep),
-    //   endereco: form.endereco.trim(),
-    //   registro_profissional: form.registro.trim(),
-    //   informacoes: form.informacoes.trim(),
-    //   senha: form.senha,
-    // })
 
-    // Enquanto o serviço não está ligado, segue direto para a tela de sucesso.
-    // Ao ligar, deixe o push só depois do await (e trate e-mail/CPF já cadastrados).
+  try {
+    const [dia, mes, ano] = form.nascimento.split('/')
+
+    const dados = {
+      nome: form.nome.trim(),
+      data_nascimento: `${ano}-${mes}-${dia}`,
+      genero: form.genero.toLowerCase(),
+      cpf: soNumeros(form.cpf),
+      orgao_emissor: form.orgaoEmissor.trim(),
+      email: form.email.trim().toLowerCase(),
+      telefone: soNumeros(form.celular),
+      senha: form.senha,
+      consentimento_lgpd: form.consentimentoLgpD,
+
+      cep: soNumeros(form.cep),
+      cidade: form.cidade.trim(),
+      logradouro: form.logradouro.trim(),
+      numero: form.numero.trim(),
+      bairro: form.bairro.trim(),
+      complemento: form.complemento.trim() || null,
+
+      numero_conselho: form.numeroConselho.trim(),
+      orgao_conselho: form.orgaoConselho.trim().toUpperCase(),
+
+      info_profissional: form.informacoes.trim(),
+
+      especialidades: form.especialidades
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    }
+
+    await cadastrarProfissional(dados)
+
     router.push({ name: 'cadastro/profissional/sucesso' })
+  } catch (erro) {
+    erroCadastro.value =
+      erro.message || 'Não foi possível realizar o cadastro. Tente novamente.'
   } finally {
     carregando.value = false
   }
@@ -349,25 +424,90 @@ function irParaLogin() {
               @update:model-value="atualizar('cep', $event)"
             />
 
+          
             <FormField
-              label="Endereço"
+              label="Cidade"
               variant="outline"
-              placeholder="Av. Principal, 45, próx catedral da sé"
-              :icon="icons.pin"
-              :model-value="form.endereco"
-              :error="errors.endereco"
-              @update:model-value="atualizar('endereco', $event)"
+              placeholder="Sua cidade"
+              :icon="icons.map"
+              :model-value="form.cidade"
+              :error="errors.cidade"
+              @update:model-value="atualizar('cidade', $event)"
             />
 
             <FormField
-              label="Registro Profissional"
+              label="Logradouro"
               variant="outline"
-              placeholder="Médico Geriatra"
-              :icon="icons.shield"
-              :model-value="form.registro"
-              :error="errors.registro"
-              @update:model-value="atualizar('registro', $event)"
+              placeholder="Rua, avenida, travessa..."
+              :icon="icons.pin"
+              :model-value="form.logradouro"
+              :error="errors.logradouro"
+              @update:model-value="atualizar('logradouro', $event)"
             />
+
+            <FormField
+              label="Número"
+              variant="outline"
+              placeholder="Número da residência"
+              :model-value="form.numero"
+              :error="errors.numero"
+              @update:model-value="atualizar('numero', $event)"
+            />
+
+            <FormField
+              label="Bairro"
+              variant="outline"
+              placeholder="Seu bairro"
+              :model-value="form.bairro"
+              :error="errors.bairro"
+              @update:model-value="atualizar('bairro', $event)"
+            />
+
+            <FormField
+              label="Complemento (opcional)"
+              variant="outline"
+              placeholder="Apartamento, bloco, referência..."
+              :model-value="form.complemento"
+              :error="errors.complemento"
+              @update:model-value="atualizar('complemento', $event)"
+            />
+
+
+          
+            <FormField
+              label="Número do Conselho Profissional"
+              variant="outline"
+              placeholder="Ex.: 123456"
+              :icon="icons.shield"
+              :model-value="form.numeroConselho"
+              :error="errors.numeroConselho"
+              @update:model-value="atualizar('numeroConselho', $event)"
+            />
+
+            <FormField
+              label="Órgão do Conselho"
+              variant="outline"
+              placeholder="Ex.: CRM, COREN, CRP"
+              :icon="icons.shield"
+              :model-value="form.orgaoConselho"
+              :error="errors.orgaoConselho"
+              @update:model-value="atualizar('orgaoConselho', $event)"
+            />
+
+            <FormField
+              label="Especialidades"
+              variant="outline"
+              placeholder="Ex.: Clínica Médica, Geriatria"
+              :icon="icons.users"
+              :model-value="form.especialidades"
+              :error="errors.especialidades"
+              @update:model-value="atualizar('especialidades', $event)"
+            />
+
+            <p class="text-xs text-gray-500">
+              Informe pelo menos uma especialidade. Para adicionar mais de uma,
+              separe os nomes por vírgula.
+            </p>
 
             <FormTextarea
               label="Informações Profissionais"
@@ -401,10 +541,42 @@ function irParaLogin() {
               :error="errors.confirmarSenha"
               @update:model-value="atualizar('confirmarSenha', $event)"
             />
+          
 
-            <FormButton type="submit" class="h-13! w-full" :disabled="carregando">
-              Criar Conta
-            </FormButton>
+            <div class="flex flex-col gap-2">
+              <label class="flex items-start gap-3 text-sm text-gray-700">
+                <input
+                  v-model="form.consentimentoLgpD"
+                  type="checkbox"
+                  class="mt-1 h-4 w-4 accent-[#00507a]"
+                />
+
+                <span>
+                  Autorizo o tratamento dos meus dados pessoais para utilização
+                  dos serviços da plataforma Simple Mark, conforme a política
+                  de privacidade.
+                </span>
+              </label>
+
+              <p
+                v-if="errors.consentimentoLgpD"
+                class="text-sm text-red-600"
+              >
+                {{ errors.consentimentoLgpD }}
+              </p>
+            </div>
+
+            <p
+              v-if="erroCadastro"
+              role="alert"
+              class="text-sm text-red-600"
+            >
+              {{ erroCadastro }}
+            </p>
+
+           <FormButton type="submit" class="h-13! w-full" :disabled="carregando">
+             {{ carregando ? 'Cadastrando...' : 'Criar Conta' }}
+           </FormButton>
           </form>
 
           <div class="mt-8 flex flex-col items-center gap-4 border-t border-gray-200 pt-8">
