@@ -15,6 +15,12 @@ const router = createRouter({
       name: 'login',
       component: () => import('@/views/auth/ModalidadeView.vue'),
     },
+    //Confirmação de login
+    {
+      path: '/login/confirmar',
+      name: 'login/confirmar',
+      component: () => import('@/views/auth/ConfirmarLoginView.vue'),
+    },
     // Escolha da modalidade de cadastro (destino do botão "Cadastrar-se" da home)
     {
       path: '/cadastro',
@@ -269,6 +275,27 @@ const router = createRouter({
     // Qualquer outra rota (links do header/rodapé ainda sem tela) cai na página "Em breve"
     { path: '/:pathMatch(.*)*', name: 'em-breve', component: () => import('@/views/EmBreve.vue') },
   ],
+})
+
+import { useAuthStore } from '@/stores/auth'
+
+router.beforeEach((to) => {
+  const auth = useAuthStore()
+
+  // Etapa 2 sem ter passado pela etapa 1 (ex.: F5 na tela do código)
+  if (to.name === 'login/confirmar' && !auth.desafio) return { path: '/login' }
+
+  // Áreas restritas por perfil
+  const areas = [
+    ['/paciente', 'paciente'],
+    ['/profissional/', 'profissional'], // com a barra, para não pegar /profissionais/:id
+    ['/administracao', 'administrador'],
+  ]
+  for (const [prefixo, perfil] of areas) {
+    if (to.path.startsWith(prefixo) && (!auth.logado || auth.perfil !== perfil)) {
+      return { path: '/login' }
+    }
+  }
 })
 
 export default router

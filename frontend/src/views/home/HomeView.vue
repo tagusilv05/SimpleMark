@@ -10,8 +10,13 @@ import SpecialtyChip from '@/components/shared/SpecialtyChip.vue'
 import DoctorCard from '@/components/shared/DoctorCard.vue'
 import { listarEspecialidades, maisAvaliados } from '@/services/profissionais'
 import heroImage from '@/assets/imagemhome.png'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+
+const authStore = useAuthStore()
+
+async function sair() { await authStore.logout(); router.push('/') }
 
 // ---- Dados vindos do backend ----
 const especialidades = ref([])
@@ -121,7 +126,7 @@ const destaques = [
 
 <template>
   <div class="flex min-h-screen flex-col bg-[#f8faff]">
-    <AppHeader />
+      <AppHeader :user="authStore.usuarioHeader" @logout="sair" />
 
     <main class="flex-1">
       <!-- Hero: título + busca, foto à direita com degradê para o fundo -->
