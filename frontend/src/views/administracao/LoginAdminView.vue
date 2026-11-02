@@ -21,6 +21,7 @@ import { useRouter } from 'vue-router'
 import FormField from '@/components/shared/FormField.vue'
 import FormButton from '@/components/shared/FormButton.vue'
 import heroImage from '@/assets/imagemadministrador.png'
+import { useLogin } from '@/composables/useLogin'
 
 const form = reactive({
   email: '',
@@ -28,8 +29,9 @@ const form = reactive({
   lembrar: false,
 })
 
-const carregando = ref(false)
 const router = useRouter()
+
+const { carregando, erro, entrar } = useLogin('administrador')
 
 // Caminhos "d" dos ícones (Heroicons 24x24)
 const icons = {
@@ -38,17 +40,6 @@ const icons = {
   login: 'M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9',
 }
 
-async function entrar() {
-  if (carregando.value) return
-  carregando.value = true
-  try {
-    // TODO: chamar o serviço de autenticação do administrador
-    // await authService.loginAdmin({ email: form.email, senha: form.senha, lembrar: form.lembrar })
-    router.push({ name: 'validacaoDeProfissionais' })
-  } finally {
-    carregando.value = false
-  }
-}
 </script>
 
 <template>
@@ -69,7 +60,7 @@ async function entrar() {
             <p class="mt-2 text-[15px] text-gray-700">Bem-vindo ao Portal do Administrador</p>
           </header>
 
-          <form class="flex flex-col gap-6" @submit.prevent="entrar">
+          <form class="flex flex-col gap-6" @submit.prevent="entrar(form)">
             <FormField
               v-model="form.email"
               label="E-mail"
@@ -98,6 +89,11 @@ async function entrar() {
                 Lembrar de mim
               </label>
             </div>
+
+            <p v-if="erro" role="alert"
+               class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+               {{ erro }}
+            </p>
 
             <FormButton type="submit" class="h-13! w-full" :disabled="carregando">
               Entrar

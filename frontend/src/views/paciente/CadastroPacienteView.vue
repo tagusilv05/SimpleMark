@@ -23,6 +23,7 @@ import { useRouter } from 'vue-router'
 import FormField from '@/components/shared/FormField.vue'
 import FormButton from '@/components/shared/FormButton.vue'
 import heroImage from '@/assets/imagempaciente.jpg'
+import { cadastrarPaciente } from '@/services/authService'
 
 const router = useRouter()
 
@@ -44,6 +45,7 @@ const icons = {
 
 const generos = ['Masculino', 'Feminino', 'Outro']
 
+
 const form = reactive({
   nome: '',
   nascimento: '',
@@ -53,13 +55,20 @@ const form = reactive({
   email: '',
   celular: '',
   cep: '',
-  endereco: '',
+  cidade: '',
+  logradouro: '',
+  numero: '',
+  bairro: '',
+  complemento: '',
   senha: '',
   confirmarSenha: '',
+  consentimentoLgpD: false,
 })
+
 
 const errors = reactive({})
 const carregando = ref(false)
+const erroCadastro = ref('')
 
 // ---- Filtros de digitação: cada campo só aceita o que se pede ----
 const soDigitos = (v) => v.replace(/\D/g, '')
@@ -116,6 +125,16 @@ const mascaras = {
   // sem espaços
   senha: (v) => v.replace(/\s/g, '').slice(0, 64),
   confirmarSenha: (v) => v.replace(/\s/g, '').slice(0, 64),
+
+  cidade: (v) => limparEspacos(v.replace(/[^\p{L}\s'-]/gu, '')).slice(0, 100),
+
+  logradouro: (v) => limparEspacos(v.replace(/[^\p{L}\d\s,.\-/ºª#]/gu, '')).slice(0, 150),
+
+  numero: (v) => v.replace(/[^\p{L}\d/-]/gu, '').slice(0, 20),
+
+  bairro: (v) => limparEspacos(v.replace(/[^\p{L}\d\s'-]/gu, '')).slice(0, 100),
+
+  complemento: (v) => limparEspacos(v).slice(0, 150),
 }
 
 function atualizar(campo, valor) {
@@ -161,7 +180,11 @@ function validar() {
   if (celular.length !== 11 || celular[2] !== '9') e.celular = 'Informe um celular válido com DDD.'
 
   if (soDigitos(form.cep).length !== 8) e.cep = 'O CEP deve ter 8 dígitos.'
-  if (form.endereco.trim().length < 5) e.endereco = 'Informe seu endereço.'
+  if (form.cidade.trim().length < 2) e.cidade = 'Informe sua cidade.'
+  if (form.logradouro.trim().length < 2) e.logradouro = 'Informe seu logradouro.'
+  if (!form.numero.trim()) e.numero = 'Informe o número.'
+  if (form.bairro.trim().length < 2) e.bairro = 'Informe seu bairro.'
+  if (form.consentimentoLgpD !== true) {e.consentimentoLgpD = 'É necessário aceitar o consentimento para continuar.'}
   if (form.senha.length < 8) e.senha = 'A senha deve ter no mínimo 8 caracteres.'
   if (form.confirmarSenha !== form.senha) e.confirmarSenha = 'As senhas não conferem.'
 
@@ -170,39 +193,55 @@ function validar() {
   return Object.keys(e).length === 0
 }
 
+
 async function criarConta() {
   if (carregando.value) return
 
+  erroCadastro.value = ''
+
   if (!validar()) {
-    // leva a tela até o primeiro campo com erro
     await nextTick()
-    document.querySelector('[role="alert"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    document.querySelector('[role="alert"]')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    })
     return
   }
 
   carregando.value = true
+
   try {
-    // TODO: enviar ao backend. Sugestão de payload (só números onde faz sentido):
-    // const [dia, mes, ano] = form.nascimento.split('/')
-    // await pacienteService.cadastrar({
-    //   nome: form.nome.trim(),
-    //   data_nascimento: `${ano}-${mes}-${dia}`,
-    //   genero: form.genero,
-    //   cpf: soDigitos(form.cpf),
-    //   orgao_emissor: form.orgaoEmissor.trim(),
-    //   email: form.email,
-    //   celular: soDigitos(form.celular),
-    //   cep: soDigitos(form.cep),
-    //   endereco: form.endereco.trim(),
-    //   senha: form.senha,
-    // })
-    // Enquanto o serviço não está ligado, segue direto para a tela de sucesso.
-    // Ao ligar, deixe o push só depois do await do cadastro (e trate o erro do backend).
+    const [dia, mes, ano] = form.nascimento.split('/')
+
+    const dados = {
+      nome: form.nome.trim(),
+      data_nascimento: `${ano}-${mes}-${dia}`,
+      genero: form.genero.toLowerCase(),
+      cpf: soDigitos(form.cpf),
+      orgao_emissor: form.orgaoEmissor.trim(),
+      email: form.email.trim().toLowerCase(),
+      telefone: soDigitos(form.celular),
+      senha: form.senha,
+      consentimento_lgpd: form.consentimentoLgpD,
+      cep: soDigitos(form.cep),
+      cidade: form.cidade.trim(),
+      logradouro: form.logradouro.trim(),
+      numero: form.numero.trim(),
+      bairro: form.bairro.trim(),
+      complemento: form.complemento.trim() || null,
+    }
+
+    await cadastrarPaciente(dados)
+
     router.push({ name: 'cadastro/paciente/sucesso' })
+  } catch (erro) {
+    erroCadastro.value =
+      erro.message || 'Não foi possível realizar o cadastro. Tente novamente.'
   } finally {
     carregando.value = false
   }
 }
+
 
 function irParaLogin() {
   router.push({ name: 'login/paciente' })
@@ -320,13 +359,50 @@ function irParaLogin() {
             />
 
             <FormField
-              label="Endereço"
+              label="Cidade"
               variant="outline"
-              placeholder="Av. Principal, 45, próx catedral da sé"
+              placeholder="Sua cidade"
               :icon="icons.home"
-              :model-value="form.endereco"
-              :error="errors.endereco"
-              @update:model-value="atualizar('endereco', $event)"
+              :model-value="form.cidade"
+              :error="errors.cidade"
+              @update:model-value="atualizar('cidade', $event)"
+            />
+
+            <FormField
+              label="Logradouro"
+              variant="outline"
+              placeholder="Rua, avenida, travessa..."
+              :icon="icons.home"
+              :model-value="form.logradouro"
+              :error="errors.logradouro"
+              @update:model-value="atualizar('logradouro', $event)"
+            />
+
+            <FormField
+              label="Número"
+              variant="outline"
+              placeholder="Número da residência"
+              :model-value="form.numero"
+              :error="errors.numero"
+              @update:model-value="atualizar('numero', $event)"
+            />
+
+            <FormField
+              label="Bairro"
+              variant="outline"
+              placeholder="Seu bairro"
+              :model-value="form.bairro"
+              :error="errors.bairro"
+              @update:model-value="atualizar('bairro', $event)"
+            />
+
+            <FormField
+              label="Complemento (opcional)"
+              variant="outline"
+              placeholder="Apartamento, bloco, referência..."
+              :model-value="form.complemento"
+              :error="errors.complemento"
+              @update:model-value="atualizar('complemento', $event)"
             />
 
             <FormField
@@ -350,6 +426,29 @@ function irParaLogin() {
               :error="errors.confirmarSenha"
               @update:model-value="atualizar('confirmarSenha', $event)"
             />
+
+            <div class="flex flex-col gap-2">
+              <label class="flex items-start gap-3 text-sm text-gray-700">
+                <input
+                  v-model="form.consentimentoLgpD"
+                  type="checkbox"
+                  class="mt-1 h-4 w-4 accent-[#00507a]"
+                />
+                <span>
+                  Autorizo o tratamento dos meus dados pessoais para utilização
+                  dos serviços da plataforma Simple Mark, conforme a política
+                  de privacidade.
+                </span>
+              </label>
+
+              <p v-if="errors.consentimentoLgpD" class="text-sm text-red-600">
+                {{ errors.consentimentoLgpD }}
+              </p>
+            </div>
+
+            <p v-if="erroCadastro" role="alert" class="text-sm text-red-600">
+              {{ erroCadastro }}
+            </p>
 
             <FormButton type="submit" class="h-13! w-full" :disabled="carregando">
               Criar Conta
