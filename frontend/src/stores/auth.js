@@ -73,18 +73,7 @@ export const useAuthStore = defineStore('auth', () => {
   )
 
   // Para onde o usuário vai logo depois de entrar
-  const rotaInicial = computed(() => {
-    switch (perfil.value) {
-      case 'paciente':
-        return { name: 'geranciarContaDoPaciente' }
-      case 'profissional':
-        return { name: 'dashboardDoProfissional' }
-      case 'administrador':
-        return { path: '/administracao/usuarios' }
-      default:
-        return { path: '/' }
-    }
-  })
+  const rotaInicial = computed(() => ({ name: 'home' }))
 
   /** Etapa 1. `perfilEsperado` é a tela de onde o usuário veio (paciente | profissional | administrador). */
   async function iniciarLogin({ identificador, senha, perfilEsperado, lembrar }) {

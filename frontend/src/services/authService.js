@@ -81,3 +81,20 @@ export function obterUsuario(token) {
 export function sair(token) {
   return requisitar('/auth/sair', { method: 'POST', token })
 }
+
+
+/** Cadastra um novo paciente. */
+export function cadastrarPaciente(dados) {
+  return requisitar('/cadastro/paciente', {
+    method: 'POST',
+    body: dados,
+  })
+}
+
+/** * Cadastra um novo profissional. */
+export function cadastrarProfissional(dados) {
+  return requisitar('/cadastro/profissional', {
+    method: 'POST',
+    body: dados,
+  })
+}
