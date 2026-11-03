@@ -62,7 +62,7 @@ async def alterar_info_profissional(dados: str | None = Form(None), imagem: Uplo
 
 # Endpoint responsável por retornar as informações de um profissional relacionado a especialidade
 @router.get("/buscar-info-profissional/{id_usuario}", response_model=BuscarInfoProfissionalOutput)
-async def buscar_info_profissional(id_usuario: uuid.UUID, db: Session = Depends(get_db)):
+async def buscar_info_profissional(id_usuario: str, db: Session = Depends(get_db)):
     """Devolve a descrição do profissional e suas especialidades, conselho e valor.
 
     Rota sem autenticação. Responde 404 se o usuário não for profissional ativo.
@@ -124,7 +124,7 @@ async def salvar_imagem_profissional(id_usuario: uuid.UUID = Form(...), imagem: 
 
 # Endpoint responsável por buscar e retornar a imagem do profissional
 @router.get("/buscar-imagem-profissional/{id_usuario}")
-async def buscar_imagem_profissional(id_usuario: uuid.UUID, db: Session = Depends(get_db)):
+async def buscar_imagem_profissional(id_usuario: str, db: Session = Depends(get_db)):
     """Devolve o arquivo da imagem do profissional.
 
     Rota sem autenticação. Responde 404 se o usuário não for profissional ativo, se

@@ -1,6 +1,8 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import * as perfil from '@/services/perfilService'
 import ProfileCard from '@/components/shared/ProfileCard.vue'
 import SideMenu from '@/components/shared/SideMenu.vue'
 import FormCardDadosPessoais from '@/components/shared/FormCardDadosPessoais.vue'
@@ -19,58 +21,148 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const auth = useAuthStore()
 
 const isProfissional = computed(() => props.role === 'profissional')
 const roleLabel = computed(() => (isProfissional.value ? 'Profissional' : 'Paciente'))
+const idUsuario = computed(() => auth.usuario?.id) // ajuste se sua store usa outro nome
 
-// Aba selecionada no menu lateral
 const aba = ref('dados')
+const carregando = ref(false)
+const erro = ref('')
+const sucesso = ref('')
 
 const dados = ref({
-  nome: isProfissional.value ? 'Nome Profissional' : 'Nome Paciente',
-  cpf: '123.456.789-00',
-  orgao: 'SSP / PI',
-  nascimento: '14/06/1988',
-  genero: 'Masculino',
-  telefone: '(11) 98765-4321',
-  email: 'nome@email.com',
+  nome: '', cpf: '', orgao: '', nascimento: '', genero: '', telefone: '', email: '',
 })
 
 const endereco = ref({
-  cep: '01310-100',
-  cidade: 'Piauí',
-  logradouro: 'Rua Projetada',
-  numero: '1000',
-  bairro: 'Meu Bairro',
-  complemento: 'Sem Informação',
+  cep: '', cidade: '', logradouro: '', numero: '', bairro: '', complemento: '',
 })
 
-// Dados exclusivos do profissional (só usados quando role === 'profissional')
 const profissional = ref({
   fotoUrl: '',
   verificado: true,
-  apresentacao:
-    'Cardiologista com mais de 15 anos de experiência clínica, especializado em diagnóstico cardiovascular e telemedicina preventiva.',
-  especialidades: [
-    { id: 1, name: 'Cardiologia Clínica', registration: 'CRM 12345-SP', council: 'CREMESP', price: 'R$ 200,00' },
-  ],
+  apresentacao: '',
+  especialidades: [],
 })
 
-const especialidadesDisponiveis = ['Cardiologia', 'Dermatologia', 'Pediatria', 'Ortopedia']
+// Lista vinda do backend: [{ id_especialidade, especialidade }]
+const listaEspecialidades = ref([])
+const especialidadesDisponiveis = computed(() => listaEspecialidades.value.map((e) => e.especialidade))
+
+// Cópia do que veio do servidor, para detectar especialidades removidas ao salvar
+let especialidadesOriginais = []
+
+/* ---------- Conversões backend <-> tela ---------- */
+
+// '1980-01-15' -> '15/01/1980' (sem new Date, para evitar bug de fuso)
+function isoParaBR(iso) {
+  if (!iso) return ''
+  const [a, m, d] = iso.split('-')
+  return `${d}/${m}/${a}`
+}
+
+function formatarPreco(valor) {
+  return `R$ ${Number(valor ?? 0).toFixed(2).replace('.', ',')}`
+}
+
+function precoParaNumero(preco) {
+  if (typeof preco === 'number') return preco
+  return Number(String(preco).replace(/[^\d,]/g, '').replace(',', '.')) || 0
+}
+
+function idPorNome(nome) {
+  return listaEspecialidades.value.find((e) => e.especialidade === nome)?.id_especialidade
+}
+
+/* ---------- Carregamento ---------- */
+
+async function executar(fn, msgSucesso = '') {
+  erro.value = ''
+  sucesso.value = ''
+  carregando.value = true
+  try {
+    await fn()
+    if (msgSucesso) sucesso.value = msgSucesso
+  } catch (e) {
+    erro.value = e.message
+  } finally {
+    carregando.value = false
+  }
+}
+
+async function carregarTudo() {
+  const id = idUsuario.value
+  const token = auth.token
+
+  const [info, end] = await Promise.all([
+    perfil.buscarInfoUsuario(id, token),
+    perfil.buscarInfoEndereco(id, token),
+  ])
+
+  dados.value = {
+    nome: info.nome,
+    cpf: info.cpf,
+    orgao: info.orgao_emissor,
+    nascimento: isoParaBR(info.data_nascimento),
+    genero: info.genero,
+    telefone: info.telefone,
+    email: info.email,
+  }
+  endereco.value = { ...end, numero: String(end.numero ?? '') }
+
+  if (isProfissional.value) {
+    const [lista, infoProf] = await Promise.all([
+      perfil.listarEspecialidades(token),
+      perfil.buscarInfoProfissional(id, token),
+    ])
+    listaEspecialidades.value = lista
+
+    profissional.value.apresentacao = infoProf.info_profissional ?? ''
+    profissional.value.especialidades = (infoProf.especialidade ?? []).map((e) => ({
+      id: e.id_especialidade,
+      name: e.nome,
+      registration: e.numero_conselho,
+      council: e.conselho,
+      price: formatarPreco(e.valor),
+    }))
+    especialidadesOriginais = profissional.value.especialidades.map((e) => e.id)
+
+    // Foto é opcional: se não existir, só segue sem ela
+    try {
+      profissional.value.fotoUrl = await perfil.buscarImagemProfissional(id, token)
+    } catch {
+      profissional.value.fotoUrl = ''
+    }
+  }
+}
+
+onMounted(() => executar(carregarTudo))
+
+/* ---------- Ações ---------- */
 
 function salvar(valores) {
-  // TODO: enviar para a API
-  console.log('Salvar dados:', valores)
+  // O backend só altera nome, email e telefone
+  return executar(async () => {
+    const r = await perfil.alterarInfoPessoal(
+      { id: idUsuario.value, nome: valores.nome, email: valores.email, telefone: valores.telefone },
+      auth.token,
+    )
+    dados.value = { ...dados.value, ...r }
+  }, 'Dados pessoais atualizados.')
 }
 
 function salvarEndereco(valores) {
-  // TODO: enviar para a API
-  console.log('Salvar endereço:', valores)
+  return executar(async () => {
+    const r = await perfil.alterarEndereco(idUsuario.value, valores, auth.token)
+    endereco.value = { ...r, numero: String(r.numero) }
+  }, 'Endereço atualizado.')
 }
 
-function salvarSenha({ atual, nova }) {
-  // TODO: enviar para a API (nunca use console.log com senha em produção)
-  console.log('Trocar senha: ok')
+function salvarSenha() {
+  // Ainda não existe endpoint de troca de senha no backend
+  erro.value = 'A troca de senha ainda não está disponível.'
 }
 
 function buscarCep() {
@@ -78,23 +170,57 @@ function buscarCep() {
 }
 
 function trocarFoto(file) {
-  // TODO: enviar para a API. Por enquanto só mostra o preview.
-  profissional.value.fotoUrl = URL.createObjectURL(file)
+  return executar(async () => {
+    await perfil.salvarImagemProfissional(idUsuario.value, file, auth.token)
+    profissional.value.fotoUrl = URL.createObjectURL(file)
+  }, 'Foto atualizada.')
 }
 
 function salvarProfissional() {
-  // TODO: enviar para a API
-  console.log('Salvar profissional:', profissional.value)
+  return executar(async () => {
+    const atuais = profissional.value.especialidades
+
+    // 1) remove as especialidades que o usuário tirou da lista
+    const idsAtuais = atuais.map((e) => e.id).filter(Boolean)
+    const removidas = especialidadesOriginais.filter((id) => !idsAtuais.includes(id))
+    for (const idEsp of removidas) {
+      await perfil.excluirEspecialidade(idUsuario.value, idEsp, auth.token)
+    }
+
+    // 2) envia bio + especialidades (inclui valor da consulta)
+    const payload = atuais.map((e) => ({
+      id_especialidade: e.id ?? idPorNome(e.name),
+      numero_conselho: e.registration,
+      conselho: e.council,
+      valor: precoParaNumero(e.price),
+    }))
+    await perfil.alterarInfoProfissional(
+      idUsuario.value,
+      profissional.value.apresentacao,
+      payload,
+      auth.token,
+    )
+
+    // 3) guarda o novo estado como "original"
+    profissional.value.especialidades = atuais.map((e, i) => ({
+      ...e,
+      id: payload[i].id_especialidade,
+    }))
+    especialidadesOriginais = payload.map((p) => p.id_especialidade)
+  }, 'Perfil profissional atualizado.')
 }
 
 function desativarConta() {
-  // TODO: chamar a API para deixar a conta inativa
-  console.log('Desativar conta')
+  // Ainda não existe endpoint de desativação no backend
+  erro.value = 'A desativação de conta ainda não está disponível.'
 }
 
 function excluirConta() {
-  // TODO: chamar a API para excluir a conta
-  console.log('Excluir conta')
+  return executar(async () => {
+    await perfil.excluirUsuario(idUsuario.value, props.role, auth.token)
+    auth.logout?.() // ajuste para o nome da ação de sair na sua store
+    router.push('/login') // ajuste para a sua rota de login
+  })
 }
 </script>
 
@@ -107,6 +233,11 @@ function excluirConta() {
       :phone="dados.telefone"
       member-since="Fevereiro de 2026"
     />
+
+    <p v-if="erro" class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{{ erro }}</p>
+    <p v-if="sucesso" class="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+      {{ sucesso }}
+    </p>
 
     <div class="grid grid-cols-1 items-start gap-8 md:grid-cols-[16rem_1fr]">
       <SideMenu v-model="aba" :role="role" />
@@ -133,7 +264,6 @@ function excluirConta() {
         @excluir="excluirConta"
       />
 
-      <!-- Aba exclusiva do profissional -->
       <ProfessionalManagement
         v-else-if="aba === 'perfil' && isProfissional"
         v-model:bio="profissional.apresentacao"
@@ -145,7 +275,6 @@ function excluirConta() {
         @save="salvarProfissional"
       />
 
-      <!-- Outras abas: ainda não criadas -->
       <section
         v-else
         class="rounded-xl bg-white p-8 text-gray-500 shadow-[0_2px_12px_rgba(11,47,91,0.08)]"

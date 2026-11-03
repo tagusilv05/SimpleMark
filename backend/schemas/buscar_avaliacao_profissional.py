@@ -8,12 +8,12 @@ import uuid
 
 
 class AvaliacaoConsultaInput(BaseModel):
-    """Corpo de POST /avaliacao/buscar-avaliacoes: usuário do profissional e
-    a especialidade.
+    """Corpo de POST /avaliacao/buscar-avaliacoes: usuário ou profissional e
+    a especialidade (opcional).
     """
 
-    id_usuario: uuid.UUID
-    id_especialidade: int
+    id_usuario: str | uuid.UUID
+    id_especialidade: int | None = None
 
 
 class AvaliarOutput(BaseModel):
@@ -21,7 +21,7 @@ class AvaliarOutput(BaseModel):
 
     nome_paciente: str
     data_consulta: date
-    feedback: str | None
+    feedback: str | None = None
     avaliacao: int
 
 
@@ -31,6 +31,6 @@ class AvaliacaoConsultaOutput(BaseModel):
     sub_total conta as avaliações por nota, com as chaves "1" a "5".
     """
 
-    avaliacao: list[AvaliarOutput]
-    total: int
-    sub_total: dict[str, int]
+    avaliacao: list[AvaliarOutput] = []
+    total: int = 0
+    sub_total: dict[str, int] = {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}

@@ -1,3 +1,5 @@
+import uuid
+from models.models import Profissional
 """Tela "Minha conta" do profissional: dados, especialidades, imagem e exclusão."""
 
 # CRIADO: JOAO MARCOS 
@@ -24,21 +26,36 @@ from repositories.usuario_minha_conta import (
 
 # Busca o usuário, verifica se está ativo e retorna o profissional associado
 def verificar_profissional_usuario(id_usuario, db: Session):
-    """Profissional ligado ao usuário.
+    """Profissional ligado ao usuário ou ao id_profissional.
 
-    Levanta ValueError se o usuário não existir, estiver inativo ou não for
-    profissional.
+    Aceita UUID (ou string de UUID) do usuário, ou ID inteiro (ou string numérica) do profissional.
     """
+    is_numeric = False
+    if isinstance(id_usuario, int):
+        is_numeric = True
+    elif isinstance(id_usuario, str) and id_usuario.isdigit():
+        is_numeric = True
 
-    usuario = repositories_buscar_usuario_por_id(id_usuario=id_usuario, db=db)
+    if is_numeric:
+        profissional = db.query(Profissional).filter(Profissional.id_profissional == int(id_usuario)).first()
+        if profissional is None:
+            raise ValueError("Profissional não encontrado")
+        usuario = profissional.usuario
+    else:
+        identificador = id_usuario
+        try:
+            if isinstance(identificador, str):
+                identificador = uuid.UUID(identificador)
+        except Exception:
+            raise ValueError("Identificador inválido")
 
-    if usuario is None:
-        raise ValueError("Usuário não encontrado")
+        usuario = repositories_buscar_usuario_por_id(id_usuario=identificador, db=db)
+        if usuario is None:
+            raise ValueError("Usuário não encontrado")
+        profissional = usuario.profissional
 
-    if not usuario.status:
+    if usuario is None or not usuario.status:
         raise ValueError("Usuário está inativo")
-
-    profissional = usuario.profissional
 
     if profissional is None:
         raise ValueError("Profissional não encontrado")
@@ -161,6 +178,9 @@ def buscar_info_profissional(id_usuario, db: Session):
 
     return {
         "id_profissional": profissional.id_profissional,
+        "id_usuario": profissional.id_usuario,
+        "nome": profissional.usuario.nome if (profissional.usuario and profissional.usuario.nome) else "",
+        "path_imagem": profissional.path_imagem,
         "info_profissional": profissional.info_profissional,
         "especialidade": lista_especialidades
     }

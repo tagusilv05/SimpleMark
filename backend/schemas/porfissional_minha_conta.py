@@ -37,8 +37,11 @@ class BuscarInfoProfissionalOutput(BaseModel):
     """Resposta de GET /profissionais/buscar-info-profissional/{id_usuario}."""
 
     id_profissional: int
-    info_profissional: str 
-    especialidade: list[EspecialidadeOutput] 
+    id_usuario: uuid.UUID | None = None
+    nome: str | None = None
+    info_profissional: str | None = None
+    path_imagem: str | None = None
+    especialidade: list[EspecialidadeOutput] = []
 
 
 class AlterarValorConsultaOutput(BaseModel): 
@@ -65,4 +68,3 @@ class ExcluirEpecialidadeInput(BaseModel):
 
     id_usuario: uuid.UUID
     id_especialidade: int
-
