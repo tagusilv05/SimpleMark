@@ -4,62 +4,67 @@
 
 from sqlalchemy.orm import Session
 
+from models.models import Consulta, ProfissionalEspecialidade
 from repositories.buscar_avaliacao_profissional import (
     buscar_consultas_do_profissional as repositories_buscar_consultas_do_profissional,
-    buscar_profissional_especialidade as repositories_buscar_profissional_especialidade
+    buscar_profissional_especialidade as repositories_buscar_profissional_especialidade,
 )
-
-# Busca as avaliações de um profissional por especialidade,
-# organizando os dados das avaliações, o total e a quantidade por nota.
 from services.porfissional_minha_conta import verificar_profissional_usuario as services_verificar_profissional_usuario
 
 
 def buscar_avaliacoes_profissional(dados, db: Session):
-    """Lista as avaliações do profissional na especialidade.
+    """Lista as avaliações do profissional na especialidade (ou em todas se não informada).
 
     Devolve a lista (paciente, data, nota e feedback), o total e a contagem por
-    nota. Levanta ValueError se o usuário não for profissional ativo, se a
-    especialidade não for dele ou se não houver nenhuma avaliação.
+    nota.
     """
 
     # 1. Verifica se o usuário é um profissional
     profissional = services_verificar_profissional_usuario(dados.id_usuario, db)
 
-    # 2. Busca a relação profissional + especialidade
-    prof_esp = repositories_buscar_profissional_especialidade(profissional.id_profissional, dados.id_especialidade, db)
+    # 2. Busca as consultas (por especialidade ou todas as especialidades do profissional)
+    if dados.id_especialidade:
+        prof_esp = repositories_buscar_profissional_especialidade(
+            profissional.id_profissional, dados.id_especialidade, db
+        )
+        if prof_esp is None:
+            raise ValueError("Especialidade não encontrada para este profissional")
+        consultas = repositories_buscar_consultas_do_profissional(prof_esp.id_esp_prof, db)
+    else:
+        consultas = (
+            db.query(Consulta)
+            .join(
+                ProfissionalEspecialidade,
+                Consulta.id_esp_prof == ProfissionalEspecialidade.id_esp_prof,
+            )
+            .filter(
+                ProfissionalEspecialidade.id_profissional == profissional.id_profissional
+            )
+            .all()
+        )
 
-    if prof_esp is None:
-        raise ValueError("Especialidade não encontrada para este profissional")
-
-    # 3. Busca todas as consultas dessa relação
-    consultas = repositories_buscar_consultas_do_profissional(prof_esp.id_esp_prof, db)
-
-    # 4. Lista que vai armazenar as avaliações
+    # 3. Lista que vai armazenar as avaliações
     avaliacao = []
 
-    # 5. Contador das notas
+    # 4. Contador das notas
     sub_total = {
         "1": 0,
         "2": 0,
         "3": 0,
         "4": 0,
-        "5": 0
+        "5": 0,
     }
 
-    # 6. Percorre as consultas
+    # 5. Percorre as consultas
     for consulta in consultas:
-
-        # Consulta pode não ter avaliação
         if consulta.avaliacao is None:
             continue
 
         paciente = consulta.paciente
-
         if paciente is None:
             continue
 
         usuario_paciente = paciente.usuario
-
         if usuario_paciente is None:
             continue
 
@@ -67,40 +72,14 @@ def buscar_avaliacoes_profissional(dados, db: Session):
             "nome_paciente": usuario_paciente.nome,
             "data_consulta": consulta.data,
             "feedback": consulta.avaliacao.feedback,
-            "avaliacao": consulta.avaliacao.avaliacao
+            "avaliacao": consulta.avaliacao.avaliacao,
         })
 
-        sub_total[str(consulta.avaliacao.avaliacao)] += 1
+        nota_str = str(consulta.avaliacao.avaliacao)
+        if nota_str in sub_total:
+            sub_total[nota_str] += 1
 
-    # 7. Verifica se encontrou alguma avaliação
-    if not avaliacao:
-        raise ValueError("Nenhuma avaliação encontrada para este profissional")
-
-    # 8. Total de avaliações
+    # 6. Total de avaliações
     total = len(avaliacao)
 
     return avaliacao, total, sub_total
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

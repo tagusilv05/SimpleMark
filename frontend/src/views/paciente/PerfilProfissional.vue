@@ -14,18 +14,20 @@ function logout() {
   user.value = null
 }
 
-function verAvaliacoes() {
+function verAvaliacoes(idProfissional) {
+  const id = idProfissional || route.params.id
   router.push({
     name: 'avaliacoesDoProfissional',
-    params: route.params.id ? { id: route.params.id } : {},
+    params: id ? { id } : {},
   })
 }
 
 // A escolha de dia e horário é finalizada na tela de Agendamento, com a agenda real do profissional
-function agendar() {
+function agendar(dados) {
+  const id = dados?.idProfissional || route.params.id
   router.push({
     name: 'agendamento',
-    query: route.params.id ? { profissional: route.params.id } : {},
+    query: id ? { profissional: id } : {},
   })
 }
 </script>
@@ -36,7 +38,11 @@ function agendar() {
 
     <main class="mx-auto flex w-full max-w-300 flex-1 flex-col gap-6 px-12 pb-12">
       <BackLink />
-      <PerfilProfissionalLayout @ver-avaliacoes="verAvaliacoes" @agendar="agendar" />
+      <PerfilProfissionalLayout
+        :id="route.params.id"
+        @ver-avaliacoes="verAvaliacoes"
+        @agendar="agendar"
+      />
     </main>
   </div>
 </template>

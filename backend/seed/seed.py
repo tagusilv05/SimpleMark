@@ -1,153 +1,241 @@
-# CRIADO: JOAO MARCOS 
 
-"""
-Este arquivo é responsável por criar e inserir dados no banco de dados,
+from datetime import date, time
+from decimal import Decimal
 
-As tabelas preenchidas pelo seed são:
-- Usuario
-- Paciente
-- Profissional
-- Endereco
-- Especialidade
-- InfoConselho
-- ProfissionalEspecialidade
--  especialidades 
-
-As tabelas de consulta, horário, pagamento, avaliação e documento clínico e data_horario
-não são preenchidas por este seed.
-"""
-import uuid
-from datetime import date
-import random
 from database.connection import SessionLocal
+from models.acesso import Credencial
+from core.seguranca import gerar_hash_senha
 
 from models.models import (
     Usuario,
     Paciente,
     Profissional,
-    Endereco,
-    Especialidade,
     InfoConselho,
+    Especialidade,
     ProfissionalEspecialidade,
+    DataHorario,
+    Consulta,
+    Avaliacao,
 )
 
-def criar_seed():
-    """Insere especialidades, 10 pacientes e 5 profissionais; desfaz tudo se falhar."""
-    db = SessionLocal()
-    try:
-        especialidades = [
-            Especialidade(especialidade="Cardiologia"),
-            Especialidade(especialidade="Dermatologia"),
-            Especialidade(especialidade="Pediatria"),
-            Especialidade(especialidade="Ortopedia"),
-            Especialidade(especialidade="Neurologia"),
-        ]
 
-        db.add_all(especialidades)
+def criar_seed():
+    db = SessionLocal()
+
+    try:
+        # ==========================================
+        # 1. CADASTRAR O PACIENTE
+        # ==========================================
+
+        usuario_paciente = Usuario(
+            nome="Joao Silva",
+            cpf="041.609.790-17",
+            orgao_emissor="SSP",
+            data_nascimento=date(1995, 5, 15),
+            genero="Masculino",
+            telefone="8932439212",
+            email="joaomarcos0416@gmail.com",
+            status=True,
+        )
+
+        paciente = Paciente(usuario=usuario_paciente)
+
+        db.add(paciente)
         db.flush()
 
-        for i in range(1, 11):
+        # Cadastrar credencial do paciente
+        credencial_paciente = Credencial(
+            id_usuario=usuario_paciente.id,
+            senha_hash=gerar_hash_senha("minhasenha123"),
+            consentimento_lgpd=True,
+            tentativas_login_falhas=0,
+            bloqueado_ate=None,
+        )
 
-            usuario = Usuario(
-                id=uuid.uuid4(),
-                nome=f"Paciente {i}",
-                cpf=f"000.000.00{i:02d}",
-                orgao_emissor="SSP-PI",
-                data_nascimento=date(1990, i if i <= 12 else 1, 10),
-                genero="Não informado",
-                telefone=f"(89) 99999-{i:04d}",
-                email=f"paciente{i}@email.com",
-                status=True
+        db.add(credencial_paciente)
+
+        # ==========================================
+        # 2. CADASTRAR O MÉDICO CARDIOLOGISTA
+        # ==========================================
+
+        usuario_medico = Usuario(
+            nome="Marcos Silva",
+            cpf="920.285.800-46",
+            orgao_emissor="SSP",
+            data_nascimento=date(1980, 3, 10),
+            genero="Masculino",
+            telefone="8932254654",
+            email="joaomarcos0416@outlook.com",
+            status=True,
+        )
+
+        medico = Profissional(
+            usuario=usuario_medico,
+            info_profissional="Médico especialista em Cardiologia.",
+        )
+
+        db.add(medico)
+        db.flush()
+
+        # Cadastrar credencial do médico
+        credencial_medico = Credencial(
+            id_usuario=usuario_medico.id,
+            senha_hash=gerar_hash_senha("minhasenha123"),
+            consentimento_lgpd=True,
+            tentativas_login_falhas=0,
+            bloqueado_ate=None,
+        )
+
+        db.add(credencial_medico)
+
+        # ==========================================
+        # 3. CADASTRAR OU LOCALIZAR A ESPECIALIDADE
+        # ==========================================
+
+        especialidade = (
+            db.query(Especialidade)
+            .filter(Especialidade.especialidade == "Cardiologia")
+            .first()
+        )
+
+        if especialidade is None:
+            especialidade = Especialidade(
+                especialidade="Cardiologia"
             )
-
-            db.add(usuario)
+            db.add(especialidade)
             db.flush()
 
-            paciente = Paciente(
-                id_usuario=usuario.id
+        # ==========================================
+        # 4. CADASTRAR O CONSELHO DO MÉDICO
+        # ==========================================
+
+        conselho = InfoConselho(
+            numero_conselho="123456",
+            orgao_conselho="CRM-PI",
+        )
+
+        db.add(conselho)
+        db.flush()
+
+        # ==========================================
+        # 5. VINCULAR MÉDICO À ESPECIALIDADE
+        # ==========================================
+
+        medico_especialidade = ProfissionalEspecialidade(
+            profissional=medico,
+            especialidade=especialidade,
+            conselho=conselho,
+            valor_consulta=250.00,
+        )
+
+        db.add(medico_especialidade)
+        db.flush()
+
+        # ==========================================
+        # 6. CADASTRAR HORÁRIOS DISPONÍVEIS
+        # ==========================================
+
+        horarios_disponiveis = [
+            (date(2026, 11, 5), time(8, 0), time(9, 0)),
+            (date(2026, 11, 5), time(9, 0), time(10, 0)),
+            (date(2026, 11, 5), time(10, 0), time(11, 0)),
+            (date(2026, 11, 5), time(14, 0), time(15, 0)),
+            (date(2026, 11, 6), time(9, 0), time(10, 0)),
+            (date(2026, 11, 6), time(14, 0), time(15, 0)),
+        ]
+
+        for data_consulta, hora_inicio, hora_fim in horarios_disponiveis:
+            horario = DataHorario(
+                profissional_especialidade=medico_especialidade,
+                data_consulta=data_consulta,
+                hora_inicio=hora_inicio,
+                hora_fim=hora_fim,
+                ocupado=False,
             )
 
-            db.add(paciente)
+            db.add(horario)
 
-            endereco = Endereco(
-                id_usuario=usuario.id,
-                cep="64600-000",
-                cidade="Picos",
-                logradouro=f"Rua dos Pacientes, {i}",
-                numero=str(100 + i),
-                bairro="Centro",
-                complemento=None
-            )
+        # ==========================================
+        # 7. CADASTRAR UMA CONSULTA REALIZADA
+        # ==========================================
 
-            db.add(endereco)
+        consulta = Consulta(
+            paciente=paciente,
+            profissional_especialidade=medico_especialidade,
+            data=date(2026, 10, 20),
+            hora=time(14, 0),
+            tipo="teleconsulta",
+            status="realizada",
+            valor=Decimal("250.00"),
+        )
 
-        for i in range(1, 6):
+        db.add(consulta)
+        db.flush()
 
-            usuario = Usuario(
-                id=uuid.uuid4(),
-                nome=f"Profissional {i}",
-                cpf=f"111.111.11{i:02d}",
-                orgao_emissor="SSP-PI",
-                data_nascimento=date(1980, i, 15),
-                genero="Não informado",
-                telefone=f"(89) 98888-{i:04d}",
-                email=f"profissional{i}@email.com",
-                status=True
-            )
+        # ==========================================
+        # 8. CADASTRAR A AVALIAÇÃO DO PACIENTE
+        # ==========================================
 
-            db.add(usuario)
-            db.flush()
+        avaliacao = Avaliacao(
+            consulta=consulta,
+            nota=5,
+            feedback=(
+                "Excelente atendimento! "
+                "O médico foi atencioso e explicou "
+                "todas as minhas dúvidas."
+            ),
+            avaliacao=5,
+            data=date(2026, 10, 20),
+            hora=time(15, 0),
+        )
 
-            profissional = Profissional(
-                id_usuario=usuario.id,
-                path_imagem=None,
-                info_profissional=f"Informações profissionais do profissional {i}"
-            )
+        db.add(avaliacao)
 
-            db.add(profissional)
-            db.flush()
+        # ==========================================
+        # 9. ATUALIZAR A NOTA MÉDIA DO VÍNCULO
+        # ==========================================
 
-            endereco = Endereco(
-                id_usuario=usuario.id,
-                cep="64600-000",
-                cidade="Picos",
-                logradouro=f"Rua dos Profissionais, {i}",
-                numero=str(200 + i),
-                bairro="Centro",
-                complemento=f"Sala {i}"
-            )
+        # medico_especialidade.avaliacao = 5.0
 
-            db.add(endereco)
-
-            conselho = InfoConselho(
-                numero_conselho=f"CRM-PI {10000 + i}",
-                orgao_conselho="CRM-PI"
-            )
-
-            db.add(conselho)
-            db.flush()
-
-            especialidade = random.choice(especialidades)
-
-            profissional_especialidade = ProfissionalEspecialidade(
-                id_profissional=profissional.id_profissional,
-                id_especialidade=especialidade.id_especialidade,
-                id_conselho=conselho.id_conselho,
-                valor_consulta=200.00 + (i * 20),
-                avaliacao=None
-            )
-
-            db.add(profissional_especialidade)  
+        # ==========================================
+        # 10. SALVAR TUDO NO BANCO
+        # ==========================================
 
         db.commit()
 
-        print("SEED EXECUTADO COM SUCESSO")
+        # ==========================================
+        # 11. EXIBIR RESULTADO NO TERMINAL
+        # ==========================================
 
-    except Exception as e:
+        print("\n========== CADASTRO REALIZADO ==========")
+        print("Mensagem: Cadastro realizado com sucesso!")
+        print(f"ID do paciente: {paciente.id_paciente}")
+        print(f"ID do médico: {medico.id_profissional}")
+        print(
+            "ID do vínculo médico/especialidade: "
+            f"{medico_especialidade.id_esp_prof}"
+        )
+        print(f"ID da consulta: {consulta.id_consulta}")
+        print(f"Nota da avaliação: {avaliacao.nota}/5")
+        print(f"Feedback: {avaliacao.feedback}")
+        print(f"Horários cadastrados: {len(horarios_disponiveis)}")
 
+        print("\n========== AGENDA DO CARDIOLOGISTA ==========")
+
+        for data_consulta, hora_inicio, hora_fim in horarios_disponiveis:
+            print(
+                f"Data: {data_consulta.strftime('%d/%m/%Y')} | "
+                f"Início: {hora_inicio.strftime('%H:%M')} | "
+                f"Fim: {hora_fim.strftime('%H:%M')} | "
+                "Situação: LIVRE"
+            )
+
+        print("=============================================\n")
+
+    except Exception as erro:
         db.rollback()
+        print(f"\nERRO AO REALIZAR CADASTRO: {erro}")
+        raise
 
-        print("Erro ao executar seed:")
-        print(e)
     finally:
         db.close()
