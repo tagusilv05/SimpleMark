@@ -13,7 +13,9 @@
  *   que é a porta da API no docker compose.
  *
  * AUTENTICAÇÃO
- *   Se houver token salvo com setAccessToken, ele vai no cabeçalho Authorization.
+ *   O token da conta logada vem da store de login (useAuthStore). Se não houver
+ *   sessão nela, usa o token salvo com setAccessToken (legado). Ele vai no cabeçalho
+ *   Authorization de todas as chamadas.
  *
  * ERROS
  *   Respostas fora de 2xx lançam um ApiError com `status` e `message`.
@@ -21,8 +23,15 @@
  *
  * PARÂMETROS (2º argumento do get)
  *   Objeto simples. Valores null / undefined / '' são ignorados.
- 
+ *
+ * MÉTODOS
+ *   api.get(path, params) · api.post(path, body) · api.put(path, body)
+ *   api.patch(path, body) · api.delete(path)  -> devolvem o corpo da resposta
+ *
+ *   O export default (legado) devolve { data } e aceita get(path, { params }).
  */
+import { useAuthStore } from '@/stores/auth'
+
 const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 const ACCESS_TOKEN_KEY = 'access_token'
 
@@ -51,8 +60,23 @@ function extrairMensagem(corpo, status) {
   return `Erro ao falar com o servidor (${status}).`
 }
 
+// Token da sessão atual: primeiro a store de login, depois o legado do sessionStorage
+function tokenAtual() {
+  try {
+    const token = useAuthStore().token
+    if (token) return token
+  } catch {
+    // Pinia ainda não está ativo (ex.: fora de um componente)
+  }
+  try {
+    return sessionStorage.getItem(ACCESS_TOKEN_KEY)
+  } catch {
+    return null
+  }
+}
+
 async function request(path, { method = 'GET', params, body, signal } = {}) {
-  const token = sessionStorage.getItem(ACCESS_TOKEN_KEY)
+  const token = tokenAtual()
   let resposta
   try {
     resposta = await fetch(montarUrl(path, params), {
@@ -77,6 +101,9 @@ async function request(path, { method = 'GET', params, body, signal } = {}) {
 export const api = {
   get: (path, params, options) => request(path, { ...options, params }),
   post: (path, body, options) => request(path, { ...options, method: 'POST', body }),
+  put: (path, body, options) => request(path, { ...options, method: 'PUT', body }),
+  patch: (path, body, options) => request(path, { ...options, method: 'PATCH', body }),
+  delete: (path, options) => request(path, { ...options, method: 'DELETE' }),
 }
 
 function url(path) {
@@ -100,7 +127,7 @@ async function get(path, { params = {} } = {}) {
     }
   }
 
-  const token = sessionStorage.getItem(ACCESS_TOKEN_KEY)
+  const token = tokenAtual()
   const response = await fetch(requestUrl, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
@@ -129,4 +156,16 @@ async function get(path, { params = {} } = {}) {
   return { data: body }
 }
 
-export default { get, url, setAccessToken, clearAccessToken }
+// Versões legadas (devolvem { data }) dos métodos de escrita
+const comData = (promessa) => promessa.then((data) => ({ data }))
+
+export default {
+  get,
+  post: (path, body) => comData(request(path, { method: 'POST', body })),
+  put: (path, body) => comData(request(path, { method: 'PUT', body })),
+  patch: (path, body) => comData(request(path, { method: 'PATCH', body })),
+  delete: (path) => comData(request(path, { method: 'DELETE' })),
+  url,
+  setAccessToken,
+  clearAccessToken,
+}

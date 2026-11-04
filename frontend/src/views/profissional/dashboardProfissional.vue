@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 import AppHeader from '@/components/shared/AppHeader.vue'
 import ResumoDia from '@/components/shared/resumoDia.vue'
 import ProximoAtendimento from '@/components/shared/proximoAtendimento.vue'
@@ -9,6 +10,7 @@ import AgendaHoje from '@/components/shared/agendaHoje.vue'
 import CalendarioMensal from '@/components/shared/calendario.vue'
 
 const router = useRouter()
+const auth = useAuthStore()
 
 const hoje = new Date()
 const dataSelecionada = ref(hoje)
@@ -199,24 +201,18 @@ function irParaHoje() {
   dataSelecionada.value = h
 }
 
-async function entrarNaChamada(id) {
-  try {
-    const { data } = await api.get(`/api/v1/consultas/${id}/videochamada`)
-    if (!data.meet_link) {
-      erro.value = 'Esta consulta não possui uma chamada virtual disponível.'
-      return
-    }
-    window.open(data.meet_link, '_blank', 'noopener,noreferrer')
-  } catch (e) {
-    erro.value = e.message || 'Não foi possível abrir a chamada virtual.'
-  }
+// A tela de atendimento embute a sala do Jitsi da consulta (?consulta=<id>)
+function entrarNaChamada(id) {
+  router.push({ name: 'chamadaDoAtendimento', query: { consulta: id } })
 }
 
-const adicionarConsulta = () => router.push({ name: 'adicionarConsultaDoProfissional' })
+// Novos horários de atendimento são cadastrados na configuração de agenda
+const adicionarConsulta = () => router.push({ name: 'configuracaoAgendaDoProfissional' })
 
-function logout() {
-  api.clearAccessToken()
+async function logout() {
+  await auth.logout()
   usuario.value = null
+  router.push({ name: 'login/profissional' })
 }
 
 watch(dataSelecionada, atualizarDia)

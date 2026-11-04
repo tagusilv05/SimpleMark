@@ -1,7 +1,8 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import api from '@/services/api' // ajuste para a sua instância axios
+import api from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 import AppHeader from '@/components/shared/AppHeader.vue'
 import BackLink from '@/components/shared/BackLink.vue'
 import CardEspecialidadeValor from '@/components/shared/CardespecialidadeValor.vue'
@@ -10,6 +11,7 @@ import HorariosAgendados from '@/components/shared/HorariosAgendados.vue'
 import CalendarioMensal from '@/components/shared/calendario.vue'
 
 const router = useRouter()
+const auth = useAuthStore()
 
 const hoje = new Date()
 const dataSelecionada = ref(hoje)
@@ -230,8 +232,8 @@ watch(dataSelecionada, () => {
 watch(especialidadeId, carregarFaixas)
 watch(mesVisivel, carregarCalendario)
 
-function logout() {
-  api.clearAccessToken()
+async function logout() {
+  await auth.logout()
   user.value = null
   router.push({ name: 'login/profissional' })
 }
