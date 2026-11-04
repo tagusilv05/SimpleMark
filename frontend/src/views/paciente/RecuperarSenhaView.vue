@@ -15,6 +15,7 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import FormField from '@/components/shared/FormField.vue'
 import FormButton from '@/components/shared/FormButton.vue'
+import { solicitarRecuperacaoSenha } from '@/services/authService'
 import heroImage from '@/assets/imagempaciente.jpg'
 
 const router = useRouter()
@@ -50,13 +51,19 @@ async function enviarCodigo() {
   if (carregando.value || !validar()) return
   carregando.value = true
   try {
-    // TODO: chamar o serviço de recuperação de senha do paciente
-    // await authService.solicitarCodigoPaciente({ email: form.email })
+    const desafio = await solicitarRecuperacaoSenha({ email: form.email })
 
-    // Segue para a tela de redefinição (leva o e-mail para a próxima etapa)
-    await router.push({ name: 'login/paciente/redefinirsenha', query: { email: form.email } })
-  } catch {
-    errors.email = 'Não foi possível enviar o código. Tente novamente.'
+    // O id do desafio vai no history.state (não aparece na URL) para a próxima etapa
+    await router.push({
+      name: 'login/paciente/redefinirsenha',
+      state: {
+        idDesafio: desafio.id_desafio,
+        emailMascarado: desafio.email_mascarado,
+        mensagem: desafio.mensagem,
+      },
+    })
+  } catch (erro) {
+    errors.email = erro?.message || 'Não foi possível enviar o código. Tente novamente.'
   } finally {
     carregando.value = false
   }

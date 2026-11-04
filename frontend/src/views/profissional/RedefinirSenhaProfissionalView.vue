@@ -5,18 +5,20 @@
  * Fluxo: Recuperar Senha -> Enviar Código -> esta tela (rota `login/profissional/redefinirsenha`)
  *        -> Redefinir Senha -> confirmação (rota `login/profissional/sucessoredefinirsenha`)
  *
- * O e-mail informado no passo anterior chega em `route.query.email`
- * (enviado pelo router.push da tela de recuperação).
+ * O `idDesafio` (e o e-mail mascarado) devolvidos por POST /auth/senha/esqueci
+ * chegam em `history.state`, enviados pelo router.push da tela de recuperação.
+ * Sem eles (acesso direto pela URL), volta para a etapa 1.
  *
  * Estrutura:
  *   - Coluna esquerda: logo + cartão com o formulário
  *   - Coluna direita: imagem ilustrativa (escondida em telas < lg)
  */
 
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import FormField from '@/components/shared/FormField.vue'
 import FormButton from '@/components/shared/FormButton.vue'
+import { redefinirSenha as redefinirSenhaApi } from '@/services/authService'
 import heroImage from '@/assets/imagemprofissional.png'
 
 const router = useRouter()
@@ -32,6 +34,14 @@ const CODIGO_TAMANHO = 6
 const form = reactive({ codigo: '', senha: '', confirmarSenha: '' })
 const errors = reactive({})
 const carregando = ref(false)
+const erroGeral = ref('')
+
+const idDesafio = history.state?.idDesafio ?? null
+const aviso = history.state?.mensagem ?? ''
+
+onMounted(() => {
+  if (!idDesafio) router.replace({ name: 'login/profissional/recuperarsenha' })
+})
 
 // Cada campo só aceita o que se pede
 const filtros = {
@@ -43,6 +53,7 @@ const filtros = {
 function atualizar(campo, valor) {
   form[campo] = filtros[campo](valor)
   delete errors[campo]
+  erroGeral.value = ''
   if (campo === 'senha') delete errors.confirmarSenha
 }
 
@@ -62,14 +73,16 @@ async function redefinirSenha() {
   if (carregando.value || !validar()) return
 
   carregando.value = true
+  erroGeral.value = ''
   try {
-    // TODO: confirmar o código e gravar a nova senha no backend
-    // const email = useRoute().query.email  (importar useRoute de 'vue-router')
-    // await authService.redefinirSenhaProfissional({ email, codigo: form.codigo, nova_senha: form.senha })
-
-    // Enquanto o serviço não está ligado, segue direto para a confirmação.
-    // Ao ligar, deixe o push só depois do await (e trate código inválido/expirado).
-    router.push({ name: 'login/profissional/sucessoredefinirsenha' })
+    await redefinirSenhaApi({ idDesafio, codigo: form.codigo, novaSenha: form.senha })
+    await router.replace({ name: 'login/profissional/sucessoredefinirsenha' })
+  } catch (erro) {
+    const mensagem = erro?.message || 'Não foi possível redefinir a senha. Tente novamente.'
+    // 400: código inválido/expirado/incorreto ou senha igual à atual
+    if (erro?.status === 400 && /senha/i.test(mensagem)) errors.senha = mensagem
+    else if (erro?.status === 400) errors.codigo = mensagem
+    else erroGeral.value = mensagem
   } finally {
     carregando.value = false
   }
@@ -97,6 +110,9 @@ function voltarAoLogin() {
             <h1 class="text-2xl font-medium text-[#00507a]">Redefinir Senha</h1>
             <p class="mt-2 text-[15px] leading-6 text-gray-700">
               Crie uma nova senha para voltar a ter acesso aos nossos serviços na palma de sua mão.
+            </p>
+            <p v-if="aviso" class="mt-3 rounded-lg bg-[#eaf4fb] px-4 py-3 text-sm leading-5 text-[#00507a]">
+              {{ aviso }}
             </p>
           </header>
 
@@ -133,6 +149,8 @@ function voltarAoLogin() {
               :error="errors.confirmarSenha"
               @update:model-value="atualizar('confirmarSenha', $event)"
             />
+
+            <p v-if="erroGeral" role="alert" class="text-sm text-red-600">{{ erroGeral }}</p>
 
             <FormButton type="submit" class="h-13! w-full" :disabled="carregando">
               Redefinir Senha

@@ -5,18 +5,20 @@
  * Fluxo: Recuperar Senha -> Enviar Código -> esta tela (rota `redefinir-senha`)
  *        -> Redefinir Senha -> confirmação (rota `senha-redefinida`)
  *
- * O e-mail informado no passo anterior chega em `history.state.email`
- * (enviado pelo router.push da tela de recuperação).
+ * O `idDesafio` (e o e-mail mascarado) devolvidos por POST /auth/senha/esqueci
+ * chegam em `history.state`, enviados pelo router.push da tela de recuperação.
+ * Sem eles (acesso direto pela URL), volta para a etapa 1.
  *
  * Estrutura:
  *   - Coluna esquerda: logo + cartão com o formulário
  *   - Coluna direita: imagem ilustrativa (escondida em telas < lg)
  */
 
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import FormField from '@/components/shared/FormField.vue'
 import FormButton from '@/components/shared/FormButton.vue'
+import { redefinirSenha as redefinirSenhaApi } from '@/services/authService'
 import heroImage from '@/assets/imagempaciente.jpg'
 
 const router = useRouter()
@@ -27,11 +29,19 @@ const lockIcon =
 const keyIcon =
   'M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z'
 
-  const CODIGO_TAMANHO = 6
+const CODIGO_TAMANHO = 6
 
 const form = reactive({ codigo: '', senha: '', confirmarSenha: '' })
 const errors = reactive({})
 const carregando = ref(false)
+const erroGeral = ref('')
+
+const idDesafio = history.state?.idDesafio ?? null
+const aviso = history.state?.mensagem ?? ''
+
+onMounted(() => {
+  if (!idDesafio) router.replace({ name: 'login/paciente/recuperarsenha' })
+})
 
 // Cada campo só aceita o que se pede
 const filtros = {
@@ -43,6 +53,7 @@ const filtros = {
 function atualizar(campo, valor) {
   form[campo] = filtros[campo](valor)
   delete errors[campo]
+  erroGeral.value = ''
   if (campo === 'senha') delete errors.confirmarSenha
 }
 
@@ -62,14 +73,16 @@ async function redefinirSenha() {
   if (carregando.value || !validar()) return
 
   carregando.value = true
+  erroGeral.value = ''
   try {
-    // TODO: confirmar o código e gravar a nova senha no backend
-    // const email = history.state?.email
-    // await authService.redefinirSenha({ email, codigo: form.codigo, nova_senha: form.senha })
-
-    // Enquanto o serviço não está ligado, segue direto para a confirmação.
-    // Ao ligar, deixe o push só depois do await (e trate código inválido/expirado).
-    router.push({ name: 'login/paciente/sucessoredefinirsenha' })   // <- só esta linha muda
+    await redefinirSenhaApi({ idDesafio, codigo: form.codigo, novaSenha: form.senha })
+    await router.replace({ name: 'login/paciente/sucessoredefinirsenha' })
+  } catch (erro) {
+    const mensagem = erro?.message || 'Não foi possível redefinir a senha. Tente novamente.'
+    // 400: código inválido/expirado/incorreto ou senha igual à atual
+    if (erro?.status === 400 && /senha/i.test(mensagem)) errors.senha = mensagem
+    else if (erro?.status === 400) errors.codigo = mensagem
+    else erroGeral.value = mensagem
   } finally {
     carregando.value = false
   }
@@ -98,6 +111,9 @@ function voltarAoLogin() {
             <p class="mt-2 text-[15px] leading-6 text-gray-700">
               Crie uma nova senha para voltar a ter acesso aos nossos serviços na palma de sua mão.
             </p>
+            <p v-if="aviso" class="mt-3 rounded-lg bg-[#eaf4fb] px-4 py-3 text-sm leading-5 text-[#00507a]">
+              {{ aviso }}
+            </p>
           </header>
 
           <form class="flex flex-col gap-6" novalidate @submit.prevent="redefinirSenha">
@@ -106,7 +122,7 @@ function voltarAoLogin() {
               variant="outline"
               inputmode="numeric"
               placeholder="000000"
-              :icon="keyIcon"  
+              :icon="keyIcon"
               :model-value="form.codigo"
               :error="errors.codigo"
               @update:model-value="atualizar('codigo', $event)"
@@ -133,6 +149,8 @@ function voltarAoLogin() {
               :error="errors.confirmarSenha"
               @update:model-value="atualizar('confirmarSenha', $event)"
             />
+
+            <p v-if="erroGeral" role="alert" class="text-sm text-red-600">{{ erroGeral }}</p>
 
             <FormButton type="submit" class="h-13! w-full" :disabled="carregando">
               Redefinir Senha
