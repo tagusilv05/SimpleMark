@@ -27,7 +27,8 @@
  * O QUE JÁ VEM DEFINIDO AQUI DENTRO (edite os arrays abaixo para mudar)
  *   links  navegação central: Como Funciona (/como-funciona), Sobre Nós (/sobre-nos),
  *          Ouvidoria (/ouvidoria). O link da página atual fica sublinhado.
- *   items  menu do usuário: Minha Conta (/minha-conta), Agendamentos (/agendamentos),
+ *   items  menu do usuário: Minha Conta e Agendamentos (destino conforme o perfil:
+ *          conta e agendamentos do paciente, ou conta e dashboard do profissional),
  *          separador e Sair (vermelho, dispara @logout).
  *          Cada item aceita { label, to, icon, action, danger } ou { separator: true }
  *            to      rota do vue-router (navega com router.push)
@@ -47,19 +48,21 @@
  *   - Tailwind CSS
  */
 
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import UserAvatar from '@/components/shared/UserAvatar.vue'
+import { useAuthStore } from '@/stores/auth'
 import logo from '@/assets/logo-simple-mark.png'
 
 // user = null -> visitante | { name, role } -> logado
-defineProps({
+const props = defineProps({
   user: { type: Object, default: null },
 })
 
 const emit = defineEmits(['logout'])
 
 const router = useRouter()
+const auth = useAuthStore()
 
 // ---- Links de navegação ----
 const links = [
@@ -82,15 +85,28 @@ function hide() {
   closeTimer = setTimeout(() => (open.value = false), 150)
 }
 
-const items = [
+// Destino de cada item conforme o perfil logado (sem rota própria, fica o caminho padrão)
+const ROTAS_POR_PERFIL = {
+  paciente: { conta: { name: 'geranciarContaDoPaciente' }, agendamentos: { name: 'meusAgendamentos' } },
+  profissional: {
+    conta: { name: 'gerenciarContaDoProfissional' },
+    agendamentos: { name: 'dashboardDoProfissional' },
+  },
+}
+const rotas = computed(() => {
+  const perfil = auth.perfil || props.user?.role?.toLowerCase()
+  return ROTAS_POR_PERFIL[perfil] ?? { conta: '/minha-conta', agendamentos: '/agendamentos' }
+})
+
+const items = computed(() => [
   {
     label: 'Minha Conta',
-    to: '/minha-conta',
+    to: rotas.value.conta,
     icon: 'M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.118a7.5 7.5 0 0 1 15 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.5-1.632Z',
   },
   {
     label: 'Agendamentos',
-    to: '/agendamentos',
+    to: rotas.value.agendamentos,
     icon: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5',
   },
   { separator: true },
@@ -100,7 +116,7 @@ const items = [
     danger: true,
     icon: 'M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9',
   },
-]
+])
 
 function onSelect(item) {
   open.value = false

@@ -1,39 +1,96 @@
 <script setup>
-import { ref } from 'vue'
+/**
+ * Meus Agendamentos — lista das consultas do paciente logado
+ *
+ * API:
+ *   GET   /consultas/minhas                                   lista (até 100)
+ *   GET   /api/v1/avaliacoes/profissionais/{id}/media         nota média de cada profissional
+ *   GET   /api/v1/consultas/{id}/videochamada                 link do Jitsi para entrar
+ *   PATCH /api/v1/consultas/{id}/cancelar                     cancela a consulta
+ *
+ * Situação mostrada no cartão (derivada do status da consulta e do pagamento):
+ *   pagamento  agendada, pagamento ainda não aprovado  -> "Realizar pagamento"
+ *   confirmado pagamento aprovado e horário por vir     -> "Entrar na chamada" + cancelar
+ *   realizada  consulta realizada                       -> "Avaliar" (se ainda não avaliou)
+ *   expirado   horário passou sem a consulta acontecer  -> "Link expirado"
+ *   cancelada  consulta cancelada
+ */
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { api } from '@/services/api'
 
 const router = useRouter()
 
-// status: 'confirmado' | 'realizada' | 'expirado'
-const agendamentos = ref([
-  {
-    id: 1,
-    data: '08 Nov 2024',
-    horario: '10:00 - 10:30',
-    tipo: 'Teleconsulta',
-    especialidade: 'Cardiologia',
-    status: 'confirmado',
-    profissional: { id: 1, nome: 'Dr. Nome do Profissional', nota: 4.8 },
-  },
-  {
-    id: 2,
-    data: '12 Nov 2024',
-    horario: '14:30 - 15:00',
-    tipo: 'Teleconsulta',
-    especialidade: 'Ortopedia e Traumatologia',
-    status: 'realizada',
-    profissional: { id: 2, nome: 'Dr. Nome do Profissional', nota: 4.8 },
-  },
-  {
-    id: 3,
-    data: '20 Nov 2024',
-    horario: '11:15 - 12:00',
-    tipo: 'Teleconsulta',
-    especialidade: 'Dermatologia',
-    status: 'expirado',
-    profissional: { id: 3, nome: 'Dra. Nome do Profissional', nota: 4.8 },
-  },
-])
+const agendamentos = ref([])
+const carregando = ref(true)
+const erro = ref('')
+const aviso = ref('')
+const emAcao = ref(null) // id da consulta com ação em andamento
+const detalhesAbertos = ref(new Set())
+
+const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+// Depois deste tempo do início, a consulta não realizada é tratada como expirada
+const TOLERANCIA_MS = 60 * 60 * 1000
+
+const formatarData = (iso) => {
+  const [ano, mes, dia] = iso.split('-')
+  return `${dia} ${MESES[Number(mes) - 1]} ${ano}`
+}
+const formatarValor = (v) =>
+  Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+const capitalizar = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : '')
+
+function situacao(c) {
+  if (c.status === 'cancelada') return 'cancelada'
+  if (c.status === 'realizada') return 'realizada'
+  if (new Date(`${c.data}T${c.hora}`).getTime() + TOLERANCIA_MS < Date.now()) return 'expirado'
+  if (c.status === 'confirmada' || c.pagamento_status === 'aprovado') return 'confirmado'
+  return 'pagamento'
+}
+
+function montar(c, medias) {
+  return {
+    id: c.id_consulta,
+    data: formatarData(c.data),
+    horario: c.hora.slice(0, 5),
+    tipo: capitalizar(c.tipo),
+    valor: formatarValor(c.valor),
+    pagamento: c.pagamento_status,
+    especialidade: c.profissional.especialidade,
+    status: situacao(c),
+    podeAvaliar: c.pode_avaliar,
+    avaliacao: c.avaliacao,
+    profissional: {
+      id: c.profissional.id_profissional,
+      nome: c.profissional.nome,
+      nota: medias.get(c.profissional.id_profissional) ?? null,
+    },
+  }
+}
+
+async function carregar() {
+  carregando.value = true
+  erro.value = ''
+  try {
+    const { itens } = await api.get('/consultas/minhas', { limit: 100 })
+
+    // Nota média de cada profissional (uma chamada por profissional; falha não trava a lista)
+    const ids = [...new Set(itens.map((c) => c.profissional.id_profissional))]
+    const respostas = await Promise.allSettled(
+      ids.map((id) => api.get(`/api/v1/avaliacoes/profissionais/${id}/media`)),
+    )
+    const medias = new Map()
+    respostas.forEach((r, i) => {
+      if (r.status === 'fulfilled' && r.value?.media != null) medias.set(ids[i], Number(r.value.media))
+    })
+
+    agendamentos.value = itens.map((c) => montar(c, medias))
+  } catch (e) {
+    erro.value = e.message || 'Não foi possível carregar seus agendamentos.'
+  } finally {
+    carregando.value = false
+  }
+}
 
 const iniciais = (nome) =>
   nome
@@ -44,22 +101,69 @@ const iniciais = (nome) =>
     .map((p) => p[0].toUpperCase())
     .join('')
 
-const entrarNaChamada = (id) => console.log('Entrar na chamada', id)
-
-function cancelar(id) {
-  if (!window.confirm('Deseja realmente cancelar esta consulta?')) return
-  agendamentos.value = agendamentos.value.filter((a) => a.id !== id)
+async function entrarNaChamada(id) {
+  if (emAcao.value) return
+  emAcao.value = id
+  erro.value = ''
+  // Abre a aba já no clique (antes do await) para o navegador não bloquear o pop-up
+  const aba = window.open('', '_blank')
+  try {
+    const dados = await api.get(`/api/v1/consultas/${id}/videochamada`)
+    if (!dados.meet_link) throw new Error('A chamada desta consulta ainda não está disponível.')
+    if (aba) {
+      aba.opener = null
+      aba.location.href = dados.meet_link
+    } else {
+      window.location.href = dados.meet_link
+    }
+  } catch (e) {
+    aba?.close()
+    erro.value = e.message || 'Não foi possível abrir a chamada.'
+  } finally {
+    emAcao.value = null
+  }
 }
 
-const verMedico = (id) => router.push({ name: 'perfilProfissional', params: { id } })
-const verDetalhes = (id) => router.push({ name: 'detalhesConsulta', params: { id } })
+async function cancelar(id) {
+  if (emAcao.value || !window.confirm('Deseja realmente cancelar esta consulta?')) return
+  emAcao.value = id
+  erro.value = ''
+  aviso.value = ''
+  try {
+    await api.patch(`/api/v1/consultas/${id}/cancelar`)
+    const ag = agendamentos.value.find((a) => a.id === id)
+    if (ag) ag.status = 'cancelada'
+    aviso.value = 'Consulta cancelada.'
+  } catch (e) {
+    erro.value = e.message || 'Não foi possível cancelar a consulta.'
+  } finally {
+    emAcao.value = null
+  }
+}
+
+function alternarDetalhes(id) {
+  const abertos = new Set(detalhesAbertos.value)
+  abertos.has(id) ? abertos.delete(id) : abertos.add(id)
+  detalhesAbertos.value = abertos
+}
+
+const ROTULO_PAGAMENTO = { aprovado: 'Aprovado', pendente: 'Pendente' }
+
+const verMedico = (id) => router.push({ name: 'perfil-profissional', params: { id } })
+const pagar = (id) => router.push({ name: 'pagamento-consulta', params: { idConsulta: id } })
 const avaliar = (id) => router.push({ name: 'avaliarConsulta', params: { id } })
+
+onMounted(carregar)
 </script>
 
 <template>
   <h1 class="text-4xl font-bold text-[#0b2f5b]">Meus Agendamentos</h1>
 
-  <p v-if="!agendamentos.length" class="text-sm text-gray-500">
+  <p v-if="erro" class="text-sm font-medium text-red-700" role="alert">{{ erro }}</p>
+  <p v-if="aviso" class="text-sm font-medium text-green-700" role="status">{{ aviso }}</p>
+
+  <p v-if="carregando" class="text-sm text-gray-500">Carregando seus agendamentos...</p>
+  <p v-else-if="!agendamentos.length && !erro" class="text-sm text-gray-500">
     Você ainda não possui agendamentos.
   </p>
 
@@ -80,7 +184,10 @@ const avaliar = (id) => router.push({ name: 'avaliarConsulta', params: { id } })
           <div class="flex flex-col gap-1">
             <div class="flex items-center gap-2">
               <h2 class="text-xl font-semibold text-[#0b2f5b]">{{ ag.profissional.nome }}</h2>
-              <div class="flex items-center gap-1 text-xs font-semibold text-gray-700">
+              <div
+                v-if="ag.profissional.nota !== null"
+                class="flex items-center gap-1 text-xs font-semibold text-gray-700"
+              >
                 <span class="flex text-[#1a9aa6]">
                   <svg
                     v-for="i in 5"
@@ -95,6 +202,7 @@ const avaliar = (id) => router.push({ name: 'avaliarConsulta', params: { id } })
                 </span>
                 {{ ag.profissional.nota.toFixed(1) }}
               </div>
+              <span v-else class="text-xs text-gray-400">Sem avaliações</span>
             </div>
 
             <p class="text-sm text-gray-500">{{ ag.especialidade }}</p>
@@ -121,6 +229,24 @@ const avaliar = (id) => router.push({ name: 'avaliarConsulta', params: { id } })
                   <circle cx="12" cy="12" r="10" /><path d="M8 12l3 3 5-6" />
                 </svg>
                 Realizada
+              </span>
+              <span
+                v-else-if="ag.status === 'pagamento'"
+                class="flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
+              >
+                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+                </svg>
+                Aguardando Pagamento
+              </span>
+              <span
+                v-else-if="ag.status === 'cancelada'"
+                class="flex items-center gap-1 rounded bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-600"
+              >
+                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10" /><path d="M15 9l-6 6M9 9l6 6" />
+                </svg>
+                Cancelada
               </span>
               <span
                 v-else
@@ -168,7 +294,8 @@ const avaliar = (id) => router.push({ name: 'avaliarConsulta', params: { id } })
         <button
           type="button"
           class="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#0b2f5b] bg-white px-4 py-2 text-xs font-semibold text-[#0b2f5b] transition hover:bg-blue-50"
-          @click="verDetalhes(ag.id)"
+          :aria-expanded="detalhesAbertos.has(ag.id)"
+          @click="alternarDetalhes(ag.id)"
         >
           <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" />
@@ -177,9 +304,21 @@ const avaliar = (id) => router.push({ name: 'avaliarConsulta', params: { id } })
         </button>
 
         <button
-          v-if="ag.status === 'confirmado'"
+          v-if="ag.status === 'pagamento'"
           type="button"
           class="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#0b2f5b] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#12407a]"
+          @click="pagar(ag.id)"
+        >
+          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" />
+          </svg>
+          Realizar Pagamento
+        </button>
+        <button
+          v-else-if="ag.status === 'confirmado'"
+          type="button"
+          :disabled="emAcao === ag.id"
+          class="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#0b2f5b] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#12407a] disabled:cursor-wait disabled:opacity-60"
           @click="entrarNaChamada(ag.id)"
         >
           <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -188,7 +327,7 @@ const avaliar = (id) => router.push({ name: 'avaliarConsulta', params: { id } })
           Entrar na Chamada
         </button>
         <button
-          v-else-if="ag.status === 'realizada'"
+          v-else-if="ag.status === 'realizada' && ag.podeAvaliar"
           type="button"
           class="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#0b2f5b] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#12407a]"
           @click="avaliar(ag.id)"
@@ -197,6 +336,25 @@ const avaliar = (id) => router.push({ name: 'avaliarConsulta', params: { id } })
             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
           </svg>
           Avaliar Atendimento
+        </button>
+        <button
+          v-else-if="ag.status === 'realizada'"
+          type="button"
+          disabled
+          class="flex cursor-default items-center justify-center gap-2 rounded-lg bg-[#eef2fb] px-4 py-2 text-xs font-semibold text-[#0b2f5b]"
+        >
+          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" /><path d="M8 12l3 3 5-6" />
+          </svg>
+          Atendimento Avaliado
+        </button>
+        <button
+          v-else-if="ag.status === 'cancelada'"
+          type="button"
+          disabled
+          class="flex cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-[#eef2fb] px-4 py-2 text-xs font-semibold text-gray-400"
+        >
+          Consulta Cancelada
         </button>
         <button
           v-else
@@ -211,10 +369,35 @@ const avaliar = (id) => router.push({ name: 'avaliarConsulta', params: { id } })
         </button>
       </div>
 
-      <div v-if="ag.status === 'confirmado'" class="mt-4 text-center">
+      <dl
+        v-if="detalhesAbertos.has(ag.id)"
+        class="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 rounded-lg bg-[#f8faff] p-4 text-xs sm:grid-cols-4"
+      >
+        <div>
+          <dt class="font-semibold text-gray-500">Código</dt>
+          <dd class="text-[#0b2f5b]">#{{ ag.id }}</dd>
+        </div>
+        <div>
+          <dt class="font-semibold text-gray-500">Valor</dt>
+          <dd class="text-[#0b2f5b]">{{ ag.valor }}</dd>
+        </div>
+        <div>
+          <dt class="font-semibold text-gray-500">Pagamento</dt>
+          <dd class="text-[#0b2f5b]">{{ ROTULO_PAGAMENTO[ag.pagamento] ?? 'Não iniciado' }}</dd>
+        </div>
+        <div v-if="ag.avaliacao">
+          <dt class="font-semibold text-gray-500">Sua avaliação</dt>
+          <dd class="text-[#0b2f5b]">
+            {{ ag.avaliacao.avaliacao ? `${ag.avaliacao.avaliacao} de 5 estrelas` : 'Somente comentário' }}
+          </dd>
+        </div>
+      </dl>
+
+      <div v-if="['confirmado', 'pagamento'].includes(ag.status)" class="mt-4 text-center">
         <button
           type="button"
-          class="cursor-pointer text-xs font-semibold text-red-700 hover:underline"
+          :disabled="emAcao === ag.id"
+          class="cursor-pointer text-xs font-semibold text-red-700 hover:underline disabled:cursor-wait disabled:opacity-60"
           @click="cancelar(ag.id)"
         >
           Cancelar

@@ -29,7 +29,7 @@ function hideMenu() {
 function logout() {
   hideMenu()
   emit('logout')
-  router.push('/administracao/usuarios')
+  router.push({ name: 'login/administrador' })
 }
 </script>
 
