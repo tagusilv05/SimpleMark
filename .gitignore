@@ -6,3 +6,5 @@ __pycache__/
 # Variáveis de ambiente
 .env
 
+#Anexos enviados pela Ouvidoria (dados pessoais: nunca versionar)
+backend/uploads/ouvidoria/

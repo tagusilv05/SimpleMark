@@ -18,6 +18,10 @@ import AppHeader from '@/components/shared/AppHeader.vue'
 import FormField from '@/components/shared/FormField.vue'
 import FormTextarea from '@/components/shared/FormTextarea.vue'
 import FormButton from '@/components/shared/FormButton.vue'
+import { abrirManifestacao } from '@/services/ouvidoriaService'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
 
 // Caminhos "d" dos ícones (Heroicons 24x24, contorno)
 const icons = {
@@ -67,7 +71,9 @@ const TAMANHO_MAX = 10 * 1024 * 1024 // 10 MB por arquivo
 const EXTENSOES = ['pdf', 'png', 'jpg', 'jpeg']
 
 /* ---------- Estado ---------- */
-const solicitante = ref('paciente')
+// Quem está logado como profissional já começa com "Sou Profissional de Saúde"
+const solicitantePadrao = () => (auth.perfil === 'profissional' ? 'profissional' : 'paciente')
+const solicitante = ref(solicitantePadrao())
 const tipo = ref('reclamacao')
 const form = reactive({ codigo: '', assunto: '', descricao: '' })
 const aceite = ref(false)
@@ -75,6 +81,7 @@ const arquivos = ref([]) // [{ id, file }]
 const errors = reactive({})
 const carregando = ref(false)
 const enviado = ref(false)
+const protocolo = ref('')
 
 /* ---------- Filtros de digitação ---------- */
 const filtros = {
@@ -159,7 +166,7 @@ function validar() {
 }
 
 function reiniciar() {
-  solicitante.value = 'paciente'
+  solicitante.value = solicitantePadrao()
   tipo.value = 'reclamacao'
   form.codigo = ''
   form.assunto = ''
@@ -180,21 +187,25 @@ async function enviar() {
 
   carregando.value = true
   try {
-    // TODO: enviar a manifestação para o backend, por exemplo:
-    // const dados = new FormData()
-    // dados.append('solicitante', solicitante.value)
-    // dados.append('tipo', tipo.value)
-    // dados.append('codigo_consulta', form.codigo)
-    // dados.append('assunto', form.assunto.trim())
-    // dados.append('descricao', form.descricao.trim())
-    // arquivos.value.forEach((a) => dados.append('anexos', a.file))
-    // await ouvidoriaService.abrirManifestacao(dados)
+    const resposta = await abrirManifestacao(
+      {
+        solicitante: solicitante.value,
+        tipo: tipo.value,
+        codigoConsulta: form.codigo,
+        assunto: form.assunto.trim(),
+        descricao: form.descricao.trim(),
+        aceiteLgpd: aceite.value,
+        anexos: arquivos.value.map((a) => a.file),
+      },
+      auth.token,
+    )
 
+    protocolo.value = resposta.protocolo
     reiniciar()
     enviado.value = true
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  } catch {
-    errors.geral = 'Não foi possível enviar a manifestação. Tente novamente.'
+  } catch (erro) {
+    errors.geral = erro?.message || 'Não foi possível enviar a manifestação. Tente novamente.'
   } finally {
     carregando.value = false
   }
@@ -254,6 +265,11 @@ async function enviar() {
               <p class="text-sm leading-6">
                 <strong class="font-bold">Manifestação enviada com sucesso!</strong>
                 Nossa equipe fará a análise e retornará o mais breve possível.
+                <template v-if="protocolo">
+                  <br />
+                  Guarde o número do seu protocolo:
+                  <strong class="font-bold tracking-wide">{{ protocolo }}</strong>
+                </template>
               </p>
             </div>
 

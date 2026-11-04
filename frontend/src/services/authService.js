@@ -7,6 +7,10 @@
  *   GET  /api/v1/auth/eu    (Bearer)  -> dados da conta logada
  *   POST /api/v1/auth/sair  (Bearer)  -> 204, encerra a sessão
  *
+ * Recuperação de senha em DUAS etapas (vale para paciente e profissional):
+ *   1) POST /api/v1/auth/senha/esqueci   { email }                             -> { id_desafio, email_mascarado, expira_em_segundos, mensagem }
+ *   2) POST /api/v1/auth/senha/redefinir { id_desafio, codigo, nova_senha }    -> { mensagem }
+ *
  * Erros da API chegam como { "mensagem": "..." } (já em português).
  * Aqui eles viram `ApiError`, e `error.message` pode ser exibido direto na tela.
  *
@@ -82,6 +86,18 @@ export function sair(token) {
   return requisitar('/auth/sair', { method: 'POST', token })
 }
 
+/** Recuperação, etapa 1: envia o código de recuperação para o e-mail informado. */
+export function solicitarRecuperacaoSenha({ email }) {
+  return requisitar('/auth/senha/esqueci', { method: 'POST', body: { email } })
+}
+
+/** Recuperação, etapa 2: confere o código e grava a nova senha. */
+export function redefinirSenha({ idDesafio, codigo, novaSenha }) {
+  return requisitar('/auth/senha/redefinir', {
+    method: 'POST',
+    body: { id_desafio: idDesafio, codigo, nova_senha: novaSenha },
+  })
+}
 
 /** Cadastra um novo paciente. */
 export function cadastrarPaciente(dados) {
