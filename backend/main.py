@@ -12,6 +12,9 @@ from database.migracoes import aplicar_migracoes
 from models import models
 import models.acesso  # registra credencial e sessao_login sem alterar as tabelas do grupo
 import models.administracao  # registra banimento e logs da administração sem alterar as tabelas do grupo
+import models.recuperacao_senha 
+from routers.recuperacao_senha import router as recuperacao_senha_router
+
 
 from routers.horarios_profissional import router as horarios_profissional_router
 from routers.administracao import router as administracao_router
@@ -66,6 +69,7 @@ app.add_middleware(
 app.include_router(horarios_profissional_router)
 app.include_router(cadastro_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(recuperacao_senha_router, prefix="/api/v1")
 app.include_router(administracao_router, prefix="/api/v1")
 app.include_router(busca_profissional_router, prefix="/api/v1")
 app.include_router(consulta_profissional_router, prefix="/api/v1")

@@ -32,6 +32,7 @@ _ROTULOS = {
     "feedback": "comentário",
     "id_desafio": "identificador da confirmação",
     "codigo": "código",
+    "nova_senha": "nova senha",
 }
 
 
