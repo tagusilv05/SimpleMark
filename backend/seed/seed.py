@@ -78,7 +78,60 @@ def criar_seed():
             db.add(credencial_paciente)
 
         # ==========================================
-        # 2. CADASTRAR OU LOCALIZAR O MÉDICO
+        # 2. CADASTRAR OU LOCALIZAR O PACIENTE VICTOR
+        # ==========================================
+
+        usuario_paciente_victor = (
+            db.query(Usuario)
+            .filter(Usuario.email == "victorodriguesluz@gmail.com")
+            .first()
+        )
+
+        if usuario_paciente_victor is None:
+            usuario_paciente_victor = Usuario(
+                nome="Victor Rodrigues Luz",
+                cpf="529.982.247-25",
+                orgao_emissor="SSP",
+                data_nascimento=date(1998, 1, 1),
+                genero="Masculino",
+                telefone="86999999999",
+                email="victorodriguesluz@gmail.com",
+                status=True,
+            )
+
+            db.add(usuario_paciente_victor)
+            db.flush()
+
+        paciente_victor = (
+            db.query(Paciente)
+            .filter(Paciente.id_usuario == usuario_paciente_victor.id)
+            .first()
+        )
+
+        if paciente_victor is None:
+            paciente_victor = Paciente(id_usuario=usuario_paciente_victor.id)
+            db.add(paciente_victor)
+            db.flush()
+
+        credencial_paciente_victor = (
+            db.query(Credencial)
+            .filter(Credencial.id_usuario == usuario_paciente_victor.id)
+            .first()
+        )
+
+        if credencial_paciente_victor is None:
+            credencial_paciente_victor = Credencial(
+                id_usuario=usuario_paciente_victor.id,
+                senha_hash=gerar_hash_senha("Senha123"),
+                consentimento_lgpd=True,
+                tentativas_login_falhas=0,
+                bloqueado_ate=None,
+            )
+
+            db.add(credencial_paciente_victor)
+
+        # ==========================================
+        # 3. CADASTRAR OU LOCALIZAR O MÉDICO
         # ==========================================
 
         usuario_medico = (

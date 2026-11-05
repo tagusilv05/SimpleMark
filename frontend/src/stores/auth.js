@@ -197,6 +197,9 @@ export const useAuthStore = defineStore('auth', () => {
       // armazenamento indisponível
     }
     salvarSessao({ token: token.value, usuario: usuario.value }, lembrar)
+
+    // Volta para a página protegida que pediu o login, se for da área deste perfil
+    return redirecionar || rotaInicial.value
   }
 
   function cancelarDesafio() {

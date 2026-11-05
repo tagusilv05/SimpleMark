@@ -9,7 +9,7 @@
  *   PATCH /api/v1/consultas/{id}/cancelar                     cancela a consulta
  *
  * Situação mostrada no cartão (derivada do status da consulta e do pagamento):
- *   pagamento  agendada, pagamento ainda não aprovado  -> "Realizar pagamento"
+ *   pagamento  agendada, pagamento pendente/recusado/cancelado ou não iniciado -> "Realizar pagamento"
  *   confirmado pagamento aprovado e horário por vir     -> "Entrar na chamada" + cancelar
  *   realizada  consulta realizada                       -> "Avaliar" (se ainda não avaliou)
  *   expirado   horário passou sem a consulta acontecer  -> "Link expirado"
@@ -132,7 +132,11 @@ async function cancelar(id) {
   try {
     await api.patch(`/api/v1/consultas/${id}/cancelar`)
     const ag = agendamentos.value.find((a) => a.id === id)
-    if (ag) ag.status = 'cancelada'
+    if (ag) {
+      ag.status = 'cancelada'
+      // Pagamento não aprovado é cancelado junto com a consulta (regra do backend)
+      if (ag.pagamento && ag.pagamento !== 'aprovado') ag.pagamento = 'cancelado'
+    }
     aviso.value = 'Consulta cancelada.'
   } catch (e) {
     erro.value = e.message || 'Não foi possível cancelar a consulta.'
@@ -264,7 +268,7 @@ onMounted(carregar)
                 <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
                 </svg>
-                Aguardando Pagamento
+                {{ ag.pagamento === 'recusado' ? 'Pagamento Recusado' : ag.pagamento === 'pendente' ? 'Pagamento Pendente' : 'Aguardando Pagamento' }}
               </span>
               <span
                 v-else-if="ag.status === 'cancelada'"
@@ -339,7 +343,7 @@ onMounted(carregar)
           <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" />
           </svg>
-          Realizar Pagamento
+          {{ ag.pagamento === 'recusado' || ag.pagamento === 'cancelado' ? 'Tentar Novamente' : ag.pagamento === 'pendente' ? 'Acompanhar Pagamento' : 'Realizar Pagamento' }}
         </button>
         <button
           v-else-if="ag.status === 'confirmado'"
