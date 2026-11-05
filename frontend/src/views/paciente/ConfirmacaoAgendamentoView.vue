@@ -10,7 +10,6 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppHeader from '@/components/shared/AppHeader.vue'
 import BackLink from '@/components/shared/BackLink.vue'
-import { api } from '@/services/api'
 import { useAgendamentoStore } from '@/stores/agendamento'
 import { MESES, fromISO } from '@/utils/datas'
 
@@ -18,7 +17,6 @@ const route = useRoute()
 const router = useRouter()
 const agendamento = useAgendamentoStore()
 
-const user = ref(null)
 const erro = ref('')
 
 const consulta = computed(() =>
@@ -56,6 +54,12 @@ const iniciais = computed(() =>
     .join(''),
 )
 
+// O link da chamada vai por e-mail e aparece em Meus Agendamentos depois do pagamento
+const avisoLink = computed(() => {
+  if (consulta.value?.pagamento_status === 'aprovado') return 'Link enviado para o seu e-mail'
+  return 'Link liberado após o pagamento'
+})
+
 function irParaPagamento() {
   router.push({ name: 'pagamento-consulta', params: { idConsulta: route.params.idConsulta } })
 }
@@ -66,10 +70,6 @@ function baixarPdf() {
 }
 
 onMounted(async () => {
-  api.get('/api/v1/auth/eu').then(
-    (conta) => (user.value = { name: conta.nome, role: 'Paciente' }),
-    () => (user.value = null),
-  )
   if (consulta.value) return
   try {
     await agendamento.carregar(route.params.idConsulta)
@@ -82,7 +82,7 @@ onMounted(async () => {
 <template>
   <div class="flex min-h-screen flex-col bg-[#f8faff]">
     <div class="print:hidden">
-      <AppHeader :user="user" />
+      <AppHeader />
       <BackLink :to="{ name: 'meusAgendamentos' }" />
     </div>
 
@@ -142,7 +142,7 @@ onMounted(async () => {
               <div>
                 <dt class="text-xs text-gray-500">Local</dt>
                 <dd class="text-lg font-semibold text-[#0b2f5b]">Teleconsulta</dd>
-                <dd class="mt-1 inline-block rounded bg-[#ddf5f7] px-1 text-xs text-[#00a0b0]">Link disponível em 15 min</dd>
+                <dd class="mt-1 inline-block rounded bg-[#ddf5f7] px-1 text-xs text-[#00a0b0]">{{ avisoLink }}</dd>
               </div>
             </div>
 

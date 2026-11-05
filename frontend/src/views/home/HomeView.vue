@@ -10,13 +10,10 @@ import SpecialtyChip from '@/components/shared/SpecialtyChip.vue'
 import DoctorCard from '@/components/shared/DoctorCard.vue'
 import { listarEspecialidades, maisAvaliados } from '@/services/profissionais'
 import heroImage from '@/assets/imagemhome.png'
-import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 
-const authStore = useAuthStore()
 
-async function sair() { await authStore.logout(); router.push('/') }
 
 // ---- Dados vindos do backend ----
 const especialidades = ref([])
@@ -84,11 +81,11 @@ onMounted(() => {
 })
 
 // ---- Navegação ----
-// A tela /busca lê id_especialidade da query string (mesmo nome do filtro da API)
+// A busca leva direto ao agendamento, já filtrado pela especialidade (?especialidade=<id>)
 function buscarPorEspecialidade(idEspecialidade) {
   router.push({
-    name: 'busca-profissionais',
-    query: idEspecialidade ? { id_especialidade: idEspecialidade } : {},
+    name: 'agendamento',
+    query: idEspecialidade ? { especialidade: idEspecialidade } : {},
   })
 }
 
@@ -126,7 +123,7 @@ const destaques = [
 
 <template>
   <div class="flex min-h-screen flex-col bg-[#f8faff]">
-      <AppHeader :user="authStore.usuarioHeader" @logout="sair" />
+      <AppHeader />
 
     <main class="flex-1">
       <!-- Hero: título + busca, foto à direita com degradê para o fundo -->

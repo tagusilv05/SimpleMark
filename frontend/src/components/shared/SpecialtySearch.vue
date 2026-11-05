@@ -9,7 +9,7 @@
  *   <SpecialtySearch
  *     :options="especialidades"
  *     :loading="carregando"
- *     @search="(idEspecialidade) => router.push({ name: 'busca-profissionais', query: { id_especialidade: idEspecialidade } })"
+ *     @search="(idEspecialidade) => router.push({ name: 'agendamento', query: { especialidade: idEspecialidade } })"
  *   />
  *
  * PROPS
