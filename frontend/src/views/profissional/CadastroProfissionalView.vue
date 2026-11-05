@@ -21,6 +21,7 @@ import { useRouter } from 'vue-router'
 import FormField from '@/components/shared/FormField.vue'
 import FormTextarea from '@/components/shared/FormTextarea.vue'
 import FormButton from '@/components/shared/FormButton.vue'
+import BackLink from '@/components/shared/BackLink.vue'
 import heroImage from '@/assets/imagemprofissional.png'
 import { cadastrarProfissional } from '@/services/authService'
 
@@ -325,7 +326,10 @@ function irParaLogin() {
       />
 
       <!-- my-auto centraliza o cartão no espaço entre a logo e o fim da página (margens iguais em cima e embaixo) -->
-      <div class="my-auto w-full max-w-111.75 py-8 lg:ml-16">
+      <div class="relative my-auto w-full max-w-111.75 py-8 lg:ml-16">
+        <!-- Volta para a escolha de modalidade do cadastro -->
+        <BackLink :to="{ name: 'cadastro' }" class="absolute left-6 top-1 pl-0! pt-0! lg:-left-10" />
+
         <div class="rounded-2xl border border-gray-200 bg-white p-6 sm:p-10">
           <header class="mb-8">
             <h1 class="text-2xl font-medium text-[#00507a]">Crie sua conta</h1>
