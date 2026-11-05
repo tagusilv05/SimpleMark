@@ -15,6 +15,17 @@ const { paciente, inicio, retorno, retornoData } = storeToRefs(atendimento)
 
 const user = ref(null)
 
+// Paciente da consulta (preenchido pela API da videochamada)
+const nomePaciente = computed(() => paciente.value.nome || 'Paciente')
+const detalhesPaciente = computed(() =>
+  [
+    paciente.value.idade != null ? `${paciente.value.idade} anos` : null,
+    paciente.value.cpf ? `CPF ${paciente.value.cpf}` : null,
+  ]
+    .filter(Boolean)
+    .join(' • '),
+)
+
 // ---------- Cronômetro ----------
 const agora = ref(Date.now())
 let relogio = null
@@ -36,7 +47,7 @@ async function carregarVideochamada() {
   const id = route.query.consulta
   if (!id) return false
   try {
-    const { data } = await api.get(`/api/v1/consultas/${id}/videochamada`)
+    const data = await atendimento.carregarConsulta(id)
     meetLink.value = data.meet_link
   } catch (e) {
     console.error(e)
@@ -106,10 +117,6 @@ const paths = {
   cortar: 'M3 3l18 18',
 }
 
-function logout() {
-  api.clearAccessToken()
-  user.value = null
-}
 
 onMounted(async () => {
   relogio = setInterval(() => (agora.value = Date.now()), 1000)
@@ -131,7 +138,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="flex min-h-screen flex-col bg-[#f8faff]">
-    <AppHeader :user="user" @logout="logout" />
+    <AppHeader />
 
     <main class="mx-auto flex w-full max-w-300 flex-1 flex-col gap-6 px-12 pb-12">
       <BackLink class="pl-0! text-[#0a9ba5]!" />
@@ -145,10 +152,10 @@ onBeforeUnmount(() => {
         </span>
 
         <div class="flex items-center gap-3">
-          <UserAvatar :name="paciente.nome" class="size-10 bg-[#08283a]! text-sm font-semibold" />
-          <span class="text-base font-medium text-[#08283a]">{{ paciente.nome }}</span>
-          <span class="rounded-full bg-[#e3e9fb] px-2 py-1 text-[11px] text-gray-700">
-            {{ paciente.idade }} anos • CPF {{ paciente.cpf }}
+          <UserAvatar :name="nomePaciente" class="size-10 bg-[#08283a]! text-sm font-semibold" />
+          <span class="text-base font-medium text-[#08283a]">{{ nomePaciente }}</span>
+          <span v-if="detalhesPaciente" class="rounded-full bg-[#e3e9fb] px-2 py-1 text-[11px] text-gray-700">
+            {{ detalhesPaciente }}
           </span>
         </div>
       </div>
@@ -165,8 +172,8 @@ onBeforeUnmount(() => {
 
         <!-- Paciente (remoto) -->
         <div v-else class="absolute inset-0 flex flex-col items-center justify-center gap-4 text-white/80">
-          <UserAvatar :name="paciente.nome" class="size-28 bg-white/10! text-4xl font-semibold" />
-          <p class="text-sm">Aguardando vídeo de {{ paciente.nome }}...</p>
+          <UserAvatar :name="nomePaciente" class="size-28 bg-white/10! text-4xl font-semibold" />
+          <p class="text-sm">Aguardando vídeo de {{ nomePaciente }}...</p>
         </div>
 
         <!-- Profissional (local) -->
@@ -266,7 +273,7 @@ onBeforeUnmount(() => {
 
         <nav class="flex items-center justify-center gap-4" aria-label="Documentos do atendimento">
           <RouterLink
-            :to="{ name: 'receitaDoAtendimento' }"
+            :to="{ name: 'receitaDoAtendimento', query: route.query.consulta ? { consulta: route.query.consulta } : {} }"
             class="inline-flex h-10 w-40 items-center justify-center gap-2 rounded-md bg-[#08283a] text-sm font-semibold text-white transition-colors hover:bg-[#0d3a52]"
           >
             <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
@@ -275,7 +282,7 @@ onBeforeUnmount(() => {
             Receita
           </RouterLink>
           <RouterLink
-            :to="{ name: 'atestadoDoAtendimento' }"
+            :to="{ name: 'atestadoDoAtendimento', query: route.query.consulta ? { consulta: route.query.consulta } : {} }"
             class="inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-gray-700 transition-colors hover:bg-[#eef2fd]"
           >
             <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">

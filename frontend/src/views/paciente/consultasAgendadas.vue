@@ -41,8 +41,8 @@ const formatarValor = (v) =>
 const capitalizar = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : '')
 
 function situacao(c) {
-  if (c.status === 'cancelada') return 'cancelada'
-  if (c.status === 'realizada') return 'realizada'
+  if (c.status === 'cancelada' || c.status === 'cancelado') return 'cancelada'
+  if (c.status === 'realizada' || c.status === 'realizado') return 'realizada'
   if (new Date(`${c.data}T${c.hora}`).getTime() + TOLERANCIA_MS < Date.now()) return 'expirado'
   if (c.status === 'confirmada' || c.pagamento_status === 'aprovado') return 'confirmado'
   return 'pagamento'
@@ -145,7 +145,25 @@ function alternarDetalhes(id) {
   const abertos = new Set(detalhesAbertos.value)
   abertos.has(id) ? abertos.delete(id) : abertos.add(id)
   detalhesAbertos.value = abertos
+  if (abertos.has(id)) carregarDocumentos(id)
 }
+
+// Receitas e atestados emitidos na consulta: { [idConsulta]: lista | 'carregando' | 'erro' }
+const documentos = ref({})
+
+async function carregarDocumentos(id) {
+  if (Array.isArray(documentos.value[id])) return
+  documentos.value = { ...documentos.value, [id]: 'carregando' }
+  try {
+    const lista = await api.get(`/api/v1/consultas/${id}/documentos`)
+    documentos.value = { ...documentos.value, [id]: lista }
+  } catch {
+    documentos.value = { ...documentos.value, [id]: 'erro' }
+  }
+}
+
+const ROTULO_DOCUMENTO = { RECEITA: 'Receita médica', ATESTADO: 'Atestado médico' }
+const dataDocumento = (iso) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '')
 
 const ROTULO_PAGAMENTO = { aprovado: 'Aprovado', pendente: 'Pendente' }
 
@@ -157,7 +175,15 @@ onMounted(carregar)
 </script>
 
 <template>
-  <h1 class="text-4xl font-bold text-[#0b2f5b]">Meus Agendamentos</h1>
+  <div class="flex max-w-215 flex-wrap items-center justify-between gap-4">
+    <h1 class="text-4xl font-bold text-[#0b2f5b]">Meus Agendamentos</h1>
+    <RouterLink
+      :to="{ name: 'agendamento' }"
+      class="rounded-lg bg-[#0b2f5b] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0b417d]"
+    >
+      + Agendar nova consulta
+    </RouterLink>
+  </div>
 
   <p v-if="erro" class="text-sm font-medium text-red-700" role="alert">{{ erro }}</p>
   <p v-if="aviso" class="text-sm font-medium text-green-700" role="status">{{ aviso }}</p>
@@ -165,6 +191,7 @@ onMounted(carregar)
   <p v-if="carregando" class="text-sm text-gray-500">Carregando seus agendamentos...</p>
   <p v-else-if="!agendamentos.length && !erro" class="text-sm text-gray-500">
     Você ainda não possui agendamentos.
+    <RouterLink :to="{ name: 'agendamento' }" class="font-semibold text-[#0b2f5b] underline">Agende sua primeira consulta</RouterLink>
   </p>
 
   <div class="flex max-w-215 flex-col gap-4">
@@ -392,6 +419,23 @@ onMounted(carregar)
           </dd>
         </div>
       </dl>
+
+      <div v-if="detalhesAbertos.has(ag.id)" class="mt-4 border-t border-gray-100 pt-3 text-xs">
+        <p class="mb-2 font-semibold text-gray-500">Documentos da consulta</p>
+        <p v-if="documentos[ag.id] === 'carregando'" class="text-gray-500">Carregando documentos...</p>
+        <p v-else-if="documentos[ag.id] === 'erro'" class="text-red-700">Não foi possível carregar os documentos.</p>
+        <p v-else-if="!documentos[ag.id]?.length" class="text-gray-500">Nenhuma receita ou atestado emitido.</p>
+        <ul v-else class="flex flex-col gap-2">
+          <li v-for="doc in documentos[ag.id]" :key="doc.documento_id">
+            <RouterLink
+              :to="{ name: 'documentoDoPaciente', params: { id: doc.documento_id } }"
+              class="inline-flex items-center gap-2 font-semibold text-[#0b2f5b] hover:underline"
+            >
+              📄 {{ ROTULO_DOCUMENTO[doc.tipo] ?? doc.tipo }} · {{ dataDocumento(doc.data_emissao) }} — Abrir / Baixar PDF
+            </RouterLink>
+          </li>
+        </ul>
+      </div>
 
       <div v-if="['confirmado', 'pagamento'].includes(ag.status)" class="mt-4 text-center">
         <button

@@ -1,18 +1,38 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+import { api } from '@/services/api'
 
 /**
  * Estado do atendimento em andamento, compartilhado entre as telas
  * de chamada, receita e atestado do profissional.
  *
- * TODO: trocar os dados de exemplo pelos dados da consulta vindos da API.
+ * As três telas recebem ?consulta=<id> na URL e chamam carregarConsulta(id), que lê
+ * GET /api/v1/consultas/{id}/videochamada:
+ *   paciente { nome, idade, cpf }  — cpf já chega mascarado (123.***.***-01)
+ *   meet_link                       — sala do Jitsi (usada pela tela de chamada)
+ *
+ * A receita e o atestado são emitidos em POST /api/v1/receitas e /api/v1/atestados.
  */
 export const useAtendimentoStore = defineStore('atendimento', () => {
-  const paciente = ref({
-    nome: 'Fulano',
-    idade: 34,
-    cpf: '321.***.***-00',
-  })
+  const idConsulta = ref(null)
+  const paciente = ref({ nome: '', idade: null, cpf: null })
+
+  function definirPaciente(dados) {
+    paciente.value = { nome: dados?.nome ?? '', idade: dados?.idade ?? null, cpf: dados?.cpf ?? null }
+  }
+
+  // Abre o atendimento de uma consulta. Trocar de consulta limpa o que foi preenchido.
+  async function carregarConsulta(id) {
+    if (!id) return null
+    if (String(idConsulta.value) !== String(id)) {
+      idConsulta.value = Number(id)
+      definirPaciente(null)
+      limparDocumentos()
+    }
+    const dados = await api.get(`/api/v1/consultas/${id}/videochamada`)
+    definirPaciente(dados.paciente)
+    return dados
+  }
 
   // Início da teleconsulta (usado no cronômetro e no texto do atestado)
   const inicio = ref(new Date())
@@ -22,26 +42,38 @@ export const useAtendimentoStore = defineStore('atendimento', () => {
   const retornoData = ref('')
 
   // ---------- Receita ----------
-  const medicamentos = ref([
-    {
-      id: 1,
-      nome: 'Sertralina 100mg - Comprimido',
-      posologia: 'Tomar 1 comprimido via oral 1 vez ao dia.',
-      quantidade: '2 caixas (60 comp).',
-    },
-  ])
-  const recomendacoes = ref('Praticar atividade física diariamente.')
+  // Cada item: { id, nome, dosagem, posologia, quantidade }
+  const medicamentos = ref([])
+  const recomendacoes = ref('')
   const validadeReceita = ref(60)
+  const receitaEmitida = ref(null) // resposta de POST /receitas
 
-  let proximoId = 2
+  let proximoId = 1
   function adicionarMedicamento(nome = '') {
-    const medicamento = { id: proximoId++, nome, posologia: '', quantidade: '' }
+    // "Sertralina 100mg" já preenche a dosagem com "100mg"
+    const dosagem = nome.match(/\d+(?:[.,]\d+)?\s*(?:mg|mcg|g|ml|ui|%)(?:\/\s*\w+)?/i)?.[0] ?? ''
+    const medicamento = { id: proximoId++, nome, dosagem, posologia: '', quantidade: '' }
     medicamentos.value.push(medicamento)
     return medicamento
   }
 
   function removerMedicamento(id) {
     medicamentos.value = medicamentos.value.filter((m) => m.id !== id)
+  }
+
+  async function emitirReceita() {
+    receitaEmitida.value = await api.post('/api/v1/receitas', {
+      id_consulta: idConsulta.value,
+      medicamentos: medicamentos.value.map((m) => ({
+        medicamento: m.nome,
+        dosagem: m.dosagem,
+        posologia: m.posologia,
+        quantidade: m.quantidade,
+      })),
+      validade_dias: validadeReceita.value,
+      observacoes: recomendacoes.value.trim() || null,
+    })
+    return receitaEmitida.value
   }
 
   // ---------- Atestado ----------
@@ -66,8 +98,8 @@ export const useAtendimentoStore = defineStore('atendimento', () => {
     const diasTexto = `${dias} (${extenso[dias] ?? dias}) ${dias === 1 ? 'dia' : 'dias'}`
 
     return (
-      `Atesto, para os devidos fins de comprovação, que a Sr. ${paciente.value.nome}, ` +
-      `portador do CPF nº ${paciente.value.cpf}, esteve sob meus cuidados profissionais em ` +
+      `Atesto, para os devidos fins de comprovação, que a Sr. ${paciente.value.nome || '__________'}, ` +
+      `portador do CPF nº ${paciente.value.cpf || '__________'}, esteve sob meus cuidados profissionais em ` +
       `teleconsulta médica realizada nesta data, ${dataExtenso}, no horário das ` +
       `${fmtHora(data)} às ${fmtHora(fim)}.\n\n` +
       `Em virtude de quadro clínico avaliado, a paciente necessita de ${diasTexto} de repouso ` +
@@ -81,8 +113,37 @@ export const useAtendimentoStore = defineStore('atendimento', () => {
     set: (texto) => (atestadoTexto.value = texto),
   })
 
+  const atestadoEmitido = ref(null) // resposta de POST /atestados
+
+  // O texto do atestado vai em observacoes; o afastamento conta a partir de hoje
+  async function emitirAtestado() {
+    const hoje = new Date()
+    const dataInicio = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`
+    atestadoEmitido.value = await api.post('/api/v1/atestados', {
+      id_consulta: idConsulta.value,
+      dias_afastamento: diasAfastamento.value,
+      data_inicio: dataInicio,
+      observacoes: atestado.value.trim(),
+    })
+    return atestadoEmitido.value
+  }
+
+  function limparDocumentos() {
+    medicamentos.value = []
+    recomendacoes.value = ''
+    validadeReceita.value = 60
+    receitaEmitida.value = null
+    diasAfastamento.value = 2
+    atestadoTexto.value = null
+    atestadoEmitido.value = null
+    inicio.value = new Date()
+  }
+
   return {
+    idConsulta,
+    carregarConsulta,
     paciente,
+    definirPaciente,
     inicio,
     retorno,
     retornoData,
@@ -91,7 +152,11 @@ export const useAtendimentoStore = defineStore('atendimento', () => {
     validadeReceita,
     adicionarMedicamento,
     removerMedicamento,
+    receitaEmitida,
+    emitirReceita,
     diasAfastamento,
     atestado,
+    atestadoEmitido,
+    emitirAtestado,
   }
 })
