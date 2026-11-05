@@ -15,7 +15,7 @@ const CHAVE = 'simplemark.auth'
 
 // Área inicial de cada perfil, logo depois do login
 export const ROTA_INICIAL_PERFIL = {
-  paciente: { name: 'meusAgendamentos' },
+  paciente: { name: 'home' },
   profissional: { name: 'dashboardDoProfissional' },
   administrador: { name: 'gestaoDeUsuarios' },
 }
@@ -197,9 +197,6 @@ export const useAuthStore = defineStore('auth', () => {
       // armazenamento indisponível
     }
     salvarSessao({ token: token.value, usuario: usuario.value }, lembrar)
-
-    // Volta para a página protegida que pediu o login, se for da área deste perfil
-    return redirecionar || rotaInicial.value
   }
 
   function cancelarDesafio() {
