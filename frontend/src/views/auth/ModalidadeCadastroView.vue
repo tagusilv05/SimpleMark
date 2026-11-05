@@ -9,10 +9,13 @@
  *   - Coluna direita: imagem ilustrativa (escondida em telas < lg)
  *
  * Administrador não aparece aqui: contas de administrador não se cadastram sozinhas.
+ *
+ * O link "Voltar" (BackLink) leva para a home.
  */
 
 import { useRouter } from 'vue-router'
 import FormButton from '@/components/shared/FormButton.vue'
+import BackLink from '@/components/shared/BackLink.vue'
 import heroImage from '@/assets/imagemprofissional.png'
 
 const router = useRouter()
@@ -38,7 +41,12 @@ function escolher(rota) {
         class="h-36 w-auto self-start"
       />
 
-      <div class="mb-auto mt-8 w-full max-w-111.75 lg:ml-16 lg:mt-12">
+      <div class="relative mb-auto mt-8 w-full max-w-111.75 lg:ml-16 lg:mt-12">
+        <!-- "Voltar" fica no espaço entre a logo e o cartão (posição absoluta: não desloca o cartão).
+             pl-0! e pt-0! anulam o recuo padrão do BackLink (pl-8 pt-2).
+             left-6 / lg:-left-10 alinham a seta com o início da logo (o cartão tem lg:ml-16 e a logo tem uma folga interna). -->
+        <BackLink :to="{ name: 'home' }" class="absolute -top-7 left-6 pl-0! pt-0! lg:-left-10" />
+
         <div class="rounded-2xl border border-gray-200 bg-white p-6 sm:p-10">
           <header>
             <h1 class="text-2xl font-medium text-[#00507a]">Escolha sua modalidade de cadastro:</h1>
