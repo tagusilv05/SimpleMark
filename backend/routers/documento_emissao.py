@@ -87,7 +87,7 @@ def documentos_da_consulta(
 ):
     """Lista os documentos clínicos emitidos na consulta.
 
-    Exige login e só o profissional responsável pela consulta pode ver (403).
+    Exige login; só o profissional responsável e o paciente da consulta podem ver (403).
     Responde 404 se a consulta não existir.
     """
     return _tratar(lambda: listar_documentos(db=db, id_consulta=id_consulta, usuario=usuario))
@@ -102,7 +102,7 @@ def documento_emitido(
 ):
     """Devolve um documento clínico emitido, por inteiro.
 
-    Exige login e só o profissional responsável pela consulta pode ver (403).
+    Exige login; só o profissional responsável e o paciente da consulta podem ver (403).
     Responde 404 se o documento não existir.
     """
     return _tratar(lambda: buscar_documento_emitido(db=db, id_documento=documento_id, usuario=usuario))

@@ -249,3 +249,80 @@ def test_cada_documento_emitido_tem_codigo_proprio(client, cenario, autenticar):
     segundo = client.post("/api/v1/atestados", json=_corpo(ATESTADO, id_consulta)).json()
 
     assert primeiro["codigo_verificacao"] != segundo["codigo_verificacao"]
+
+
+# ---- Paciente lendo os documentos da própria consulta ----
+
+def _logar_paciente(app, db, paciente):
+    """Simula o paciente logado (mesmo mecanismo da fixture autenticar)."""
+    from dependencies.autenticacao import usuario_atual
+    from models.models import Usuario
+
+    usuario = db.get(Usuario, paciente.id_usuario)
+    app.dependency_overrides[usuario_atual] = lambda: usuario
+    return usuario
+
+
+def _outro_paciente(db):
+    """Cria um segundo paciente, sem consultas."""
+    import uuid
+    from datetime import date
+
+    from models.models import Paciente, Usuario
+
+    usuario = Usuario(
+        id=uuid.uuid4(),
+        nome="Paciente 2",
+        cpf="000.000.0002",
+        orgao_emissor="SSP-PI",
+        data_nascimento=date(1991, 2, 11),
+        genero="Não informado",
+        telefone="(89) 99999-0002",
+        email="paciente2@email.com",
+        status=True,
+    )
+    db.add(usuario)
+    db.flush()
+    paciente = Paciente(id_usuario=usuario.id)
+    db.add(paciente)
+    db.flush()
+    return paciente
+
+
+def test_paciente_le_documentos_da_propria_consulta(app, client, cenario, autenticar, db):
+    """O paciente lista e abre a receita da sua consulta, com os dados do médico."""
+    autenticar(1)
+    id_consulta = _consulta(cenario)
+    emitido = client.post("/api/v1/receitas", json=_corpo(RECEITA, id_consulta)).json()
+
+    _logar_paciente(app, db, cenario["paciente"])
+
+    lista = client.get(f"/api/v1/consultas/{id_consulta}/documentos")
+    assert lista.status_code == 200
+    assert [item["documento_id"] for item in lista.json()] == [emitido["documento_id"]]
+
+    documento = client.get(f"/api/v1/documentos/{emitido['documento_id']}")
+    assert documento.status_code == 200
+    assert documento.json()["profissional"] == emitido["profissional"]
+    assert documento.json()["conselho"] == "CRM-PI 12345"
+
+
+def test_outro_paciente_nao_le_documento_alheio(app, client, cenario, autenticar, db):
+    """Paciente que não é o da consulta recebe 403 na lista e no documento."""
+    autenticar(1)
+    id_consulta = _consulta(cenario)
+    emitido = client.post("/api/v1/receitas", json=_corpo(RECEITA, id_consulta)).json()
+
+    _logar_paciente(app, db, _outro_paciente(db))
+
+    assert client.get(f"/api/v1/consultas/{id_consulta}/documentos").status_code == 403
+    assert client.get(f"/api/v1/documentos/{emitido['documento_id']}").status_code == 403
+
+
+def test_paciente_nao_emite_documento(app, client, cenario, db):
+    """Ler é permitido ao paciente; emitir continua só com o profissional."""
+    _logar_paciente(app, db, cenario["paciente"])
+
+    resposta = client.post("/api/v1/receitas", json=_corpo(RECEITA, _consulta(cenario)))
+
+    assert resposta.status_code == 403

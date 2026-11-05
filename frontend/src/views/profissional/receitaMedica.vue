@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import api from '@/services/api'
 import { useAtendimentoStore } from '@/stores/atendimento'
@@ -7,14 +8,17 @@ import AppHeader from '@/components/shared/AppHeader.vue'
 import BackLink from '@/components/shared/BackLink.vue'
 import AcoesEditarExcluir from '@/components/shared/AcoesEditarExcluir.vue'
 import BotaoAssinarCertificado from '@/components/shared/BotaoAssinarCertificado.vue'
+import DocumentoEmitido from '@/components/shared/DocumentoEmitido.vue'
 
+const route = useRoute()
 const atendimento = useAtendimentoStore()
-const { medicamentos, recomendacoes, validadeReceita } = storeToRefs(atendimento)
+const { idConsulta, medicamentos, recomendacoes, validadeReceita, receitaEmitida } = storeToRefs(atendimento)
 
 const user = ref(null)
 const busca = ref('')
 const editandoId = ref(null)
 const mensagem = ref(null)
+const emitindo = ref(false)
 
 // TODO: buscar sugestões no backend
 const sugestoes = ['Sertralina 100mg', 'Venlafaxina 75mg', 'Clonazepam 20mg']
@@ -47,22 +51,43 @@ function alternarEdicao(id) {
   editandoId.value = editandoId.value === id ? null : id
 }
 
-function emitir() {
+async function emitir() {
+  if (emitindo.value) return
+  if (!idConsulta.value) {
+    mensagem.value = 'Abra a receita a partir do atendimento de uma consulta.'
+    return
+  }
   if (!medicamentos.value.length) {
     mensagem.value = 'Adicione pelo menos um medicamento antes de emitir a receita.'
     return
   }
-  // TODO: integrar com a assinatura digital / emissão no backend
+  const incompleto = medicamentos.value.find(
+    (m) => !m.nome.trim() || !m.dosagem.trim() || !m.posologia.trim() || !m.quantidade.trim(),
+  )
+  if (incompleto) {
+    editandoId.value = incompleto.id
+    mensagem.value = 'Preencha medicamento, dosagem, posologia e quantidade de todos os itens.'
+    return
+  }
+
   editandoId.value = null
   mensagem.value = null
-}
-
-function logout() {
-  api.clearAccessToken()
-  user.value = null
+  emitindo.value = true
+  try {
+    await atendimento.emitirReceita()
+  } catch (e) {
+    mensagem.value = e.message || 'Não foi possível emitir a receita.'
+  } finally {
+    emitindo.value = false
+  }
 }
 
 onMounted(async () => {
+  if (route.query.consulta) {
+    atendimento.carregarConsulta(route.query.consulta).catch((e) => {
+      mensagem.value = e.message || 'Não foi possível carregar a consulta.'
+    })
+  }
   try {
     const { data } = await api.get('/api/v1/auth/eu')
     user.value = { name: data.nome, role: 'Profissional' }
@@ -74,7 +99,7 @@ onMounted(async () => {
 
 <template>
   <div class="flex min-h-screen flex-col bg-[#f8faff]">
-    <AppHeader :user="user" @logout="logout" />
+    <AppHeader />
 
     <main class="mx-auto flex w-full max-w-300 flex-1 flex-col gap-6 px-12 pb-12">
       <BackLink class="pl-0! text-[#0a9ba5]!" />
@@ -142,6 +167,13 @@ onMounted(async () => {
                 />
                 <div class="flex flex-col gap-3 md:flex-row">
                   <input
+                    v-model="m.dosagem"
+                    type="text"
+                    placeholder="Dosagem (ex.: 100mg)"
+                    aria-label="Dosagem"
+                    class="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#0a9ba5] md:w-40"
+                  />
+                  <input
                     v-model="m.posologia"
                     type="text"
                     placeholder="Posologia"
@@ -162,6 +194,7 @@ onMounted(async () => {
               <template v-else>
                 <p class="pt-1 text-sm font-bold text-[#08283a]">{{ m.nome || 'Medicamento sem nome' }}</p>
                 <div class="flex flex-wrap justify-between gap-2 text-sm text-gray-900">
+                  <p><span class="text-gray-700">Dosagem:</span> {{ m.dosagem || '—' }}</p>
                   <p><span class="text-gray-700">Posologia:</span> {{ m.posologia || '—' }}</p>
                   <p><span class="text-gray-700">Quantidade prescrita:</span> {{ m.quantidade || '—' }}</p>
                 </div>
@@ -228,8 +261,10 @@ onMounted(async () => {
 
       <p v-if="mensagem" class="text-center text-sm text-red-700">{{ mensagem }}</p>
 
+      <DocumentoEmitido v-if="receitaEmitida" :documento="receitaEmitida" titulo="Receita emitida e assinada" />
+
       <div class="flex justify-center">
-        <BotaoAssinarCertificado documento="Receita" @click="emitir" />
+        <BotaoAssinarCertificado documento="Receita" :disabled="emitindo" @click="emitir" />
       </div>
     </main>
   </div>
