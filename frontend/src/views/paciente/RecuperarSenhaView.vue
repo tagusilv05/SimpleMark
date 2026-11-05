@@ -9,12 +9,15 @@
  * Estrutura:
  *   - Coluna esquerda: logo + cartão com o formulário
  *   - Coluna direita: imagem ilustrativa (escondida em telas < lg)
+ *
+ * O link "Voltar" (BackLink) leva para o login do paciente (rota `login/paciente`).
  */
 
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import FormField from '@/components/shared/FormField.vue'
 import FormButton from '@/components/shared/FormButton.vue'
+import BackLink from '@/components/shared/BackLink.vue'
 import { solicitarRecuperacaoSenha } from '@/services/authService'
 import heroImage from '@/assets/imagempaciente.jpg'
 
@@ -85,7 +88,17 @@ function voltarAoLogin() {
       />
 
       <!-- my-auto centraliza o cartão no espaço entre a logo e o fim da página (margens iguais em cima e embaixo) -->
-      <div class="my-auto w-full max-w-111.75 py-8 lg:ml-16">
+      <div class="relative my-auto w-full max-w-111.75 py-8 lg:ml-16">
+        <!-- "Voltar" fica no espaço entre a logo e o cartão (posição absoluta: não desloca o cartão).
+             pl-0! e pt-0! anulam o recuo padrão do BackLink (pl-8 pt-2).
+             top-1: o contêiner tem py-8 (32px) acima do cartão, então top-1 deixa o botão
+             à mesma distância do cartão que nas telas de modalidade (-top-7 sem esse py-8).
+             left-6 / lg:-left-10 alinham a seta com o início da logo (a logo tem uma folga interna). -->
+        <BackLink
+          :to="{ name: 'login/paciente' }"
+          class="absolute top-1 left-6 pl-0! pt-0! lg:-left-10"
+        />
+
         <div class="rounded-2xl border border-gray-200 bg-white p-6 sm:p-10">
           <header class="mb-8">
             <h1 class="text-2xl font-medium text-[#00507a]">Recuperar Senha</h1>
