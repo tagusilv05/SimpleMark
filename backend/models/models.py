@@ -206,7 +206,12 @@ class Avaliacao(Base):
 
 
 class Pagamento(Base):
-    """Pagamento de uma consulta (status padrão "pendente")."""
+    """Pagamento de uma consulta.
+
+    status: "pendente", "aprovado", "recusado" ou "cancelado".
+    metodo: forma escolhida pelo paciente ("pix", "cartao" ou "boleto").
+    id_transacao: id do pagamento no Mercado Pago (quando já existe).
+    """
 
     __tablename__ = "pagamento"
 
@@ -214,6 +219,8 @@ class Pagamento(Base):
     status = Column(String(30), nullable=False, default="pendente")
     data = Column(Date, nullable=False)
     hora = Column(Time, nullable=False)
+    metodo = Column(String(20), nullable=True)
+    id_transacao = Column(String(64), nullable=True)
 
     consulta = relationship("Consulta", back_populates="pagamento")
 

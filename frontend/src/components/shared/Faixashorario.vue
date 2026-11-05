@@ -14,8 +14,7 @@ function remover(i) {
 
 function atualizar(i, campo, valor) {
   faixas.value = faixas.value.map((f, idx) => (idx === i ? { ...f, [campo]: valor } : f))
-  const faixa = faixas.value[i]
-  if (faixa.inicio && faixa.fim) emit('salvar')
+  emit('salvar')
 }
 </script>
 

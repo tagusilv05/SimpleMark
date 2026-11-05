@@ -2,13 +2,19 @@
 
 from datetime import date, time
 
+from typing import Literal
+
 from pydantic import BaseModel
+
+MetodoPagamento = Literal["pix", "cartao", "boleto"]
+StatusPagamento = Literal["pendente", "aprovado", "recusado", "cancelado"]
 
 
 class CriarPreferenciaEntrada(BaseModel):
-    """Corpo de POST /pagamento/preferencia."""
+    """Corpo de POST /pagamento/preferencia: a consulta e a forma de pagamento escolhida."""
 
     id_consulta: int
+    metodo: MetodoPagamento
 
 
 class PreferenciaSaida(BaseModel):
@@ -19,7 +25,8 @@ class PreferenciaSaida(BaseModel):
     id: str
     init_point: str
     sandbox_init_point: str
-    status: str
+    status: StatusPagamento
+    metodo: MetodoPagamento
     id_consulta: int
 
 
@@ -27,7 +34,8 @@ class PagamentoSaida(BaseModel):
     """Resposta de GET /pagamento/{id_consulta}."""
 
     id_consulta: int
-    status: str
+    status: StatusPagamento
+    metodo: str | None = None
     data: date
     hora: time
 
@@ -36,5 +44,6 @@ class RetornoPagamentoSaida(BaseModel):
     """Resposta das rotas /pagamento/retorno/* (sucesso, pendente e falha)."""
 
     id_consulta: int | None = None
-    status: str
+    status: StatusPagamento
+    metodo: str | None = None
     payment_id: str | None = None

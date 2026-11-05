@@ -155,13 +155,20 @@ const router = createRouter({
       name: 'confirmacaoAgendamento',
       component: () => import('@/views/paciente/ConfirmacaoAgendamentoView.vue'),
     },
+    // Pagamento sempre parte de uma consulta: sem id, volta para a lista de agendamentos
     {
       path: '/pagamento',
       name: 'pagamento',
-      component: () => import('@/views/pagamento/PagamentoView.vue'),
+      redirect: { name: 'meusAgendamentos' },
+    },
+    // Volta do checkout do Mercado Pago (back_urls)
+    {
+      path: '/pagamento/retorno',
+      name: 'pagamento-retorno',
+      component: () => import('@/views/pagamento/RetornoPagamentoView.vue'),
     },
     {
-      path: '/pagamento/:idConsulta',
+      path: '/pagamento/:idConsulta(\\d+)',
       name: 'pagamento-consulta',
       component: () => import('@/views/pagamento/PagamentoView.vue'),
     },
@@ -294,6 +301,7 @@ const AREAS = [
   ['/paciente', 'paciente'],
   ['/profissional/', 'profissional'], // com a barra, para não pegar /profissionais/:id
   ['/administracao', 'administrador'],
+  ['/pagamento', 'paciente'],
   ['/agendamento/confirmacao', 'paciente'],
 ]
 
