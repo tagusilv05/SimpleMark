@@ -39,13 +39,31 @@ def criar_preferencia(
 ):
     """Cria a preferência de pagamento da consulta no Mercado Pago.
 
-    Somente o paciente da consulta (403 para outros perfis). Responde 404 se a
-    consulta não existir ou for de outro paciente, 400 se estiver cancelada, sem
-    valor ou já paga e 502 se o Mercado Pago não devolver o link. O pagamento
-    local fica pendente.
+    Somente o paciente da consulta (403 para outros perfis). O checkout só aceita
+    a forma escolhida (pix, cartao ou boleto). Responde 404 se a consulta não
+    existir ou for de outro paciente, 400 se estiver cancelada, com horário já
+    passado, sem valor ou já paga e 502 se o Mercado Pago não devolver o link. O
+    pagamento local fica pendente.
     """
-    resultado = criar_preferencia_consulta(dados.id_consulta, _paciente_logado(usuario), db)
+    resultado = criar_preferencia_consulta(
+        dados.id_consulta, dados.metodo, _paciente_logado(usuario), db
+    )
     return PreferenciaSaida(**resultado)
+
+
+@router.get("/retorno", response_model=RetornoPagamentoSaida)
+def retorno(
+    db: Session = Depends(get_db),
+    payment_id: str | None = Query(default=None),
+    collection_id: str | None = Query(default=None),
+    external_reference: str | None = Query(default=None),
+):
+    """Confirma no Mercado Pago o resultado do checkout (usado pela tela de retorno).
+
+    Rota pública: o status vem sempre do Mercado Pago, nunca da URL. Responde 400
+    se o external_reference não for um id de consulta.
+    """
+    return processar_retorno(payment_id, collection_id, external_reference, db)
 
 
 @router.get("/retorno/sucesso", response_model=RetornoPagamentoSaida)
@@ -133,6 +151,7 @@ def obter_pagamento(
     return PagamentoSaida(
         id_consulta=pagamento.id_consulta,
         status=pagamento.status,
+        metodo=pagamento.metodo,
         data=pagamento.data,
         hora=pagamento.hora,
     )

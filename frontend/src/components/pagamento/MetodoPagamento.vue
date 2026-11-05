@@ -1,22 +1,31 @@
 <script setup>
-defineProps({ modelValue: { type: String, required: true } })
+/**
+ * MetodoPagamento — escolha da forma de pagamento (v-model: 'pix' | 'cartao' | 'boleto').
+ *
+ * A forma escolhida vai para POST /api/v1/pagamento/preferencia e o checkout do
+ * Mercado Pago passa a aceitar só ela.
+ */
+import { METODOS_PAGAMENTO } from '@/utils/pagamento'
+
+defineProps({
+  modelValue: { type: String, required: true },
+  desabilitado: { type: Boolean, default: false },
+})
 const emit = defineEmits(['update:modelValue'])
-const opcoes = [
-  { id: 'pix', nome: 'Pix', descricao: 'Pagamento instantâneo com QR Code', simbolo: '▣' },
-  { id: 'cartao', nome: 'Cartão de Crédito', descricao: 'Parcele em até 10x sem juros', simbolo: '▰' },
-  { id: 'boleto', nome: 'Boleto Bancário', descricao: 'Compensação em até 3 dias úteis', simbolo: '▥' },
-]
 </script>
 
 <template>
   <section class="rounded-xl bg-white p-5 shadow-[0_4px_18px_rgba(12,48,92,0.08)] sm:p-6">
     <h2 class="mb-3 text-base font-semibold text-[#073b57]">Método de Pagamento</h2>
-    <div class="space-y-2.5">
+    <div class="space-y-2.5" role="radiogroup" aria-label="Método de pagamento">
       <button
-        v-for="opcao in opcoes"
+        v-for="opcao in METODOS_PAGAMENTO"
         :key="opcao.id"
         type="button"
-        class="flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left"
+        role="radio"
+        :aria-checked="modelValue === opcao.id"
+        :disabled="desabilitado"
+        class="flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left disabled:cursor-not-allowed disabled:opacity-60"
         :class="modelValue === opcao.id ? 'border-[#00a9c5] bg-[#eef2ff]' : 'border-[#b9c3cf] bg-white hover:border-[#00a9c5]'"
         @click="emit('update:modelValue', opcao.id)"
       >

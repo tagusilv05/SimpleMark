@@ -56,6 +56,9 @@ def aplicar_migracoes() -> None:
                 "WHERE meet_link LIKE 'https://meet.google.com/%'"
             )
         )
+        # Pagamento: forma escolhida pelo paciente e id do pagamento no Mercado Pago.
+        conexao.execute(text("ALTER TABLE pagamento ADD COLUMN IF NOT EXISTS metodo VARCHAR(20)"))
+        conexao.execute(text("ALTER TABLE pagamento ADD COLUMN IF NOT EXISTS id_transacao VARCHAR(64)"))
         # Um link por consulta e nunca a mesma sala em duas consultas.
         conexao.execute(
             text("CREATE UNIQUE INDEX IF NOT EXISTS ix_consulta_meet_link ON consulta (meet_link)")

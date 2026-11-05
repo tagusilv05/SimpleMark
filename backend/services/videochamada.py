@@ -358,7 +358,8 @@ def reagendar(db: Session, id_consulta: int, usuario: Usuario, nova_data: date, 
 def cancelar(db: Session, id_consulta: int, usuario: Usuario) -> Consulta:
     """Cancela a consulta (status "cancelada"). Profissional ou paciente da consulta podem cancelar.
 
-    O link fica gravado (auditoria), mas deixa de ser exibido pela API.
+    O link fica gravado (auditoria), mas deixa de ser exibido pela API. O
+    pagamento pendente ou recusado passa a "cancelado".
     """
     consulta = _consulta_do_participante(db, id_consulta, usuario)
     if consulta.status in STATUS_CANCELADOS:
@@ -372,4 +373,9 @@ def cancelar(db: Session, id_consulta: int, usuario: Usuario) -> Consulta:
     db.commit()
     db.refresh(consulta)
     logger.info("Consulta %s: cancelada.", id_consulta)
+
+    # Pagamento ainda não aprovado deixa de valer junto com a consulta.
+    from services.PagamentoService.pagamento import cancelar_pagamento_da_consulta
+
+    cancelar_pagamento_da_consulta(consulta, db)
     return consulta
