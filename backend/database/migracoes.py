@@ -14,7 +14,8 @@ def aplicar_migracoes() -> None:
     """Acrescenta colunas que faltam em tabelas já existentes.
 
     Só roda no PostgreSQL; em outros bancos (ex.: SQLite dos testes) não faz nada.
-    Hoje adiciona a coluna nota (1 a 5) em avaliacao e as colunas da
+    Hoje adiciona a coluna nota (1 a 5) em avaliacao (e deixa a coluna antiga
+    avaliacao aceitar NULL) e as colunas da
     videochamada (Jitsi Meet) em consulta, se ainda não existirem. Também
     remove o que sobrou da integração antiga com o Google Meet.
     """
@@ -29,6 +30,11 @@ def aplicar_migracoes() -> None:
                 "CONSTRAINT ck_avaliacao_nota CHECK (nota BETWEEN 1 AND 5)"
             )
         )
+        # A coluna antiga da nota passa a aceitar NULL (avaliação só com comentário).
+        # Bancos que já não tinham essa coluna a recebem vazia (o model ainda a usa).
+        conexao.execute(text("ALTER TABLE avaliacao ADD COLUMN IF NOT EXISTS avaliacao INTEGER"))
+        conexao.execute(text("ALTER TABLE avaliacao ALTER COLUMN avaliacao DROP NOT NULL"))
+        conexao.execute(text("UPDATE avaliacao SET avaliacao = nota WHERE avaliacao IS NULL"))
         # Videochamada (Jitsi Meet) da consulta.
         conexao.execute(text("ALTER TABLE consulta ADD COLUMN IF NOT EXISTS meet_link VARCHAR(255)"))
         conexao.execute(

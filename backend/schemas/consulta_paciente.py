@@ -19,7 +19,7 @@ class ProfissionalResumo(BaseModel):
 class AvaliacaoResumo(BaseModel):
     """Avaliação que o paciente deu à consulta."""
 
-    avaliacao: int
+    avaliacao: Optional[int] = None  # None quando o paciente só deixou comentário
     feedback: Optional[str] = None
 
 

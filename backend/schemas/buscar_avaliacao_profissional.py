@@ -22,7 +22,7 @@ class AvaliarOutput(BaseModel):
     nome_paciente: str
     data_consulta: date
     feedback: str | None = None
-    avaliacao: int
+    avaliacao: int | None = None  # None quando o paciente só deixou comentário
 
 
 class AvaliacaoConsultaOutput(BaseModel):

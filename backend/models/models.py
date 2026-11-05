@@ -196,7 +196,9 @@ class Avaliacao(Base):
     id_consulta = Column(Integer, ForeignKey("consulta.id_consulta"), primary_key=True)
     nota = Column(SmallInteger, nullable=True)  # 1 a 5 estrelas; NULL = paciente não deu estrelas
     feedback = Column(Text, nullable=True)
-    avaliacao = Column(Integer, nullable=False)
+    # Coluna antiga da nota (ainda lida pela média e pela lista de avaliações).
+    # Fica igual a `nota`; NULL quando o paciente só deixou comentário.
+    avaliacao = Column(Integer, nullable=True)
     data = Column(Date, nullable=False)
     hora = Column(Time, nullable=False)
 
