@@ -1,11 +1,9 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import adminApi from '@/services/adminApi'
 import AdminHeader from '@/components/administracao/AdminHeader.vue'
 import UserAvatar from '@/components/shared/UserAvatar.vue'
 
-const router = useRouter()
 const users = ref([])
 const selected = ref(null)
 const search = ref('')
@@ -22,7 +20,9 @@ const visibleUsers = computed(() => {
   return users.value.filter((user) => {
     const match =
       !term ||
-      [user.name, user.email, user.document].some((value) => value.toLowerCase().includes(term))
+      [user.name, user.email, user.document, user.cpf, user.cpfFormatado].some((value) =>
+        (value ?? '').toLowerCase().includes(term),
+      )
     return (
       match &&
       (profile.value === 'todos' || user.roleKey === profile.value) &&
@@ -31,28 +31,50 @@ const visibleUsers = computed(() => {
   })
 })
 
+const digitos = (valor) => String(valor ?? '').replace(/\D/g, '')
+
+function formatarCpf(valor) {
+  const d = digitos(valor)
+  return d.length === 11 ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : valor || ''
+}
+
+function formatarTelefone(valor) {
+  const d = digitos(valor)
+  if (d.length === 11) return d.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+  if (d.length === 10) return d.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3')
+  return valor || ''
+}
+
+// Situação da conta, vinda da API: ativo | pendente (profissional aguardando validação) | inativo
+const STATUS_CONTA = {
+  ativo: { label: 'Ativa', classe: 'bg-[#e3f7ef] text-[#08805f]' },
+  pendente: { label: 'Aguardando validação', classe: 'bg-[#fff4de] text-[#a96a05]' },
+  inativo: { label: 'Inativa', classe: 'bg-[#fdecef] text-[#c02a46]' },
+}
+const statusConta = (status) =>
+  STATUS_CONTA[status] ?? { label: 'Não informado', classe: 'bg-[#f0f4f7] text-[#71879b]' }
+
+function mapUser(item, tipo) {
+  return {
+    id: tipo === 'profissional' ? item.id_profissional : item.id_paciente,
+    name: item.nome,
+    email: item.email,
+    document: item.id_usuario,
+    cpf: item.cpf,
+    cpfFormatado: formatarCpf(item.cpf),
+    telefone: formatarTelefone(item.telefone),
+    role: tipo === 'profissional' ? 'Profissional' : 'Paciente',
+    roleKey: tipo,
+    status: item.status,
+    type: tipo,
+  }
+}
+
 function mapUsers(data) {
-  const professionals = (data.profissionais ?? []).map((item) => ({
-    id: item.id_profissional,
-    name: item.nome,
-    email: item.email,
-    document: item.id_usuario,
-    role: 'Profissional',
-    roleKey: 'profissional',
-    status: 'desconhecido',
-    type: 'profissional',
-  }))
-  const patients = (data.pacientes ?? []).map((item) => ({
-    id: item.id_paciente,
-    name: item.nome,
-    email: item.email,
-    document: item.id_usuario,
-    role: 'Paciente',
-    roleKey: 'paciente',
-    status: 'desconhecido',
-    type: 'paciente',
-  }))
-  return [...professionals, ...patients]
+  return [
+    ...(data.profissionais ?? []).map((item) => mapUser(item, 'profissional')),
+    ...(data.pacientes ?? []).map((item) => mapUser(item, 'paciente')),
+  ]
 }
 
 async function loadUsers() {
@@ -90,16 +112,12 @@ async function deleteUser() {
   }
 }
 
-function logout() {
-  adminApi.clearAccessToken()
-  router.push('/administracao/usuarios')
-}
 onMounted(loadUsers)
 </script>
 
 <template>
   <div class="min-h-screen bg-[#f4f7fb] text-[#073b57]">
-    <AdminHeader @logout="logout" />
+    <AdminHeader />
     <main class="mx-auto max-w-[1440px] px-4 py-6 lg:px-6">
       <div class="mb-5">
         <p class="flex items-center gap-1 text-[10px] text-[#8496a8]">
@@ -133,7 +151,7 @@ onMounted(loadUsers)
             ><input
               v-model="search"
               class="h-9 w-full rounded-lg border border-[#dce5ed] bg-[#f8fafc] pl-8 pr-3 text-xs outline-none focus:border-[#08718d]"
-              placeholder="Buscar por nome, e-mail ou identificador"
+              placeholder="Buscar por nome, e-mail, CPF ou identificador"
           /></label>
           <select
             v-model="status"
@@ -141,6 +159,7 @@ onMounted(loadUsers)
           >
             <option value="todos">Status: Todos</option>
             <option value="ativo">Status: Ativos</option>
+            <option value="pendente">Status: Aguardando validação</option>
             <option value="inativo">Status: Inativos</option>
           </select>
           <button
@@ -197,7 +216,7 @@ onMounted(loadUsers)
               <tr>
                 <th class="px-3 py-3">Usuário / Cadastro</th>
                 <th class="px-3">Perfil</th>
-                <th class="px-3">Identificador</th>
+                <th class="px-3">CPF</th>
                 <th class="px-3">Contato</th>
                 <th class="px-3">Status da conta</th>
                 <th class="px-3 text-right">Ações</th>
@@ -226,11 +245,13 @@ onMounted(loadUsers)
                     user.role
                   }}</span>
                 </td>
-                <td class="px-3 font-mono text-[#40596d]">{{ user.document.slice(0, 16) }}...</td>
-                <td class="px-3 text-[#8194a5]">Não fornecido pela API</td>
+                <td class="px-3 font-mono text-[#40596d]">{{ user.cpfFormatado }}</td>
+                <td class="px-3 text-[#40596d]">{{ user.telefone || '—' }}</td>
                 <td class="px-3">
-                  <span class="rounded-full bg-[#f0f4f7] px-2 py-1 font-semibold text-[#71879b]"
-                    >● Não informado</span
+                  <span
+                    class="rounded-full px-2 py-1 font-semibold"
+                    :class="statusConta(user.status).classe"
+                    >● {{ statusConta(user.status).label }}</span
                   >
                 </td>
                 <td class="px-3 text-right">
@@ -272,6 +293,14 @@ onMounted(loadUsers)
                 <dt class="text-[#8498a9]">E-mail</dt>
                 <dd class="font-semibold">{{ selected.email }}</dd>
               </div>
+              <div class="flex justify-between border-b border-white py-2">
+                <dt class="text-[#8498a9]">CPF</dt>
+                <dd class="font-semibold">{{ selected.cpfFormatado }}</dd>
+              </div>
+              <div class="flex justify-between border-b border-white py-2">
+                <dt class="text-[#8498a9]">Telefone</dt>
+                <dd class="font-semibold">{{ selected.telefone || '—' }}</dd>
+              </div>
               <div class="flex justify-between py-2">
                 <dt class="text-[#8498a9]">Perfil</dt>
                 <dd class="font-semibold">{{ selected.role }}</dd>
@@ -289,7 +318,13 @@ onMounted(loadUsers)
               </div>
               <div class="flex justify-between py-2">
                 <dt class="text-[#8498a9]">Status</dt>
-                <dd class="font-semibold text-[#71879b]">Não informado pela API atual</dd>
+                <dd>
+                  <span
+                    class="rounded-full px-2 py-1 font-semibold"
+                    :class="statusConta(selected.status).classe"
+                    >{{ statusConta(selected.status).label }}</span
+                  >
+                </dd>
               </div>
             </dl>
           </div>

@@ -99,6 +99,17 @@ def excluir_especialidades_por_profissional(id_profissional,db: Session):
     ).delete(synchronize_session=False)
 
 
+def conselho_em_uso(id_conselho, db: Session, exceto_id_esp_prof=None) -> bool:
+    """True se outro vínculo profissional-especialidade usa o conselho.
+
+    O cadastro grava um conselho só para todas as especialidades do profissional.
+    """
+    consulta = db.query(ProfissionalEspecialidade).filter(ProfissionalEspecialidade.id_conselho == id_conselho)
+    if exceto_id_esp_prof is not None:
+        consulta = consulta.filter(ProfissionalEspecialidade.id_esp_prof != exceto_id_esp_prof)
+    return db.query(consulta.exists()).scalar()
+
+
 # Exclui um conselho profissional pelo seu ID
 def excluir_conselho(id_conselho, db: Session):
     """Apaga o conselho pelo id, sem commit."""

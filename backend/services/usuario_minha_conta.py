@@ -4,7 +4,15 @@
 
 from sqlalchemy.orm import Session
 
+from core.excecoes import ErroNegocio
+from core.seguranca import gerar_hash_senha, verificar_senha
+from core.tempo import agora_local, agora_utc
+from repositories.administracao import RepositorioAdministracao
+from repositories.credencial import RepositorioCredencial
+from repositories.usuario import RepositorioUsuario
 from repositories.usuario_minha_conta import (
+    consulta_ainda_vai_acontecer as repositories_consulta_ainda_vai_acontecer,
+    desvincular_logs_do_usuario as repositories_desvincular_logs_do_usuario,
     buscar_usuario_por_id as repositories_buscar_usuario_por_id,
     buscar_endereco_por_usuario as repositories_buscar_endereco_por_usuario,
     buscar_consultas_por_paciente as repositories_buscar_consultas_por_paciente,
@@ -48,6 +56,11 @@ def altera_info_pessoal(dados, db: Session):
 
     if not usuario:
         raise ValueError("Usuário não encontrado")
+
+    if dados.email is not None and dados.email != usuario.email:
+        dono = RepositorioUsuario(db).buscar_por_email(dados.email)
+        if dono is not None and dono.id != usuario.id:
+            raise ErroNegocio("Este e-mail já está em uso por outra conta.", 409)
 
     if dados.nome is not None:
         usuario.nome = dados.nome
@@ -109,16 +122,28 @@ def altera_endereco(dados, db: Session):
     return endereco
 
 
+def recusar_se_tem_consulta_futura(consultas) -> None:
+    """Impede excluir a conta com consulta agendada que ainda vai acontecer (409)."""
+    agora = agora_local()
+    if any(repositories_consulta_ainda_vai_acontecer(consulta, agora) for consulta in consultas):
+        raise ErroNegocio(
+            "Você tem consultas agendadas. Cancele-as antes de excluir a conta.",
+            409,
+        )
+
+
 # Exclui o paciente e os dados relacionados a ele
 def excluir_paciente(id_usuario, db: Session):
     """Exclui o paciente, suas consultas e dados ligados, o endereço e o usuário.
 
-    Levanta ValueError se o usuário não for paciente ativo. Em erro faz rollback.
+    Levanta ValueError se o usuário não for paciente ativo e ErroNegocio 409 se
+    houver consulta agendada por vir. Em erro faz rollback.
     """
     try:
         paciente = verificar_paciente_usuario(id_usuario=id_usuario, db=db)
 
         consultas = repositories_buscar_consultas_por_paciente(id_paciente=paciente.id_paciente, db=db)
+        recusar_se_tem_consulta_futura(consultas)
 
         for consulta in consultas:
             repositories_excluir_dados_consulta(id_consulta= consulta.id_consulta, db=db)
@@ -134,6 +159,7 @@ def excluir_paciente(id_usuario, db: Session):
         if usuario is None:
             raise ValueError("Usuário não encontrado")
 
+        repositories_desvincular_logs_do_usuario(id_usuario=id_usuario, db=db)
         db.delete(usuario)
 
         db.commit()
@@ -148,7 +174,7 @@ def excluir_paciente(id_usuario, db: Session):
 
 # Inativar o usuário no banco de dados.
 def inativar_usuario(id_usuario, db: Session):
-    """Marca o usuário como inativo; ValueError se ele não existir."""
+    """Marca o usuário como inativo e encerra as sessões abertas; ValueError se ele não existir."""
     try:
         usuario = repositories_buscar_usuario_por_id(id_usuario=id_usuario, db=db)
 
@@ -156,6 +182,7 @@ def inativar_usuario(id_usuario, db: Session):
             raise ValueError("Usuário não encontrado")
 
         usuario.status = False
+        RepositorioAdministracao(db).encerrar_sessoes(usuario.id, agora_utc())
 
         db.commit()
 
@@ -168,3 +195,25 @@ def inativar_usuario(id_usuario, db: Session):
     except Exception:
         db.rollback()
         raise
+
+
+def alterar_senha(id_usuario, senha_atual: str, nova_senha: str, db: Session) -> None:
+    """Troca a senha depois de conferir a atual.
+
+    Responde 400 se a senha atual estiver errada ou se a nova for igual à atual.
+    A sessão em uso continua valendo.
+    """
+    credencial = RepositorioCredencial(db).buscar_para_atualizar(id_usuario)
+    if credencial is None:
+        raise ErroNegocio("Esta conta não tem senha cadastrada.", 400)
+
+    confere, _ = verificar_senha(senha_atual, credencial.senha_hash)
+    if not confere:
+        db.rollback()
+        raise ErroNegocio("A senha atual está incorreta.", 400)
+    if senha_atual == nova_senha:
+        db.rollback()
+        raise ErroNegocio("A nova senha deve ser diferente da atual.", 400)
+
+    credencial.senha_hash = gerar_hash_senha(nova_senha)
+    db.commit()

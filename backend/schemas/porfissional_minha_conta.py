@@ -27,6 +27,7 @@ class AdicionaInfoProfissionalInput(BaseModel):
 class EspecialidadeOutput(BaseModel):
     """Especialidade do profissional, com conselho e valor."""
 
+    id_esp_prof: int | None = None  # vínculo profissional x especialidade (usado na agenda)
     id_especialidade: int
     nome: str 
     numero_conselho: str 

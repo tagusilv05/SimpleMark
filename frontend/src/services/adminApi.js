@@ -1,58 +1,12 @@
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
-const ACCESS_TOKEN_KEY = 'access_token'
+/**
+ * adminApi — chamadas das telas de administração.
+ *
+ * Usa o mesmo cliente HTTP do resto do app (services/api.js), então o token vem
+ * da sessão de login (store) e um 401 encerra a sessão local. Devolve { data }.
+ */
+import api from '@/services/api'
 
-function requestUrl(path) {
-  return new URL(path, baseURL)
+export default {
+  get: (path, options) => api.get(path, options),
+  post: (path, body) => api.post(path, body),
 }
-
-function headers(extra = {}) {
-  const token = sessionStorage.getItem(ACCESS_TOKEN_KEY)
-  return token ? { Authorization: `Bearer ${token}`, ...extra } : extra
-}
-
-async function parseResponse(response) {
-  const responseText = await response.text()
-  let body = null
-
-  if (responseText) {
-    try {
-      body = JSON.parse(responseText)
-    } catch {
-      if (response.ok) throw new Error('A API retornou uma resposta inválida.')
-    }
-  }
-
-  if (!response.ok) {
-    const message = body?.detail ?? body?.mensagem
-    throw new Error(
-      typeof message === 'string'
-        ? message
-        : `Falha na requisição à API: ${response.status} ${response.statusText}`,
-    )
-  }
-
-  return { data: body }
-}
-
-async function get(path, { params = {} } = {}) {
-  const url = requestUrl(path)
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== null) url.searchParams.set(key, value)
-  }
-  return parseResponse(await fetch(url, { headers: headers() }))
-}
-
-async function post(path, body = undefined) {
-  const options = {
-    method: 'POST',
-    headers: headers(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-  }
-  if (body !== undefined) options.body = JSON.stringify(body)
-  return parseResponse(await fetch(requestUrl(path), options))
-}
-
-function clearAccessToken() {
-  sessionStorage.removeItem(ACCESS_TOKEN_KEY)
-}
-
-export default { get, post, clearAccessToken }

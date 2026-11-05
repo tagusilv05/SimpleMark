@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -21,41 +22,64 @@ class BanirEntrada(BaseModel):
     motivo: str | None = Field(default=None, max_length=500)
 
 
+StatusConta = Literal["ativo", "pendente", "inativo"]
+
+
 class ProfissionalIdResposta(BaseModel):
-    """Identificadores, nome e e-mail de um profissional."""
+    """Identificadores, dados de contato e situação da conta de um profissional.
+
+    status: "ativo" (validado) ou "pendente" (aguardando validação do administrador).
+    """
 
     id_profissional: int
     id_usuario: uuid.UUID
     nome: str
     email: str
+    cpf: str
+    telefone: str
+    status: StatusConta
 
     @classmethod
     def de_profissional(cls, profissional: Profissional) -> "ProfissionalIdResposta":
-        """Monta a resposta a partir do modelo, com nome e e-mail do usuário."""
+        """Monta a resposta a partir do modelo, com os dados do usuário."""
+        usuario = profissional.usuario
         return cls(
             id_profissional=profissional.id_profissional,
             id_usuario=profissional.id_usuario,
-            nome=profissional.usuario.nome,
-            email=profissional.usuario.email,
+            nome=usuario.nome,
+            email=usuario.email,
+            cpf=usuario.cpf,
+            telefone=usuario.telefone,
+            status="ativo" if usuario.status else "pendente",
         )
 
 
 class PacienteIdResposta(BaseModel):
-    """Identificadores, nome e e-mail de um paciente."""
+    """Identificadores, dados de contato e situação da conta de um paciente.
+
+    status: "ativo" ou "inativo".
+    """
 
     id_paciente: int
     id_usuario: uuid.UUID
     nome: str
     email: str
+    cpf: str
+    telefone: str
+    status: StatusConta
 
     @classmethod
     def de_paciente(cls, paciente: Paciente) -> "PacienteIdResposta":
-        """Monta a resposta a partir do modelo, com nome e e-mail do usuário."""
+        """Monta a resposta a partir do modelo, com os dados do usuário."""
+        usuario = paciente.usuario
         return cls(
             id_paciente=paciente.id_paciente,
             id_usuario=paciente.id_usuario,
-            nome=paciente.usuario.nome,
-            email=paciente.usuario.email,
+            nome=usuario.nome,
+            email=usuario.email,
+            cpf=usuario.cpf,
+            telefone=usuario.telefone,
+            status="ativo" if usuario.status else "inativo",
         )
 
 
