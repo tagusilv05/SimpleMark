@@ -13,9 +13,10 @@
  *   que é a porta da API no docker compose.
  *
  * AUTENTICAÇÃO
- *   O token da conta logada vem da store de login (useAuthStore). Se não houver
- *   sessão nela, usa o token salvo com setAccessToken (legado). Ele vai no cabeçalho
- *   Authorization de todas as chamadas.
+ *   O token da conta logada vem SEMPRE da store de login (useAuthStore) e vai no
+ *   cabeçalho Authorization de todas as chamadas. Se o servidor responder 401 a uma
+ *   chamada autenticada (sessão encerrada, expirada ou conta banida), a sessão local
+ *   é apagada e a guarda de rotas manda o usuário para o login.
  *
  * ERROS
  *   Respostas fora de 2xx lançam um ApiError com `status` e `message`.
@@ -26,16 +27,24 @@
  *
  * MÉTODOS
  *   api.get(path, params) · api.post(path, body) · api.put(path, body)
- *   api.patch(path, body) · api.delete(path)  -> devolvem o corpo da resposta
+ *   api.patch(path, body) · api.delete(path, { body })  -> devolvem o corpo da resposta
+ *   body pode ser um FormData (upload de arquivo). Com { blob: true } devolve um Blob.
  *
  *   O export default (legado) devolve { data } e aceita get(path, { params }).
  */
 import { useAuthStore } from '@/stores/auth'
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+import router from '@/router'
+
+// Chave usada por versões antigas do front; só é limpa, nunca lida
 const ACCESS_TOKEN_KEY = 'access_token'
 
-export const BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080').replace(/\/$/, '')
+export const BASE_URL = (
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  'http://localhost:8080'
+).replace(/\/$/, '')
+const baseURL = BASE_URL
 
 export class ApiError extends Error {
   constructor(message, status) {
@@ -60,41 +69,56 @@ function extrairMensagem(corpo, status) {
   return `Erro ao falar com o servidor (${status}).`
 }
 
-// Token da sessão atual: primeiro a store de login, depois o legado do sessionStorage
+// Token da sessão atual (store de login)
 function tokenAtual() {
   try {
-    const token = useAuthStore().token
-    if (token) return token
+    return useAuthStore().token
   } catch {
     // Pinia ainda não está ativo (ex.: fora de um componente)
-  }
-  try {
-    return sessionStorage.getItem(ACCESS_TOKEN_KEY)
-  } catch {
     return null
   }
 }
 
-async function request(path, { method = 'GET', params, body, signal } = {}) {
+// Sessão recusada pelo servidor: apaga a sessão local e reavalia a rota atual
+function sessaoRecusada(status, tokenEnviado) {
+  if (status !== 401 || !tokenEnviado) return
+  try {
+    const auth = useAuthStore()
+    if (auth.token !== tokenEnviado) return
+    auth.limparSessaoLocal()
+    const atual = router.currentRoute.value
+    router.replace({ path: atual.fullPath, force: true }).catch(() => {})
+  } catch {
+    // sem store/roteador ativos: nada a fazer
+  }
+}
+
+async function request(path, { method = 'GET', params, body, signal, blob = false } = {}) {
   const token = tokenAtual()
+  const ehFormData = typeof FormData !== 'undefined' && body instanceof FormData
   let resposta
   try {
     resposta = await fetch(montarUrl(path, params), {
       method,
       signal,
       headers: {
-        ...(body ? { 'Content-Type': 'application/json' } : {}),
+        // FormData (upload) leva o Content-Type com boundary definido pelo navegador
+        ...(body && !ehFormData ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: body ? JSON.stringify(body) : undefined,
+      body: body ? (ehFormData ? body : JSON.stringify(body)) : undefined,
     })
   } catch (erro) {
     if (erro.name === 'AbortError') throw erro
     throw new ApiError('Não foi possível conectar ao servidor.', 0)
   }
 
+  if (blob && resposta.ok) return resposta.blob()
   const corpo = await resposta.json().catch(() => null)
-  if (!resposta.ok) throw new ApiError(extrairMensagem(corpo, resposta.status), resposta.status)
+  if (!resposta.ok) {
+    sessaoRecusada(resposta.status, token)
+    throw new ApiError(extrairMensagem(corpo, resposta.status), resposta.status)
+  }
   return corpo
 }
 
@@ -110,12 +134,16 @@ function url(path) {
   return new URL(path, baseURL).toString()
 }
 
-export function setAccessToken(token) {
-  sessionStorage.setItem(ACCESS_TOKEN_KEY, token)
-}
+/** @deprecated O token vem da store de login; mantido só para não quebrar imports antigos. */
+export function setAccessToken() {}
 
+/** @deprecated Use useAuthStore().logout(). Apenas remove a chave antiga do sessionStorage. */
 export function clearAccessToken() {
-  sessionStorage.removeItem(ACCESS_TOKEN_KEY)
+  try {
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY)
+  } catch {
+    // ignora
+  }
 }
 
 async function get(path, { params = {} } = {}) {
@@ -145,11 +173,13 @@ async function get(path, { params = {} } = {}) {
   }
 
   if (!response.ok) {
+    sessaoRecusada(response.status, token)
     const message = body?.detail ?? body?.mensagem
-    throw new Error(
+    throw new ApiError(
       typeof message === 'string'
         ? message
         : `Falha na requisição à API: ${response.status} ${response.statusText}`,
+      response.status,
     )
   }
 

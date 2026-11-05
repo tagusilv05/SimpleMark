@@ -3,14 +3,14 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UserAvatar from '@/components/shared/UserAvatar.vue'
 import logo from '@/assets/logo-simple-mark.png'
+import { useAuthStore } from '@/stores/auth'
 
-const props = defineProps({ user: { type: Object, default: null } })
+// O administrador exibido é sempre o da sessão de login
 const emit = defineEmits(['logout'])
 const route = useRoute()
 const router = useRouter()
-const currentUser = computed(
-  () => props.user ?? { name: 'Administrador Geral', role: 'Administrador' },
-)
+const auth = useAuthStore()
+const currentUser = computed(() => auth.usuarioHeader ?? { name: '', role: 'Administrador' })
 const active = (path) => route.path === path
 const menuOpen = ref(false)
 let closeTimer = null
@@ -26,10 +26,12 @@ function hideMenu() {
   }, 150)
 }
 
-function logout() {
+// Encerra a sessão no servidor e no navegador antes de sair da área restrita
+async function logout() {
   hideMenu()
+  await auth.logout()
+  await router.replace({ name: 'login/administrador' })
   emit('logout')
-  router.push({ name: 'login/administrador' })
 }
 </script>
 

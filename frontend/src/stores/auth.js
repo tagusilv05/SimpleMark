@@ -13,6 +13,20 @@ import { ApiError } from '@/services/authService'
 
 const CHAVE = 'simplemark.auth'
 
+// Área inicial de cada perfil, logo depois do login
+export const ROTA_INICIAL_PERFIL = {
+  paciente: { name: 'meusAgendamentos' },
+  profissional: { name: 'dashboardDoProfissional' },
+  administrador: { name: 'gestaoDeUsuarios' },
+}
+
+// Tela de login de cada perfil
+export const ROTA_LOGIN_PERFIL = {
+  paciente: 'login/paciente',
+  profissional: 'login/profissional',
+  administrador: 'login/administrador',
+}
+
 export const ROTULOS_PERFIL = {
   paciente: 'Paciente',
   profissional: 'Profissional',
@@ -72,17 +86,65 @@ export const useAuthStore = defineStore('auth', () => {
       : null,
   )
 
-  // Para onde o usuário vai logo depois de entrar
-  const rotaInicial = computed(() =>
-    perfil.value === 'administrador'
-      ? { name: 'gestaoDeUsuarios' }
-      : perfil.value === 'profissional'
-        ? { name: 'dashboardDoProfissional' }
-        : { name: 'home' },
-  )
+  // Para onde o usuário vai logo depois de entrar (área do próprio perfil)
+  const rotaInicial = computed(() => ROTA_INICIAL_PERFIL[perfil.value] ?? { name: 'home' })
+
+  // Sessão já conferida com o servidor nesta aba (evita uma chamada por navegação)
+  let validacao = null
+  let validadaEm = 0
+  const REVALIDAR_MS = 5 * 60 * 1000
+
+  /** Apaga a sessão só no navegador (o servidor já não aceita o token). */
+  function limparSessaoLocal() {
+    token.value = null
+    usuario.value = null
+    validacao = null
+    validadaEm = 0
+    limparSessaoSalva()
+  }
+
+  /**
+   * Confere o token no servidor (GET /auth/eu) e atualiza os dados da conta.
+   * Token recusado (sessão encerrada, expirada ou conta banida) apaga a sessão local.
+   * Sem conexão, mantém a sessão salva. Devolve true se continua logado.
+   */
+  async function validarSessao({ forcar = false } = {}) {
+    if (!token.value) return false
+    if (!forcar && validadaEm && Date.now() - validadaEm < REVALIDAR_MS) return logado.value
+    if (validacao) return validacao
+
+    const tokenConferido = token.value
+    validacao = authService
+      .obterUsuario(tokenConferido)
+      .then((dados) => {
+        if (token.value !== tokenConferido) return logado.value
+        usuario.value = dados
+        validadaEm = Date.now()
+        const lembrar = (() => {
+          try {
+            return Boolean(localStorage.getItem(CHAVE))
+          } catch {
+            return false
+          }
+        })()
+        salvarSessao({ token: token.value, usuario: dados }, lembrar)
+        return true
+      })
+      .catch((erro) => {
+        if (erro.status === 401 || erro.status === 403) {
+          if (token.value === tokenConferido) limparSessaoLocal()
+          return false
+        }
+        return logado.value
+      })
+      .finally(() => {
+        validacao = null
+      })
+    return validacao
+  }
 
   /** Etapa 1. `perfilEsperado` é a tela de onde o usuário veio (paciente | profissional | administrador). */
-  async function iniciarLogin({ identificador, senha, perfilEsperado, lembrar }) {
+  async function iniciarLogin({ identificador, senha, perfilEsperado, lembrar, redirecionar }) {
     const resposta = await authService.iniciarLogin({ identificador, senha })
     desafio.value = {
       idDesafio: resposta.id_desafio,
@@ -91,6 +153,7 @@ export const useAuthStore = defineStore('auth', () => {
       criadoEm: Date.now(),
       perfilEsperado,
       lembrar: Boolean(lembrar),
+      redirecionar: redirecionar || null,
     }
   }
 
@@ -99,7 +162,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!desafio.value) {
       throw new ApiError('Sua confirmação expirou. Entre novamente para receber outro código.', 401)
     }
-    const { idDesafio, perfilEsperado, lembrar } = desafio.value
+    const { idDesafio, perfilEsperado, lembrar, redirecionar } = desafio.value
     const resposta = await authService.confirmarLogin({ idDesafio, codigo })
 
     if (resposta.usuario.perfil !== perfilEsperado) {
@@ -116,6 +179,23 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = resposta.access_token
     usuario.value = resposta.usuario
     desafio.value = null
+    validadaEm = Date.now()
+    salvarSessao({ token: token.value, usuario: usuario.value }, lembrar)
+
+    // Volta para a página protegida que pediu o login, se for da área deste perfil
+    return redirecionar || rotaInicial.value
+  }
+
+  /** Atualiza os dados da conta logada (ex.: nome e e-mail editados em Minha Conta). */
+  function atualizarUsuario(parcial) {
+    if (!usuario.value) return
+    usuario.value = { ...usuario.value, ...parcial }
+    let lembrar = false
+    try {
+      lembrar = Boolean(localStorage.getItem(CHAVE))
+    } catch {
+      // armazenamento indisponível
+    }
     salvarSessao({ token: token.value, usuario: usuario.value }, lembrar)
   }
 
@@ -126,10 +206,8 @@ export const useAuthStore = defineStore('auth', () => {
   /** Logout: avisa o servidor (sem travar se falhar) e limpa tudo. */
   async function logout() {
     const tokenAtual = token.value
-    token.value = null
-    usuario.value = null
     desafio.value = null
-    limparSessaoSalva()
+    limparSessaoLocal()
     if (tokenAtual) {
       try {
         await authService.sair(tokenAtual)
@@ -147,6 +225,9 @@ export const useAuthStore = defineStore('auth', () => {
     perfil,
     usuarioHeader,
     rotaInicial,
+    validarSessao,
+    limparSessaoLocal,
+    atualizarUsuario,
     iniciarLogin,
     confirmarLogin,
     cancelarDesafio,

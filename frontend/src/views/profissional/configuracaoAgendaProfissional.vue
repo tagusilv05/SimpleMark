@@ -2,7 +2,6 @@
 import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
-import { useAuthStore } from '@/stores/auth'
 import AppHeader from '@/components/shared/AppHeader.vue'
 import BackLink from '@/components/shared/BackLink.vue'
 import CardEspecialidadeValor from '@/components/shared/CardespecialidadeValor.vue'
@@ -11,7 +10,6 @@ import HorariosAgendados from '@/components/shared/HorariosAgendados.vue'
 import CalendarioMensal from '@/components/shared/calendario.vue'
 
 const router = useRouter()
-const auth = useAuthStore()
 
 const hoje = new Date()
 const dataSelecionada = ref(hoje)
@@ -66,7 +64,7 @@ async function salvarValor() {
   }
 }
 
-const gerenciarEspecialidades = () => router.push({ name: 'gerenciarContaDoProfissional' })
+const gerenciarEspecialidades = () => router.push({ name: 'gerenciarContaDoProfissional', query: { aba: 'perfil' } })
 
 // ---------- Faixas e horários do dia ----------
 async function carregarFaixas() {
@@ -232,11 +230,6 @@ watch(dataSelecionada, () => {
 watch(especialidadeId, carregarFaixas)
 watch(mesVisivel, carregarCalendario)
 
-async function logout() {
-  await auth.logout()
-  user.value = null
-  router.push({ name: 'login/profissional' })
-}
 
 onMounted(async () => {
   try {
@@ -255,7 +248,7 @@ onMounted(async () => {
 
 <template>
   <div class="flex min-h-screen flex-col bg-[#f8faff]">
-    <AppHeader :user="user" @logout="logout" />
+    <AppHeader />
 
     <main class="mx-auto flex w-full max-w-300 flex-1 flex-col gap-6 px-12 pb-12">
       <BackLink />

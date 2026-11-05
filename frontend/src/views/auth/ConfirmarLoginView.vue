@@ -78,8 +78,8 @@ async function confirmar() {
 
   carregando.value = true
   try {
-    await auth.confirmarLogin(codigo.value)
-    router.push(auth.rotaInicial)
+    const destino = await auth.confirmarLogin(codigo.value)
+    router.replace(destino)
   } catch (e) {
     erro.value = e.message || 'Não foi possível confirmar o código. Tente novamente.'
   } finally {
