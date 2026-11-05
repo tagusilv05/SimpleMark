@@ -165,10 +165,14 @@ const router = createRouter({
       name: 'pagamento-consulta',
       component: () => import('@/views/pagamento/PagamentoView.vue'),
     },
+    // A busca de profissionais é feita na própria tela de agendamento
     {
       path: '/busca',
       name: 'busca-profissionais',
-      component: () => import('@/views/EmBreve.vue'),
+      redirect: (to) => ({
+        name: 'agendamento',
+        query: to.query.id_especialidade ? { especialidade: to.query.id_especialidade } : {},
+      }),
     },
     {
       path: '/profissionais/:id?/avaliacoes',
@@ -194,6 +198,12 @@ const router = createRouter({
       name: 'geranciarContaDoPaciente',
       component: () => import('@/views/shared/GerenciarConta.vue'),
       props: { role: 'paciente' },
+    },
+    // Receita / atestado de uma consulta do paciente (abrir e baixar em PDF)
+    {
+      path: '/paciente/documentos/:id(\\d+)',
+      name: 'documentoDoPaciente',
+      component: () => import('@/views/paciente/DocumentoClinicoView.vue'),
     },
     {
       path: '/paciente',
@@ -277,25 +287,51 @@ const router = createRouter({
   ],
 })
 
-import { useAuthStore } from '@/stores/auth'
+import { ROTA_LOGIN_PERFIL, useAuthStore } from '@/stores/auth'
 
-router.beforeEach((to) => {
+// Áreas restritas: prefixo do caminho -> perfil que pode entrar
+const AREAS = [
+  ['/paciente', 'paciente'],
+  ['/profissional/', 'profissional'], // com a barra, para não pegar /profissionais/:id
+  ['/administracao', 'administrador'],
+  ['/agendamento/confirmacao', 'paciente'],
+]
+
+// Telas só para quem ainda não entrou (logado vai direto para a própria área)
+const ROTAS_VISITANTE = new Set([
+  'login',
+  'login/paciente',
+  'login/profissional',
+  'login/administrador',
+  'cadastro',
+  'cadastro/paciente',
+  'cadastro/profissional',
+])
+
+function perfilExigido(to) {
+  const area = AREAS.find(([prefixo]) => to.path === prefixo || to.path.startsWith(prefixo.endsWith('/') ? prefixo : `${prefixo}/`))
+  return area?.[1] ?? null
+}
+
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
   // Etapa 2 sem ter passado pela etapa 1 (ex.: F5 na tela do código)
-  if (to.name === 'login/confirmar' && !auth.desafio) return { path: '/login' }
+  if (to.name === 'login/confirmar' && !auth.desafio) return { name: 'login' }
 
-  // Áreas restritas por perfil
-  const areas = [
-    ['/paciente', 'paciente'],
-    ['/profissional/', 'profissional'], // com a barra, para não pegar /profissionais/:id
-    ['/administracao', 'administrador'],
-  ]
-  for (const [prefixo, perfil] of areas) {
-    if (to.path.startsWith(prefixo) && (!auth.logado || auth.perfil !== perfil)) {
-      return { path: '/login' }
+  // Confere no servidor se o token salvo ainda vale (logout em outra aba, expiração, banimento)
+  if (auth.token) await auth.validarSessao()
+
+  const perfil = perfilExigido(to)
+  if (perfil) {
+    if (!auth.logado) {
+      return { name: ROTA_LOGIN_PERFIL[perfil], query: { redirect: to.fullPath } }
     }
+    // Logado com outro perfil: volta para a própria área
+    if (auth.perfil !== perfil) return auth.rotaInicial
   }
+
+  if (auth.logado && ROTAS_VISITANTE.has(to.name)) return auth.rotaInicial
 })
 
 export default router
