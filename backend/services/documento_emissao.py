@@ -69,6 +69,23 @@ def _consulta_do_profissional(db: Session, id_consulta: int, usuario: Usuario) -
     return consulta
 
 
+def _consulta_do_participante(db: Session, id_consulta: int, usuario: Usuario) -> Consulta:
+    """Consulta que o usuário pode LER: o profissional dela ou o paciente dela.
+
+    Emitir continua só com o profissional (_consulta_do_profissional).
+    """
+    paciente = usuario.paciente
+    if paciente is None:
+        return _consulta_do_profissional(db, id_consulta, usuario)
+
+    consulta = buscar_consulta(db, id_consulta)
+    if consulta is None:
+        raise ConsultaNaoEncontrada("Consulta não encontrada.")
+    if consulta.id_paciente != paciente.id_paciente:
+        raise ProfissionalNaoResponsavel("Este documento não pertence às suas consultas.")
+    return consulta
+
+
 def _criar_documento(db: Session, consulta: Consulta, tipo: bool, observacoes: str | None):
     """Cria o documento clínico da consulta e faz flush para obter o id.
 
@@ -199,7 +216,7 @@ def emitir_atestado(db: Session, dados: EmitirAtestadoInput, usuario: Usuario) -
 
 
 def buscar_documento_emitido(db: Session, id_documento: int, usuario: Usuario) -> DocumentoEmitidoOutput:
-    """Documento emitido, visível só ao profissional da consulta.
+    """Documento emitido, visível ao profissional e ao paciente da consulta.
 
     Levanta DocumentoNaoEncontrado se o documento não existir.
     """
@@ -207,14 +224,13 @@ def buscar_documento_emitido(db: Session, id_documento: int, usuario: Usuario) -
     if documento is None:
         raise DocumentoNaoEncontrado("Documento clínico não encontrado.")
 
-    # Reaproveita a checagem da RN9 sobre a consulta do documento.
-    _consulta_do_profissional(db, documento.id_consulta, usuario)
+    _consulta_do_participante(db, documento.id_consulta, usuario)
     return _para_schema(documento)
 
 
 def listar_documentos(db: Session, id_consulta: int, usuario: Usuario) -> list[DocumentoResumoOutput]:
-    """Resumo dos documentos da consulta, só para o profissional dela."""
-    _consulta_do_profissional(db, id_consulta, usuario)
+    """Resumo dos documentos da consulta, para o profissional e o paciente dela."""
+    _consulta_do_participante(db, id_consulta, usuario)
     return [
         DocumentoResumoOutput(
             documento_id=documento.id_documento,

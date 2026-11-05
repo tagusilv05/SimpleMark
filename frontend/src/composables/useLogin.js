@@ -12,12 +12,21 @@
  */
 
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 export function useLogin(perfilEsperado) {
   const auth = useAuthStore()
   const router = useRouter()
+  const route = useRoute()
+
+  // Página protegida que mandou para o login (?redirect=/caminho). Só caminhos internos.
+  function destinoSeguro() {
+    const destino = route.query.redirect
+    return typeof destino === 'string' && destino.startsWith('/') && !destino.startsWith('//')
+      ? destino
+      : null
+  }
 
   const carregando = ref(false)
   const erro = ref('')
@@ -38,7 +47,13 @@ export function useLogin(perfilEsperado) {
 
     carregando.value = true
     try {
-      await auth.iniciarLogin({ identificador, senha, perfilEsperado, lembrar })
+      await auth.iniciarLogin({
+        identificador,
+        senha,
+        perfilEsperado,
+        lembrar,
+        redirecionar: destinoSeguro(),
+      })
       router.push({ name: 'login/confirmar' })
     } catch (e) {
       erro.value = e.message || 'Não foi possível entrar. Tente novamente.'

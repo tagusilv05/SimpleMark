@@ -14,7 +14,13 @@
  *   date (v-model:date)  String  dia escolhido, ISO 'YYYY-MM-DD'
  *   time (v-model:time)  String  horário escolhido, 'HH:MM'
  *   horarios             Array   horários livres do dia escolhido (quem usa o painel calcula)
+ *   disponiveis          Array   (opcional) dias ISO com horário livre, destacados no calendário
  *   price                String  valor da consulta já formatado
+ *   agendando            Boolean desabilita o botão enquanto a consulta é criada
+ *   aviso                String  mensagem abaixo do botão (erro ou orientação)
+ *
+ * SLOT
+ *   #antes  conteúdo acima do calendário (ex.: escolha da especialidade)
  *
  * EVENTOS
  *   @agendar  clique em "Agendar Consulta" (o botão só habilita com dia e horário escolhidos)
@@ -31,9 +37,12 @@ import { diaPorExtenso } from '@/utils/datas'
 const date = defineModel('date', { type: String, default: '' })
 const time = defineModel('time', { type: String, default: '' })
 
-defineProps({
+const props = defineProps({
   horarios: { type: Array, default: () => [] },
+  disponiveis: { type: Array, default: null },
   price: { type: String, required: true },
+  agendando: { type: Boolean, default: false },
+  aviso: { type: String, default: '' },
 })
 
 const emit = defineEmits(['agendar'])
@@ -41,7 +50,7 @@ const emit = defineEmits(['agendar'])
 const tituloHorarios = computed(() =>
   date.value ? `Horários para ${diaPorExtenso(date.value)}` : 'Selecione uma data',
 )
-const podeAgendar = computed(() => Boolean(date.value && time.value))
+const podeAgendar = computed(() => Boolean(date.value && time.value) && !props.agendando)
 </script>
 
 <template>
@@ -52,7 +61,9 @@ const podeAgendar = computed(() => Boolean(date.value && time.value))
     </header>
 
     <div class="flex flex-col gap-6 p-6">
-      <SeletorCalendario v-model="date" />
+      <slot name="antes" />
+
+      <SeletorCalendario v-model="date" :disponiveis="disponiveis" />
 
       <SeletorHorario v-model="time" :horarios="horarios" :title="tituloHorarios" />
 
@@ -80,8 +91,13 @@ const podeAgendar = computed(() => Boolean(date.value && time.value))
               d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
             />
           </svg>
-          Agendar Consulta
+          {{ agendando ? 'Agendando...' : 'Agendar Consulta' }}
         </button>
+
+        <p v-if="aviso" class="rounded-lg bg-[#eef2ff] p-3 text-sm text-[#0b2f5b]" role="alert">
+          {{ aviso }}
+          <slot name="aviso" />
+        </p>
 
         <p class="text-center text-xs text-gray-500">
           Ao agendar, você concorda com nossos termos de privacidade e política de cancelamento.

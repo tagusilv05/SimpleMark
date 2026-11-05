@@ -68,18 +68,23 @@ def buscar_avaliacoes_profissional(dados, db: Session):
         if usuario_paciente is None:
             continue
 
+        # Nota nova (1 a 5) com a coluna antiga como reserva; None = só comentário
+        registro = consulta.avaliacao
+        nota = registro.nota if getattr(registro, "nota", None) is not None else registro.avaliacao
+
         avaliacao.append({
             "nome_paciente": usuario_paciente.nome,
             "data_consulta": consulta.data,
-            "feedback": consulta.avaliacao.feedback,
-            "avaliacao": consulta.avaliacao.avaliacao,
+            "feedback": registro.feedback,
+            "avaliacao": nota,
         })
 
-        nota_str = str(consulta.avaliacao.avaliacao)
+        nota_str = str(nota)
         if nota_str in sub_total:
             sub_total[nota_str] += 1
 
-    # 6. Total de avaliações
+    # 6. Mais recentes primeiro; total inclui as avaliações só com comentário
+    avaliacao.sort(key=lambda item: item["data_consulta"], reverse=True)
     total = len(avaliacao)
 
     return avaliacao, total, sub_total

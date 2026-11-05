@@ -6,23 +6,18 @@
  *
  *   import AppHeader from '@/components/shared/AppHeader.vue'
  *
- *   const user = ref({ name: 'Nome Paciente', role: 'Paciente' })
- *   function logout() { user.value = null }
+ *   <AppHeader />
  *
- *   <AppHeader :user="user" @logout="logout" />   // logado
- *   <AppHeader />                                 // visitante
+ * O usuário exibido vem da sessão de login (useAuthStore): logado mostra avatar,
+ * nome e perfil; visitante mostra "Entrar" e "Cadastrar-se".
  *
  * PROPS
- *   user  Object | null  (padrão: null)
- *     null            -> visitante: mostra "Entrar" e "Cadastrar-se"
- *     { name, role }  -> logado: mostra avatar + nome + cargo e o menu ao passar o mouse
- *       name  String  nome exibido; as iniciais viram o avatar ("Nome Paciente" -> "NP")
- *       role  String  texto pequeno abaixo do nome (ex.: 'Paciente', 'Profissional')
+ *   user  Object | null  (opcional, legado) { name, role }. Só é usado para trocar o
+ *         nome exibido de quem está logado; nunca faz um visitante parecer logado.
  *
  * EVENTOS
- *   @logout  disparado ao clicar em "Sair" no menu do usuário.
- *            O componente NÃO desloga sozinho: o pai decide o que fazer
- *            (limpar o user, chamar a API, redirecionar...).
+ *   @logout  disparado DEPOIS que o próprio componente encerrou a sessão (avisa o
+ *            servidor, limpa o token salvo) e levou o usuário para a página inicial.
  *
  * O QUE JÁ VEM DEFINIDO AQUI DENTRO (edite os arrays abaixo para mudar)
  *   links  navegação central: Como Funciona (/como-funciona), Sobre Nós (/sobre-nos),
@@ -33,7 +28,7 @@
  *          Cada item aceita { label, to, icon, action, danger } ou { separator: true }
  *            to      rota do vue-router (navega com router.push)
  *            icon    caminho "d" de um SVG 24x24 de contorno
- *            action  'logout' dispara o evento @logout
+ *            action  'logout' encerra a sessão e dispara o evento @logout
  *            danger  true deixa o item vermelho
  *   Visitante: "Entrar" -> /login e "Cadastrar-se" -> /cadastro. O logo leva para "/".
  *
@@ -64,6 +59,13 @@ const emit = defineEmits(['logout'])
 const router = useRouter()
 const auth = useAuthStore()
 
+// Quem aparece no cabeçalho: sempre a sessão real
+const user = computed(() => {
+  if (!auth.logado) return null
+  const daSessao = auth.usuarioHeader
+  return props.user?.name ? { ...daSessao, name: props.user.name } : daSessao
+})
+
 // ---- Links de navegação ----
 const links = [
   { label: 'Como Funciona', to: '/como-funciona' },
@@ -92,11 +94,12 @@ const ROTAS_POR_PERFIL = {
     conta: { name: 'gerenciarContaDoProfissional' },
     agendamentos: { name: 'dashboardDoProfissional' },
   },
+  administrador: {
+    conta: { name: 'gestaoDeUsuarios' },
+    agendamentos: { name: 'validacaoDeProfissionais' },
+  },
 }
-const rotas = computed(() => {
-  const perfil = auth.perfil || props.user?.role?.toLowerCase()
-  return ROTAS_POR_PERFIL[perfil] ?? { conta: '/minha-conta', agendamentos: '/agendamentos' }
-})
+const rotas = computed(() => ROTAS_POR_PERFIL[auth.perfil] ?? { conta: { name: 'home' }, agendamentos: { name: 'home' } })
 
 const items = computed(() => [
   {
@@ -109,6 +112,10 @@ const items = computed(() => [
     to: rotas.value.agendamentos,
     icon: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5',
   },
+  // Só o paciente marca consultas
+  ...(auth.perfil === 'paciente'
+    ? [{ label: 'Agendar Consulta', to: { name: 'agendamento' }, icon: 'M12 4.5v15m7.5-7.5h-15' }]
+    : []),
   { separator: true },
   {
     label: 'Sair',
@@ -118,9 +125,15 @@ const items = computed(() => [
   },
 ])
 
+async function sair() {
+  await auth.logout()
+  await router.replace({ name: 'home' })
+  emit('logout')
+}
+
 function onSelect(item) {
   open.value = false
-  if (item.action === 'logout') emit('logout')
+  if (item.action === 'logout') sair()
   else if (item.to) router.push(item.to)
 }
 </script>

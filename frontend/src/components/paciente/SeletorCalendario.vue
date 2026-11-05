@@ -7,15 +7,20 @@
  * PROPS
  *   modelValue   String   data selecionada em ISO 'YYYY-MM-DD' (v-model)
  *   disablePast  Boolean  bloqueia dias anteriores a hoje (padrão true)
+ *   disponiveis  Array    (opcional) dias ISO com horário livre. Quando informado, só esses
+ *                         dias ficam clicáveis e ganham um destaque.
+ *
+ * Se o v-model mudar para um dia de outro mês, o calendário vai para esse mês.
  *
  * Os dias do mês anterior que completam a primeira semana aparecem esmaecidos e não clicáveis.
  */
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { MESES, toISO, fromISO } from '@/utils/datas'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
   disablePast: { type: Boolean, default: true },
+  disponiveis: { type: Array, default: null },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -27,6 +32,19 @@ const hojeISO = toISO(hoje)
 const inicial = props.modelValue ? fromISO(props.modelValue) : hoje
 const ano = ref(inicial.getFullYear())
 const mes = ref(inicial.getMonth())
+
+const diasLivres = computed(() => (props.disponiveis ? new Set(props.disponiveis) : null))
+
+// Acompanha o dia selecionado de fora (ex.: primeiro dia livre carregado da API)
+watch(
+  () => props.modelValue,
+  (iso) => {
+    if (!iso) return
+    const d = fromISO(iso)
+    ano.value = d.getFullYear()
+    mes.value = d.getMonth()
+  },
+)
 
 const titulo = computed(() => `${MESES[mes.value]} ${ano.value}`)
 const diasSemana = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB']
@@ -43,7 +61,9 @@ const dias = computed(() => {
 
   for (let dia = 1; dia <= total; dia++) {
     const iso = toISO(new Date(ano.value, mes.value, dia))
-    lista.push({ iso, dia, doMes: true, desabilitado: props.disablePast && iso < hojeISO })
+    const passado = props.disablePast && iso < hojeISO
+    const livre = diasLivres.value ? diasLivres.value.has(iso) : null
+    lista.push({ iso, dia, doMes: true, livre, desabilitado: passado || livre === false })
   }
 
   return lista
@@ -63,6 +83,7 @@ function classeDoDia(d) {
   if (!d.doMes) return 'cursor-default text-gray-300'
   if (d.desabilitado) return 'cursor-not-allowed text-gray-300'
   if (d.iso === props.modelValue) return 'cursor-pointer bg-[#0b2f5b] text-white'
+  if (d.livre) return 'cursor-pointer bg-[#ddf5f7] text-[#0b2f5b] ring-1 ring-[#00a0b0] hover:bg-[#c5eef2]'
   return 'cursor-pointer text-[#0b2f5b] hover:bg-[#eef2fb]'
 }
 </script>

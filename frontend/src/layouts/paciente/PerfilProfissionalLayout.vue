@@ -7,16 +7,23 @@
  *
  * EVENTOS
  *   @ver-avaliacoes  clique em "Ver todas as avaliações" (a view decide para onde ir)
- *   @agendar         clique em "Agendar Consulta", com { data, horario, idProfissional }
+ *
+ * AGENDA
+ *   Os dias e horários livres vêm de GET /api/v1/profissionais/busca (um item por
+ *   especialidade do profissional, com horarios_disponiveis). Só os dias com horário
+ *   livre ficam clicáveis. "Agendar Consulta" cria a consulta (POST /consultas/agendar,
+ *   paciente logado) e leva para a confirmação e o pagamento.
  */
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { useAgendamentoStore } from '@/stores/agendamento'
 import CardCabecalhoProfissional from '@/components/paciente/CardCabecalhoProfissional.vue'
 import CardSecao from '@/components/paciente/CardSecao.vue'
 import ResumoAvaliacoes from '@/components/paciente/ResumoAvaliacoes.vue'
 import CardAvaliacao from '@/components/paciente/CardAvaliacao.vue'
 import PainelAgendamento from '@/components/paciente/PainelAgendamento.vue'
-import { toISO, fromISO } from '@/utils/datas'
+import { toISO } from '@/utils/datas'
 import {
   buscarInfoProfissional,
   buscarAvaliacoesProfissional,
@@ -28,9 +35,12 @@ import {
 const props = defineProps({
   id: { type: [String, Number], default: undefined },
 })
-const emit = defineEmits(['ver-avaliacoes', 'agendar'])
+const emit = defineEmits(['ver-avaliacoes'])
 
 const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
+const agendamento = useAgendamentoStore()
 const identificador = computed(() => props.id ?? route.params.id)
 
 const ICON_USER =
@@ -114,6 +124,9 @@ async function carregar() {
     }
     carregando.value = false
 
+    // Agenda real do profissional (não trava o perfil se falhar)
+    carregarAgenda(info.id_profissional)
+
     // Foto: valida existência sem travar a tela
     const urlFoto = obterUrlImagemProfissional(info.id_usuario || info.id_profissional)
     temImagem(urlFoto).then((ok) => {
@@ -136,7 +149,7 @@ async function carregar() {
           id: i + 1,
           nome: a.nome_paciente,
           data: a.data_consulta,
-          nota: a.avaliacao,
+          nota: a.avaliacao ?? null,
           texto: a.feedback,
         }))
     } catch {
@@ -152,22 +165,105 @@ async function carregar() {
 
 watch(identificador, carregar, { immediate: true })
 
-// ---- Agendamento ----
-const data = ref(toISO(new Date()))
+// ---- Agenda real (horários livres da busca pública) ----
+const vinculos = ref([]) // um por especialidade: { id_esp_prof, especialidade, valor_consulta, horarios_disponiveis }
+const idEspProf = ref(null)
+const carregandoAgenda = ref(false)
+const erroAgenda = ref('')
+const aviso = ref('')
+const precisaLogin = ref(false)
+const agendando = ref(false)
+const data = ref('')
 const horario = ref('')
 
-// Trocar de dia limpa o horário escolhido
+const vinculo = computed(() => vinculos.value.find((v) => v.id_esp_prof === idEspProf.value) ?? null)
+
+// Horários livres da especialidade escolhida: { id_horario, data, inicio, fim }
+const slots = computed(() =>
+  (vinculo.value?.horarios_disponiveis ?? []).map((h) => ({
+    id_horario: h.id_horario,
+    data: h.data_consulta,
+    inicio: h.hora_inicio.slice(0, 5),
+    fim: h.hora_fim.slice(0, 5),
+  })),
+)
+const diasDisponiveis = computed(() => [...new Set(slots.value.map((s) => s.data))].sort())
+const horarios = computed(() =>
+  slots.value
+    .filter((s) => s.data === data.value)
+    .map((s) => s.inicio)
+    .sort(),
+)
+const valorAgenda = computed(() =>
+  vinculo.value ? moeda.format(vinculo.value.valor_consulta) : profissional.value.valor,
+)
+
+// Abre o calendário no primeiro dia com horário livre
+function irParaPrimeiroDia() {
+  if (!diasDisponiveis.value.includes(data.value)) data.value = diasDisponiveis.value[0] ?? toISO(new Date())
+}
+
+async function carregarAgenda(idProf) {
+  carregandoAgenda.value = true
+  erroAgenda.value = ''
+  try {
+    const lista = await buscarProfissionais()
+    vinculos.value = lista.filter((m) => String(m.id_profissional) === String(idProf))
+  } catch {
+    vinculos.value = []
+    erroAgenda.value = 'Não foi possível carregar a agenda deste profissional.'
+  } finally {
+    carregandoAgenda.value = false
+  }
+  if (!vinculos.value.some((v) => v.id_esp_prof === idEspProf.value)) {
+    idEspProf.value = vinculos.value[0]?.id_esp_prof ?? null
+  }
+  irParaPrimeiroDia()
+}
+
+// Trocar de especialidade ou de dia limpa o horário escolhido
+watch(idEspProf, () => {
+  horario.value = ''
+  irParaPrimeiroDia()
+})
 watch(data, () => {
   horario.value = ''
 })
 
-// TODO: buscar na API os horários livres do dia. Por enquanto, domingo sem horários.
-const horarios = computed(() =>
-  fromISO(data.value).getDay() === 0 ? [] : ['09:00', '10:30', '11:15', '14:00', '15:45'],
-)
+const avisoPainel = computed(() => {
+  if (aviso.value) return aviso.value
+  if (erroAgenda.value) return erroAgenda.value
+  if (!carregandoAgenda.value && !diasDisponiveis.value.length) return 'Este profissional não tem horários livres no momento.'
+  return ''
+})
 
-function agendar() {
-  emit('agendar', { data: data.value, horario: horario.value, idProfissional: idProfissional.value })
+async function agendar() {
+  const slot = slots.value.find((s) => s.data === data.value && s.inicio === horario.value)
+  if (!slot || agendando.value) return
+  aviso.value = ''
+  precisaLogin.value = false
+
+  if (!auth.logado) {
+    precisaLogin.value = true
+    aviso.value = 'Entre com sua conta de paciente para agendar.'
+    return
+  }
+  if (auth.perfil !== 'paciente') {
+    aviso.value = 'Somente pacientes podem agendar consultas.'
+    return
+  }
+
+  agendando.value = true
+  try {
+    const consulta = await agendamento.agendar({ id_horario: slot.id_horario, inicio: slot.inicio, fim: slot.fim })
+    router.push({ name: 'confirmacaoAgendamento', params: { idConsulta: consulta.id_consulta } })
+  } catch (e) {
+    aviso.value = e.message || 'Não foi possível agendar a consulta.'
+    // Horário reservado por outra pessoa nesse meio-tempo: atualiza a agenda
+    if (e.status === 409) await carregarAgenda(idProfissional.value)
+  } finally {
+    agendando.value = false
+  }
 }
 </script>
 
@@ -239,8 +335,31 @@ function agendar() {
       v-model:date="data"
       v-model:time="horario"
       :horarios="horarios"
-      :price="profissional.valor"
+      :disponiveis="diasDisponiveis"
+      :price="valorAgenda"
+      :agendando="agendando"
+      :aviso="avisoPainel"
       @agendar="agendar"
-    />
+    >
+      <template v-if="vinculos.length > 1" #antes>
+        <label class="flex flex-col gap-2 text-sm font-bold text-[#0b2f5b]">
+          Especialidade
+          <select
+            v-model="idEspProf"
+            class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-normal text-[#0b2f5b]"
+          >
+            <option v-for="v in vinculos" :key="v.id_esp_prof" :value="v.id_esp_prof">
+              {{ v.especialidade }} · {{ moeda.format(v.valor_consulta) }}
+            </option>
+          </select>
+        </label>
+      </template>
+      <template v-if="precisaLogin" #aviso>
+        <RouterLink
+          :to="{ name: 'login/paciente', query: { redirect: route.fullPath } }"
+          class="font-semibold underline"
+        >Entrar</RouterLink>
+      </template>
+    </PainelAgendamento>
   </div>
 </template>

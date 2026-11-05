@@ -15,7 +15,6 @@ import { useRoute, useRouter } from 'vue-router'
 import AppHeader from '@/components/shared/AppHeader.vue'
 import BackLink from '@/components/shared/BackLink.vue'
 import SeletorCalendario from '@/components/paciente/SeletorCalendario.vue'
-import { api } from '@/services/api'
 import { buscarProfissionais } from '@/services/profissionais'
 import { useAgendamentoStore } from '@/stores/agendamento'
 import { MESES_ABREV, fromISO, toISO } from '@/utils/datas'
@@ -24,7 +23,6 @@ const route = useRoute()
 const router = useRouter()
 const agendamento = useAgendamentoStore()
 
-const user = ref(null)
 const medicos = ref([])
 const carregando = ref(true)
 const enviando = ref(false)
@@ -45,15 +43,6 @@ const iniciais = (nome) =>
     .slice(0, 2)
     .map((p) => p[0].toUpperCase())
     .join('')
-
-async function carregarUsuario() {
-  try {
-    const conta = await api.get('/api/v1/auth/eu')
-    user.value = { name: conta.nome, role: 'Paciente' }
-  } catch {
-    user.value = null
-  }
-}
 
 async function carregarMedicos() {
   carregando.value = true
@@ -76,6 +65,11 @@ function selecionarMedico(m) {
   const primeiro = m?.horarios_disponiveis[0]?.data_consulta
   if (primeiro) data.value = primeiro
 }
+
+// Dias com horário livre do médico escolhido (destacados no calendário)
+const diasDisponiveis = computed(() => [
+  ...new Set((medico.value?.horarios_disponiveis ?? []).map((h) => h.data_consulta)),
+])
 
 // Horários livres do médico escolhido no dia escolhido
 const horarios = computed(() =>
@@ -120,15 +114,18 @@ async function confirmar() {
   }
 }
 
-onMounted(() => {
-  carregarUsuario()
-  carregarMedicos()
-})
+onMounted(carregarMedicos)
+
+// Mesma tela com outro filtro na URL (ex.: nova busca pela home ou menu): recarrega a lista
+watch(
+  () => [route.query.especialidade, route.query.profissional],
+  () => carregarMedicos(),
+)
 </script>
 
 <template>
   <div class="flex min-h-screen flex-col bg-[#f8faff]">
-    <AppHeader :user="user" />
+    <AppHeader />
     <BackLink />
 
     <main class="mx-auto w-full max-w-[1120px] flex-1 px-6 pb-12 pt-8">
@@ -194,7 +191,7 @@ onMounted(() => {
               <span class="flex size-8 items-center justify-center rounded-full bg-[#0b2f5b] text-sm font-semibold text-white">2</span>
               Data
             </h2>
-            <SeletorCalendario v-model="data" />
+            <SeletorCalendario v-model="data" :disponiveis="medico ? diasDisponiveis : null" />
           </section>
 
           <!-- 3. Horário -->
@@ -259,7 +256,7 @@ onMounted(() => {
 
           <p v-if="erro" class="mt-4 rounded-lg bg-[#eef2ff] p-3 text-sm text-[#0b2f5b]" role="alert">
             {{ erro }}
-            <RouterLink v-if="precisaLogin" :to="{ name: 'login/paciente' }" class="font-semibold underline">Entrar</RouterLink>
+            <RouterLink v-if="precisaLogin" :to="{ name: 'login/paciente', query: { redirect: route.fullPath } }" class="font-semibold underline">Entrar</RouterLink>
           </p>
 
           <p class="mt-4 flex gap-2 rounded-lg bg-[#fff4f4] p-3 text-xs text-[#b00020]">

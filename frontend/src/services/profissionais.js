@@ -112,7 +112,8 @@ export async function buscarAvaliacoesProfissional(dados, options) {
 }
 
 /**
- * Transforma `total` e `sub_total` ({ '1': n, ..., '5': n }) na nota média
+ * Transforma `total` e `sub_total` ({ '1': n, ..., '5': n }) na nota média (só das
+ * avaliações com estrelas)
  * e no array de distribuição (de 5 a 1 estrelas) usado pelo ResumoAvaliacoes.
  */
 export function calcularResumoAvaliacoes(total = 0, subTotal = {}) {
@@ -123,10 +124,14 @@ export function calcularResumoAvaliacoes(total = 0, subTotal = {}) {
     { stars: 2, count: subTotal?.['2'] ?? 0 },
     { stars: 1, count: subTotal?.['1'] ?? 0 },
   ]
+  // A média considera só quem deu estrelas; `total` inclui avaliações só com comentário
   let soma = 0
+  let comNota = 0
   for (let i = 1; i <= 5; i++) {
-    soma += i * (subTotal?.[String(i)] ?? 0)
+    const quantidade = subTotal?.[String(i)] ?? 0
+    soma += i * quantidade
+    comNota += quantidade
   }
-  const nota = total > 0 ? Number((soma / total).toFixed(1)) : 0
+  const nota = comNota > 0 ? Number((soma / comNota).toFixed(1)) : 0
   return { nota, total, distribuicao }
 }

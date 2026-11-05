@@ -2,12 +2,16 @@
 """Rotas da conta do profissional: informações, imagem, especialidades e valor."""
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 import json
 import uuid
 
+from core.excecoes import ErroNegocio
+from dependencies.autenticacao import UsuarioAtual
 from dependencies.database import get_db
+from routers.usuario_minha_conta import exigir_propria_conta
 
 from services.porfissional_minha_conta import (
     altera_info_profissional as service_altera_info_profissional,
@@ -31,25 +35,38 @@ from schemas.porfissional_minha_conta import (
 
 router = APIRouter()
 
+# Leitura (perfil público, foto e especialidades) é aberta. Alteração exige login
+# do próprio profissional: sem token 401, conta de outro usuário 403.
+
 # Endpoint responsável por receber e alterar as informações e a imagem do profissional
 @router.put("/alterar-info-profissional")
-async def alterar_info_profissional(dados: str | None = Form(None), imagem: UploadFile | None = File(None), db: Session = Depends(get_db)):
+async def alterar_info_profissional(
+    usuario: UsuarioAtual,
+    dados: str = Form(...),
+    imagem: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+):
     """Altera a descrição, a imagem e as especialidades do profissional.
 
     Recebe multipart: `dados` (JSON em texto, com o id_usuario) e a `imagem`
-    opcional. Cada especialidade enviada é vinculada com conselho e valor. Rota sem
-    autenticação. Responde 400 se o usuário não for profissional ativo, se o JSON
+    opcional. Cada especialidade enviada é vinculada com conselho e valor (a que o
+    profissional já tem é atualizada, não duplicada). Exige login do próprio
+    profissional. Responde 400 se o usuário não for profissional ativo, se o JSON
     for inválido ou se a especialidade não existir; outros erros, 500.
     """
     try:
-        dados_obj = None
+        dados_obj = AdicionaInfoProfissionalInput(**json.loads(dados))
+    except (ValueError, ValidationError) as erro:
+        raise HTTPException(status_code=422, detail="Dados do perfil profissional inválidos.") from erro
+    exigir_propria_conta(usuario, dados_obj.id_usuario)
 
-        if dados is not None: 
-            dados_obj = AdicionaInfoProfissionalInput(**json.loads(dados))
-
+    try:
         await service_altera_info_profissional(dados=dados_obj, imagem=imagem, db=db)
 
         return {"mensagem": "Informações do profissional alteradas com sucesso"}
+
+    except ErroNegocio:
+        raise
 
     except ValueError as erro:
         print(f"VALUE ERROR: {erro}")
@@ -82,12 +99,13 @@ async def buscar_info_profissional(id_usuario: str, db: Session = Depends(get_db
 
 # Endpoint responsável por alterar o valor da consulta do profissional
 @router.put("/alterar-valor-consulta", response_model=AlterarValorConsultaOutput)
-async def alterar_valor_consulta(dados:AlterarValorConsultaInput, db: Session = Depends(get_db)):
+async def alterar_valor_consulta(dados: AlterarValorConsultaInput, usuario: UsuarioAtual, db: Session = Depends(get_db)):
     """Altera o valor da consulta do profissional numa especialidade.
 
-    Rota sem autenticação. Responde 404 se o usuário não for profissional ativo, se
+    Exige login do próprio profissional. Responde 404 se o usuário não for profissional ativo, se
     não tiver a especialidade ou se o valor for negativo.
     """
+    exigir_propria_conta(usuario, dados.id_usuario)
     try:
         resultado = service_alterar_valor_consulta(dados=dados, db=db)
         return resultado
@@ -103,15 +121,24 @@ async def alterar_valor_consulta(dados:AlterarValorConsultaInput, db: Session = 
 
 # Endpoint responsável por salvar a imagem do profissional
 @router.post("/salvar-imagem-profissional")
-async def salvar_imagem_profissional(id_usuario: uuid.UUID = Form(...), imagem: UploadFile = File(...), db: Session = Depends(get_db)):
+async def salvar_imagem_profissional(
+    usuario: UsuarioAtual,
+    id_usuario: uuid.UUID = Form(...),
+    imagem: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
     """Salva a imagem do profissional em uploads/profissionais e grava o caminho.
 
-    Rota sem autenticação. Responde 404 se o usuário não for profissional ativo.
+    Exige login do próprio profissional. Responde 404 se o usuário não for profissional ativo.
     """
+    exigir_propria_conta(usuario, id_usuario)
     try:
         await service_salvar_imagem_profissional(id_usuario=id_usuario, imagem=imagem, db=db)
 
         return {"mensagem": "Imagem enviada com sucesso"}
+
+    except ErroNegocio:
+        raise
 
     except ValueError as erro:
         print(f"VALUE ERROR: {erro}")
@@ -162,20 +189,24 @@ async def lista_especialidade(db: Session = Depends(get_db)):
 
 # Endpoint responsável por excluir uma especialidade do profissional
 @router.delete("/excluir-especialidade")
-def excluir_especialidade(dados: ExcluirEpecialidadeInput, db: Session = Depends(get_db)):
+def excluir_especialidade(dados: ExcluirEpecialidadeInput, usuario: UsuarioAtual, db: Session = Depends(get_db)):
     """Remove a especialidade do profissional, com os horários e o conselho dela.
 
-    Rota sem autenticação. Responde 404 se o usuário não for profissional ativo ou
+    Exige login do próprio profissional. Responde 404 se o usuário não for profissional ativo ou
     não tiver a especialidade.
     """
+    exigir_propria_conta(usuario, dados.id_usuario)
     try:
         service_excluir_especialidade_profissional(id_usuario=dados.id_usuario, id_especialidade=dados.id_especialidade, db=db)
 
         return {"mensagem": "Especialidade removida do profissional com sucesso"}
 
+    except ErroNegocio:
+        raise
+
     except ValueError as erro:
         print(f"VALUE ERROR: {erro}")
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(erro))
 
     except Exception as erro:
         print(f"ERRO REAL: {erro}")

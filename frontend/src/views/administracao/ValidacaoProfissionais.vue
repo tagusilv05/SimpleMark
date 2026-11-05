@@ -1,11 +1,9 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import adminApi from '@/services/adminApi'
 import AdminHeader from '@/components/administracao/AdminHeader.vue'
 import UserAvatar from '@/components/shared/UserAvatar.vue'
 
-const router = useRouter()
 const pending = ref([])
 const selected = ref(null)
 const search = ref('')
@@ -25,15 +23,33 @@ const filtered = computed(() => {
       ),
   )
 })
-const approvedToday = ref(0)
-const rejectedToday = ref(0)
+// Aprovações e rejeições de hoje, contadas no log de ações dos administradores
+const MOTIVO_REJEICAO = 'Cadastro rejeitado na validação manual.'
+const logs = ref([])
+const ehHoje = (iso) => new Date(iso).toDateString() === new Date().toDateString()
+const approvedToday = computed(
+  () => logs.value.filter((log) => log.acao === 'validar_profissional' && ehHoje(log.realizada_em)).length,
+)
+const rejectedToday = computed(
+  () =>
+    logs.value.filter(
+      (log) =>
+        log.acao === 'banir_profissional' &&
+        log.detalhe === MOTIVO_REJEICAO &&
+        ehHoje(log.realizada_em),
+    ).length,
+)
 
 async function loadPending() {
   loading.value = true
   error.value = ''
   try {
-    const { data } = await adminApi.get('/api/v1/administracao/profissionais/pendentes')
+    const [{ data }, { data: registros }] = await Promise.all([
+      adminApi.get('/api/v1/administracao/profissionais/pendentes'),
+      adminApi.get('/api/v1/administracao/logs'),
+    ])
     pending.value = data
+    logs.value = registros ?? []
     if (selected.value)
       selected.value =
         pending.value.find((item) => item.id_profissional === selected.value.id_profissional) ??
@@ -51,7 +67,6 @@ async function approve() {
   actionError.value = ''
   try {
     await adminApi.post(`/api/v1/administracao/profissionais/${selected.value.id_profissional}/validar`)
-    approvedToday.value += 1
     selected.value = null
     await loadPending()
   } catch (err) {
@@ -67,9 +82,8 @@ async function reject() {
   actionError.value = ''
   try {
     await adminApi.post(`/api/v1/administracao/profissionais/${selected.value.id_profissional}/banir`, {
-      motivo: 'Cadastro rejeitado na validação manual.',
+      motivo: MOTIVO_REJEICAO,
     })
-    rejectedToday.value += 1
     selected.value = null
     await loadPending()
   } catch (err) {
@@ -79,16 +93,12 @@ async function reject() {
   }
 }
 
-function logout() {
-  adminApi.clearAccessToken()
-  router.push('/administracao/validacao-profissionais')
-}
 onMounted(loadPending)
 </script>
 
 <template>
   <div class="min-h-screen bg-[#f4f7fb] text-[#073b57]">
-    <AdminHeader @logout="logout" />
+    <AdminHeader />
     <main class="mx-auto max-w-[1440px] px-4 py-6 lg:px-6">
       <div class="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-end">
         <div>

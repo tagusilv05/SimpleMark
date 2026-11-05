@@ -2,7 +2,6 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
-import { useAuthStore } from '@/stores/auth'
 import AppHeader from '@/components/shared/AppHeader.vue'
 import ResumoDia from '@/components/shared/resumoDia.vue'
 import ProximoAtendimento from '@/components/shared/proximoAtendimento.vue'
@@ -10,7 +9,6 @@ import AgendaHoje from '@/components/shared/agendaHoje.vue'
 import CalendarioMensal from '@/components/shared/calendario.vue'
 
 const router = useRouter()
-const auth = useAuthStore()
 
 const hoje = new Date()
 const dataSelecionada = ref(hoje)
@@ -18,9 +16,6 @@ const mesVisivel = ref({ ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 })
 
 const profissional = ref(null)
 const usuario = ref(null)
-const headerUser = computed(() =>
-  usuario.value ? { name: usuario.value.nome, role: 'Profissional' } : null,
-)
 const valoresPorEspecialidade = ref({})
 const resumo = ref({ total_agendados: 0, faturamento_previsto: 0 })
 const proximo = ref(null)
@@ -209,11 +204,6 @@ function entrarNaChamada(id) {
 // Novos horários de atendimento são cadastrados na configuração de agenda
 const adicionarConsulta = () => router.push({ name: 'configuracaoAgendaDoProfissional' })
 
-async function logout() {
-  await auth.logout()
-  usuario.value = null
-  router.push({ name: 'login/profissional' })
-}
 
 watch(dataSelecionada, atualizarDia)
 watch(mesVisivel, carregarMes)
@@ -223,7 +213,7 @@ onMounted(carregarPerfil)
 
 <template>
   <div class="flex min-h-screen flex-col bg-[#f8faff]">
-    <AppHeader :user="headerUser" @logout="logout" />
+    <AppHeader />
 
     <main class="mx-auto flex w-full max-w-300 flex-1 flex-col gap-6 px-12 pb-12">
       <header class="flex items-center justify-between gap-4">

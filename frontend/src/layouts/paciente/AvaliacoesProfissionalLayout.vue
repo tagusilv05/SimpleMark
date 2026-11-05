@@ -56,8 +56,8 @@ async function carregarAvaliacoes() {
     id: i + 1,
     nome: a.nome_paciente,
     data: a.data_consulta,
-    nota: a.avaliacao,
-    texto: a.feedback,
+    nota: a.avaliacao ?? null,
+    texto: a.feedback ?? '',
   }))
   visiveis.value = PAGINA
 }
@@ -103,8 +103,10 @@ const ordenadas = computed(() => {
   const lista = [...avaliacoes.value]
   const maisRecente = (a, b) => String(b.data ?? '').localeCompare(String(a.data ?? ''))
 
-  if (ordem.value === 'melhores') lista.sort((a, b) => b.nota - a.nota || maisRecente(a, b))
-  else if (ordem.value === 'menores') lista.sort((a, b) => a.nota - b.nota || maisRecente(a, b))
+  // Avaliações sem estrelas ficam no fim nas ordenações por nota
+  const notaOu = (a, padrao) => a.nota ?? padrao
+  if (ordem.value === 'melhores') lista.sort((a, b) => notaOu(b, -1) - notaOu(a, -1) || maisRecente(a, b))
+  else if (ordem.value === 'menores') lista.sort((a, b) => notaOu(a, 6) - notaOu(b, 6) || maisRecente(a, b))
   else lista.sort(maisRecente)
 
   return lista

@@ -24,7 +24,8 @@ import { dataCurta, dataLonga } from '@/utils/datas'
 defineProps({
   name: { type: String, required: true },
   date: { type: String, required: true },
-  rating: { type: Number, required: true },
+  // null = o paciente deixou só comentário, sem estrelas
+  rating: { type: Number, default: null },
   text: { type: String, default: '' },
   variant: { type: String, default: 'card', validator: (v) => ['card', 'compact'].includes(v) },
 })
@@ -39,12 +40,13 @@ defineProps({
     <div class="flex items-start justify-between gap-4">
       <div class="flex flex-col gap-1">
         <h3 class="text-[15px] font-bold text-[#0b2f5b]">{{ name }}</h3>
-        <EstrelasAvaliacao :rating="rating" size="sm" />
+        <EstrelasAvaliacao v-if="rating != null" :rating="rating" size="sm" />
+        <span v-else class="text-xs text-gray-500">Sem nota (só comentário)</span>
       </div>
       <time :datetime="date" class="text-sm font-semibold text-gray-500">{{ dataCurta(date) }}</time>
     </div>
 
-    <p class="text-[15px] leading-relaxed text-gray-700">{{ text }}</p>
+    <p v-if="text" class="text-[15px] leading-relaxed text-gray-700">{{ text }}</p>
   </article>
 
   <!-- Card com avatar -->
@@ -62,9 +64,10 @@ defineProps({
         </div>
       </div>
 
-      <EstrelasAvaliacao :rating="rating" size="md" />
+      <EstrelasAvaliacao v-if="rating != null" :rating="rating" size="md" />
+      <span v-else class="text-sm text-gray-500">Sem nota</span>
     </header>
 
-    <p class="mt-4 leading-relaxed text-gray-800">{{ text }}</p>
+    <p v-if="text" class="mt-4 leading-relaxed text-gray-800">{{ text }}</p>
   </article>
 </template>

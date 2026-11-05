@@ -54,6 +54,7 @@ class ServicoAvaliacao:
             Avaliacao(
                 id_consulta=id_consulta,
                 nota=dados.nota,
+                avaliacao=dados.nota,  # coluna antiga, lida pela média e pela lista de avaliações
                 feedback=dados.feedback,
                 data=agora.date(),
                 hora=agora.time().replace(microsecond=0),
