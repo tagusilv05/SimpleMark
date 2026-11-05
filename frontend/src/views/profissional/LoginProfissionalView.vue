@@ -48,9 +48,6 @@ function irParaCadastro() {
     <!-- Coluna do formulário -->
     <section class="flex flex-col px-6 pt-6 sm:px-10 lg:pt-8">
 
-      <!-- Retorna à tela de modalidades -->
-      <BackLink :to="{ name: 'login' }" />
-
       <img
         src="/LOGO%20OFICIAL%20SEM%20FUNDO.png"
         alt="Simple Mark"
@@ -58,7 +55,11 @@ function irParaCadastro() {
       />
 
       <!-- Cartão do formulário -->
-      <div class="my-auto w-full max-w-111.75 py-8 lg:ml-16">
+      <div class="relative my-auto w-full max-w-111.75 py-8 lg:ml-16">
+        <!-- Retorna à tela de modalidades. Fica no respiro acima do cartão (posição absoluta: não desloca o cartão);
+             pl-0! e pt-0! anulam o recuo padrão do BackLink; left-6 / lg:-left-10 alinham a seta com o início da logo. -->
+        <BackLink :to="{ name: 'login' }" class="absolute left-6 top-1 pl-0! pt-0! lg:-left-10" />
+
         <div class="rounded-2xl border border-gray-200 bg-white p-6 sm:p-10">
 
           <header class="mb-8">
