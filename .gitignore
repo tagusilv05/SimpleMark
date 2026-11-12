@@ -9,3 +9,4 @@ __pycache__/
 
 # Anexos enviados pela Ouvidoria (dados pessoais: nunca versionar)
 backend/uploads/ouvidoria/
+.venv/
