@@ -113,10 +113,9 @@ def criar_preferencia_consulta(id_consulta: int, metodo: str, paciente: Paciente
 
     preferencia = criar_preferencia(_montar_preferencia(consulta, metodo))
 
-    init_point = preferencia.get("init_point")
     sandbox_init_point = preferencia.get("sandbox_init_point")
-    if not init_point:
-        raise ErroNegocio("O Mercado Pago não retornou o link de pagamento.", 502)
+    if not sandbox_init_point:
+        raise ErroNegocio("O Mercado Pago não retornou o link de teste.", 502)
 
     if pagamento is None:
         pagamento = criar_pagamento(consulta.id_consulta, STATUS_PENDENTE, db, metodo=metodo)
@@ -125,8 +124,8 @@ def criar_preferencia_consulta(id_consulta: int, metodo: str, paciente: Paciente
 
     return {
         "id": preferencia.get("id"),
-        "init_point": init_point,
-        "sandbox_init_point": sandbox_init_point or init_point,
+        "init_point": sandbox_init_point,
+        "sandbox_init_point": sandbox_init_point,
         "status": pagamento.status,
         "metodo": pagamento.metodo,
         "id_consulta": consulta.id_consulta,
@@ -226,13 +225,12 @@ def _inicio_consulta(consulta: Consulta) -> datetime:
 
 
 def _montar_preferencia(consulta: Consulta, metodo: str) -> dict:
-    """Monta o corpo da preferência: item, pagador, meios aceitos, back_urls e referência.
+    """Monta o corpo da preferência: item, meios aceitos e referência.
 
-    O checkout expira no início da consulta. Telefone e endereço só entram
-    quando o usuário tem dados suficientes.
+    O checkout expira no início da consulta. O comprador é identificado no
+    próprio checkout sandbox com a conta de teste do Mercado Pago.
     """
     usuario = consulta.paciente.usuario
-    nome, sobrenome = _nome_e_sobrenome(usuario.nome)
     profissional_especialidade = consulta.profissional_especialidade
     nome_profissional = profissional_especialidade.profissional.usuario.nome
     especialidade = profissional_especialidade.especialidade.especialidade
@@ -251,33 +249,25 @@ def _montar_preferencia(consulta: Consulta, metodo: str) -> dict:
                 "unit_price": float(consulta.valor),
             }
         ],
-        "payer": {
-            "name": nome,
-            "surname": sobrenome,
-            "email": usuario.email,
-            "identification": {
-                "type": "CPF",
-                "number": _somente_digitos(usuario.cpf),
-            },
-        },
         "payment_methods": {
             "excluded_payment_types": [
                 {"id": tipo} for tipo in sorted(_TIPOS_MP - config_metodo["aceitos"])
             ],
             "installments": config_metodo["parcelas"],
         },
-        "back_urls": {
-            "success": f"{URL_RETORNO}?resultado=sucesso",
-            "pending": f"{URL_RETORNO}?resultado=pendente",
-            "failure": f"{URL_RETORNO}?resultado=falha",
-        },
         "external_reference": str(consulta.id_consulta),
         "statement_descriptor": "SIMPLEMARK",
         "metadata": {"id_consulta": consulta.id_consulta, "metodo": metodo},
     }
 
-    # O Mercado Pago só aceita auto_return com back_url pública (https).
+    # O Mercado Pago rejeita localhost em back_urls. Sem URLs públicas,
+    # o checkout sandbox continua utilizável, mas não redireciona ao frontend.
     if URL_RETORNO.startswith("https://"):
+        preferencia["back_urls"] = {
+            "success": f"{URL_RETORNO}?resultado=sucesso",
+            "pending": f"{URL_RETORNO}?resultado=pendente",
+            "failure": f"{URL_RETORNO}?resultado=falha",
+        }
         preferencia["auto_return"] = "approved"
 
     if URL_NOTIFICACAO:
@@ -286,14 +276,6 @@ def _montar_preferencia(consulta: Consulta, metodo: str) -> dict:
     inicio = _inicio_consulta(consulta)
     preferencia["expires"] = True
     preferencia["expiration_date_to"] = inicio.astimezone().isoformat(timespec="milliseconds")
-
-    telefone = _telefone(usuario.telefone)
-    if telefone:
-        preferencia["payer"]["phone"] = telefone
-
-    endereco = _endereco(usuario.endereco)
-    if endereco:
-        preferencia["payer"]["address"] = endereco
 
     return preferencia
 

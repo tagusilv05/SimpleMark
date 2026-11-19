@@ -51,7 +51,11 @@ def mercado_pago(monkeypatch):
 
     def criar_preferencia(dados):
         estado["preferencias"].append(dados)
-        return {"id": "pref-1", "init_point": "https://mp.test/checkout", "sandbox_init_point": None}
+        return {
+            "id": "pref-1",
+            "init_point": "https://mp.test/checkout",
+            "sandbox_init_point": "https://sandbox.mp.test/checkout",
+        }
 
     monkeypatch.setattr(servico, "criar_preferencia", criar_preferencia)
     monkeypatch.setattr(servico, "obter_pagamento", lambda id_mp: estado["pagamentos"][str(id_mp)])
@@ -85,6 +89,9 @@ def test_preferencia_aceita_somente_o_metodo_escolhido(
     assert preferencia["payment_methods"]["installments"] == parcelas
     assert preferencia["items"][0]["unit_price"] == 180.0
     assert preferencia["external_reference"] == str(consulta_futura.id_consulta)
+    assert "payer" not in preferencia
+    assert "back_urls" not in preferencia
+    assert corpo["init_point"] == "https://sandbox.mp.test/checkout"
 
     pagamento = db.get(Pagamento, consulta_futura.id_consulta)
     assert (pagamento.status, pagamento.metodo) == ("pendente", metodo)
