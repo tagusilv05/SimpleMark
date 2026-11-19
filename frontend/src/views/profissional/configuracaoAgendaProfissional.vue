@@ -24,6 +24,8 @@ const horarios = ref([])
 const diasComConsultas = ref([])
 
 const carregandoHorarios = ref(false)
+const salvandoFaixas = ref(false)
+const sucesso = ref(null)
 const erro = ref(null)
 const user = ref(null)
 
@@ -77,8 +79,6 @@ async function carregarFaixas() {
     return
   }
 
-  faixas.value = []
-  horarios.value = []
   carregandoHorarios.value = true
   try {
     const { data } = await api.get('/profissional/horarios', {
@@ -134,64 +134,53 @@ async function carregarCalendario() {
   }
 }
 
-async function salvarFaixas() {
+async function adicionarHorario({ inicio, fim, limpar }) {
   const esp = especialidades.value.find(
     (item) => String(item.id) === String(especialidadeId.value),
   )
   if (!esp) return
 
-  const preenchidas = faixas.value.filter((f) => f.inicio && f.fim)
-  if (preenchidas.some((f) => f.inicio >= f.fim)) {
-    erro.value = 'O horário final deve ser depois do horário inicial.'
+  if (!inicio || !fim) {
+    erro.value = 'Preencha o horário de início e término antes de adicionar.'
+    sucesso.value = null
     return
   }
 
+  if (inicio >= fim) {
+    erro.value = 'O horário final deve ser depois do horário inicial.'
+    sucesso.value = null
+    return
+  }
+
+  salvandoFaixas.value = true
+  erro.value = null
+  sucesso.value = null
+
   try {
-    const porId = new Map(horarios.value.map((horario) => [String(horario.id), horario]))
-    const existentes = preenchidas.filter((faixa) => porId.has(faixa.key))
-    const novos = preenchidas.filter((faixa) => !porId.has(faixa.key))
-    const removidos = horarios.value.filter(
-      (horario) => !preenchidas.some((faixa) => faixa.key === String(horario.id)),
-    )
-
-    const alterandoHorarioOcupado = existentes.some((faixa) => {
-      const anterior = porId.get(faixa.key)
-      return anterior.ocupado && (faixa.inicio !== anterior.inicio || faixa.fim !== anterior.fim)
+    await api.post('/profissional/horarios', {
+      id_esp_prof: esp.id_esp_prof,
+      datas: [toISODate(dataSelecionada.value)],
+      lista_horarios: [
+        {
+          hora_inicio: inicio,
+          hora_fim: fim,
+        },
+      ],
     })
-    if (alterandoHorarioOcupado || removidos.some((horario) => horario.ocupado)) {
-      erro.value = 'Horários já reservados não podem ser alterados ou removidos.'
-      await carregarFaixas()
-      return
-    }
-
-    for (const horario of removidos) {
-      await api.delete(`/profissional/horarios/${horario.id}`)
-    }
-    for (const faixa of existentes) {
-      const anterior = porId.get(faixa.key)
-      if (faixa.inicio !== anterior.inicio || faixa.fim !== anterior.fim) {
-        await api.put(`/profissional/horarios/${anterior.id}`, {
-          hora_inicio: faixa.inicio,
-          hora_fim: faixa.fim,
-        })
-      }
-    }
-    if (novos.length) {
-      await api.post('/profissional/horarios', {
-        id_esp_prof: esp.id_esp_prof,
-        datas: [toISODate(dataSelecionada.value)],
-        lista_horarios: novos.map((faixa) => ({
-          hora_inicio: faixa.inicio,
-          hora_fim: faixa.fim,
-        })),
-      })
-    }
 
     erro.value = null
+    sucesso.value = 'Horário adicionado com sucesso!'
+    setTimeout(() => {
+      if (sucesso.value === 'Horário adicionado com sucesso!') sucesso.value = null
+    }, 4000)
+
+    if (typeof limpar === 'function') limpar()
+
     await Promise.all([carregarFaixas(), carregarCalendario()])
   } catch (e) {
-    erro.value = e.message || 'Não foi possível salvar as faixas de horário.'
-    await carregarFaixas()
+    erro.value = e.message || 'Não foi possível adicionar o horário.'
+  } finally {
+    salvandoFaixas.value = false
   }
 }
 
@@ -203,7 +192,11 @@ async function bloquearHorario(h) {
   try {
     await api.delete(`/profissional/horarios/${h.id}`)
     erro.value = null
-    await carregarFaixas()
+    sucesso.value = 'Horário removido com sucesso!'
+    setTimeout(() => {
+      if (sucesso.value === 'Horário removido com sucesso!') sucesso.value = null
+    }, 3000)
+    await Promise.all([carregarFaixas(), carregarCalendario()])
   } catch (e) {
     erro.value = e.message || 'Não foi possível bloquear o horário.'
   }
@@ -256,7 +249,12 @@ onMounted(async () => {
         Configuração de Agenda e Consultas
       </h1>
 
-      <p v-if="erro" class="text-sm text-red-700">{{ erro }}</p>
+      <p v-if="sucesso" class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
+        {{ sucesso }}
+      </p>
+      <p v-if="erro" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+        {{ erro }}
+      </p>
 
       <CardEspecialidadeValor
         v-model:especialidade-id="especialidadeId"
@@ -281,7 +279,10 @@ onMounted(async () => {
 
       <div class="grid grid-cols-1 items-start gap-8 lg:grid-cols-[1.45fr_1fr]">
         <div class="flex flex-col gap-6">
-          <FaixasHorario v-model:faixas="faixas" @salvar="salvarFaixas" />
+          <FaixasHorario
+            :salvando="salvandoFaixas"
+            @adicionar="adicionarHorario"
+          />
           <HorariosAgendados
             :horarios="horarios"
             :carregando="carregandoHorarios"

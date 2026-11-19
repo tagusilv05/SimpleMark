@@ -86,7 +86,7 @@ def deletar_horario(id_horario: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Horario nao encontrado")
     return resultado
 
-@router.put("/{id_horario}", status_code=status.HTTP_200_OK)
+@router.put("/{id_horario}", response_model=HorarioOut, status_code=status.HTTP_200_OK)
 def atualizar_horario(id_horario: int, payload: HorariosUpdate, db: Session = Depends(get_db)):
     
     """

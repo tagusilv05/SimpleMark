@@ -20,6 +20,9 @@
  */
 
 import logo from '@/assets/logo-simple-mark.png'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
 
 const columns = [
   [
@@ -35,7 +38,7 @@ const columns = [
   <footer class="w-full border-t border-gray-200 bg-[#f8faff]">
     <div class="mx-auto flex max-w-300 flex-col gap-8 px-12 pt-8 pb-4">
       <div class="flex flex-col gap-8 sm:flex-row sm:items-start sm:gap-10">
-        <RouterLink to="/" class="inline-flex shrink-0" aria-label="Simple Mark - Página inicial">
+        <RouterLink :to="auth.rotaInicial" class="inline-flex shrink-0" aria-label="Simple Mark - Página inicial">
           <img :src="logo" alt="Simple Mark" class="block h-16 w-auto" />
         </RouterLink>
 

@@ -1,4 +1,3 @@
-
 from datetime import date, time
 from decimal import Decimal
 
@@ -29,7 +28,7 @@ def criar_seed():
 
         usuario_paciente = (
             db.query(Usuario)
-            .filter(Usuario.email == "joaomarcos0416@gmail.com")
+            .filter((Usuario.email == "usuariopaciente@gmail.com") | (Usuario.cpf == "041.609.790-17"))
             .first()
         )
 
@@ -41,7 +40,7 @@ def criar_seed():
                 data_nascimento=date(1995, 5, 15),
                 genero="Masculino",
                 telefone="8932439212",
-                email="joaomarcos0416@gmail.com",
+                email="usuariopaciente@gmail.com",
                 status=True,
             )
 
@@ -83,7 +82,11 @@ def criar_seed():
 
         usuario_paciente_victor = (
             db.query(Usuario)
-            .filter(Usuario.email == "victorodriguesluz@gmail.com")
+            .filter(
+                (Usuario.cpf == "529.982.247-25")
+                | (Usuario.email == "usuarioadm@gmail.com")
+                | (Usuario.email == "victorodriguesluz@gmail.com")
+            )
             .first()
         )
 
@@ -95,11 +98,14 @@ def criar_seed():
                 data_nascimento=date(1998, 1, 1),
                 genero="Masculino",
                 telefone="86999999999",
-                email="victorodriguesluz@gmail.com",
+                email="usuarioadm@gmail.com",
                 status=True,
             )
 
             db.add(usuario_paciente_victor)
+            db.flush()
+        else:
+            usuario_paciente_victor.email = "usuarioadm@gmail.com"
             db.flush()
 
         paciente_victor = (
@@ -136,7 +142,7 @@ def criar_seed():
 
         usuario_medico = (
             db.query(Usuario)
-            .filter(Usuario.email == "joaomarcos0416@outlook.com")
+            .filter((Usuario.email == "usuarioprofissional@gmail.com") | (Usuario.cpf == "920.285.800-46"))
             .first()
         )
 
@@ -148,7 +154,7 @@ def criar_seed():
                 data_nascimento=date(1980, 3, 10),
                 genero="Masculino",
                 telefone="8932254654",
-                email="joaomarcos0416@outlook.com",
+                email="usuarioprofissional@gmail.com",
                 status=True,
             )
 

@@ -30,7 +30,7 @@
  *            icon    caminho "d" de um SVG 24x24 de contorno
  *            action  'logout' encerra a sessão e dispara o evento @logout
  *            danger  true deixa o item vermelho
- *   Visitante: "Entrar" -> /login e "Cadastrar-se" -> /cadastro. O logo leva para "/".
+ *   Visitante: "Entrar" -> /login e "Cadastrar-se" -> /cadastro. O logo leva para a rota inicial do perfil logado (ou "/" para visitante).
  *
  * COMPORTAMENTO DO MENU
  *   Abre ao passar o mouse ou ao focar com o teclado (Tab) e fecha 150 ms depois de
@@ -143,7 +143,7 @@ function onSelect(item) {
     <div class="mx-auto flex h-32 max-w-500 items-center justify-between gap-8 px-12">
       <!-- Logo -->
       <RouterLink
-        to="/"
+        :to="auth.rotaInicial"
         class="inline-flex items-center"
         aria-label="Simple Mark - Página inicial"
       >
