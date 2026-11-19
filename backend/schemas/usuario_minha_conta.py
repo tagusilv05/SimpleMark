@@ -11,7 +11,15 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from core.validadores import normalizar_cep, normalizar_email, normalizar_telefone
+from core.validadores import (
+    normalizar_cep,
+    normalizar_email,
+    normalizar_telefone,
+    validar_complemento,
+    validar_logradouro,
+    validar_nome,
+    validar_numero_endereco_edicao,
+)
 
 
 class AltereInfoPessoalInput(BaseModel):
@@ -23,6 +31,12 @@ class AltereInfoPessoalInput(BaseModel):
     nome: str | None = Field(default=None, min_length=3, max_length=150)
     email: str | None = None
     telefone: str | None = None
+
+    @field_validator("nome")
+    @classmethod
+    def nome_valido(cls, valor: str | None) -> str | None:
+        """Nome só com letras."""
+        return None if valor is None else validar_nome(valor, "nome")
 
     @field_validator("email")
     @classmethod
@@ -72,6 +86,38 @@ class AltereEnderecoInput(BaseModel):
     def cep_valido(cls, valor: str | None) -> str | None:
         """Normaliza e valida o CEP."""
         return None if valor is None else normalizar_cep(valor)
+
+    @field_validator("cidade")
+    @classmethod
+    def cidade_valida(cls, valor: str | None) -> str | None:
+        """Cidade só com letras."""
+        return None if valor is None else validar_nome(valor, "cidade")
+
+    @field_validator("bairro")
+    @classmethod
+    def bairro_valido(cls, valor: str | None) -> str | None:
+        """Bairro só com letras."""
+        return None if valor is None else validar_nome(valor, "bairro")
+
+    @field_validator("logradouro")
+    @classmethod
+    def logradouro_valido(cls, valor: str | None) -> str | None:
+        """Logradouro sem símbolos estranhos."""
+        return None if valor is None else validar_logradouro(valor)
+
+    @field_validator("numero")
+    @classmethod
+    def numero_valido(cls, valor: str | None) -> str | None:
+        """Número do endereço: números, com sufixo curto (120-A) ou S/N."""
+        return None if valor is None else validar_numero_endereco_edicao(valor)
+
+    @field_validator("complemento")
+    @classmethod
+    def complemento_valido(cls, valor: str | None) -> str | None:
+        """Complemento sem símbolos estranhos (vazio vira ausente)."""
+        if valor is None or not valor.strip():
+            return None
+        return validar_complemento(valor)
 
 
 class AltereEnderecoOutput(BaseModel):

@@ -307,7 +307,7 @@ function onInput(event) {
         :readonly="isReadonly"
         class="w-full rounded-lg pr-11 outline-none transition placeholder:text-gray-400"
         :class="[sizeClass, boxClass, inputClass, stateClass, icon ? 'pl-12' : 'pl-4']"
-        @input="emit('update:modelValue', $event.target.value)"
+        @input="onInput"
       />
 
       <!-- Olho da senha (mostrar / esconder) -->

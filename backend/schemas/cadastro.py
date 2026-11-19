@@ -4,7 +4,19 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from core.validadores import normalizar_cep, normalizar_cpf, normalizar_email, normalizar_telefone
+from core.validadores import (
+    normalizar_cep,
+    normalizar_cpf,
+    normalizar_email,
+    normalizar_telefone,
+    validar_complemento,
+    validar_especialidade,
+    validar_logradouro,
+    validar_nome,
+    validar_numero_conselho,
+    validar_numero_endereco,
+    validar_sigla,
+)
 from models.models import Profissional
 
 
@@ -53,6 +65,48 @@ class CadastroUsuarioEntrada(BaseModel):
         """Normaliza e valida o telefone."""
         return normalizar_telefone(valor)
 
+    @field_validator("nome")
+    @classmethod
+    def nome_valido(cls, valor: str) -> str:
+        """Nome só com letras."""
+        return validar_nome(valor, "nome")
+
+    @field_validator("genero")
+    @classmethod
+    def genero_valido(cls, valor: str) -> str:
+        """Gênero só com letras."""
+        return validar_nome(valor, "gênero")
+
+    @field_validator("cidade")
+    @classmethod
+    def cidade_valida(cls, valor: str) -> str:
+        """Cidade só com letras."""
+        return validar_nome(valor, "cidade")
+
+    @field_validator("bairro")
+    @classmethod
+    def bairro_valido(cls, valor: str) -> str:
+        """Bairro só com letras."""
+        return validar_nome(valor, "bairro")
+
+    @field_validator("orgao_emissor")
+    @classmethod
+    def orgao_emissor_valido(cls, valor: str) -> str:
+        """Órgão emissor (SSP-PI): letras, números, hífen e barra."""
+        return validar_sigla(valor, "órgão emissor")
+
+    @field_validator("logradouro")
+    @classmethod
+    def logradouro_valido(cls, valor: str) -> str:
+        """Logradouro sem símbolos estranhos."""
+        return validar_logradouro(valor)
+
+    @field_validator("numero")
+    @classmethod
+    def numero_valido(cls, valor: str) -> str:
+        """Número do endereço: números ou S/N."""
+        return validar_numero_endereco(valor)
+
     @field_validator("senha")
     @classmethod
     def senha_minima(cls, valor: str) -> str:
@@ -86,7 +140,7 @@ class CadastroUsuarioEntrada(BaseModel):
         if valor is None:
             return None
         texto = valor.strip()
-        return texto or None
+        return validar_complemento(texto) if texto else None
 
 
 class CadastroProfissionalEntrada(CadastroUsuarioEntrada):
@@ -98,6 +152,18 @@ class CadastroProfissionalEntrada(CadastroUsuarioEntrada):
     orgao_conselho: str = Field(min_length=2, max_length=30)
     info_profissional: str = Field(min_length=3)
     especialidades: list[str] = Field(min_length=1)
+
+    @field_validator("numero_conselho")
+    @classmethod
+    def numero_conselho_valido(cls, valor: str) -> str:
+        """Número do conselho: só números (e . / -)."""
+        return validar_numero_conselho(valor)
+
+    @field_validator("orgao_conselho")
+    @classmethod
+    def orgao_conselho_valido(cls, valor: str) -> str:
+        """Órgão do conselho (CRM-PI): letras, números, hífen e barra."""
+        return validar_sigla(valor, "órgão do conselho")
 
     @field_validator("especialidades")
     @classmethod
@@ -112,6 +178,7 @@ class CadastroProfissionalEntrada(CadastroUsuarioEntrada):
                 continue
             if len(nome) > 100:
                 raise ValueError("Cada especialidade deve ter no máximo 100 caracteres.")
+            nome = validar_especialidade(nome)
             if nome.casefold() not in {existente.casefold() for existente in limpas}:
                 limpas.append(nome)
         if not limpas:

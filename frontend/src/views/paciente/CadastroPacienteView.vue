@@ -100,9 +100,9 @@ const mascaras = {
   // só letras, espaço, ponto, barra e hífen (ex.: SSP/PI, DETRAN-PI, CIN), sem números
   orgaoEmissor: (v) => limparEspacos(v.replace(/[^\p{L}\s/.-]/gu, '')).slice(0, 20),
 
-  // sem espaços e sem números; só letras, @ . _ + - e um único @
+  // sem espaços; letras, números, @ . _ + - e um único @
   email: (v) => {
-    const limpo = v.replace(/[^a-zA-Z@._+-]/g, '').toLowerCase().slice(0, 100)
+    const limpo = v.replace(/[^a-zA-Z0-9@._+-]/g, '').slice(0, 100)
     const i = limpo.indexOf('@')
     return i === -1 ? limpo : limpo.slice(0, i + 1) + limpo.slice(i + 1).replace(/@/g, '')
   },
@@ -132,16 +132,47 @@ const mascaras = {
 
   logradouro: (v) => limparEspacos(v.replace(/[^\p{L}\d\s,.\-/ºª#]/gu, '')).slice(0, 150),
 
-  numero: (v) => v.replace(/[^\p{L}\d/-]/gu, '').slice(0, 20),
+  numero: (v) => v.replace(/\D/g, '').slice(0, 8), // só números
 
-  bairro: (v) => limparEspacos(v.replace(/[^\p{L}\d\s'-]/gu, '')).slice(0, 100),
+  bairro: (v) => limparEspacos(v.replace(/[^\p{L}\s'-]/gu, '')).slice(0, 100), // só letras
 
   complemento: (v) => limparEspacos(v).slice(0, 150),
 }
 
+// Aviso na hora da digitação: se a pessoa digitar (ou colar) algo que o campo não
+// aceita, a mensagem aparece abaixo do campo e some sozinha depois de 3 segundos.
+const SO_NUMEROS = 'Este campo aceita apenas números.'
+const SO_LETRAS = 'Este campo aceita apenas letras (não use números).'
+const proibidos = {
+  nascimento: [/[^\d/\-\s]/, SO_NUMEROS],
+  cpf: [/[^\d.\-\s]/, SO_NUMEROS],
+  celular: [/[^\d()\s\-+]/, SO_NUMEROS],
+  cep: [/[^\d\-\s]/, SO_NUMEROS],
+  numero: [/\D/, SO_NUMEROS],
+  nome: [/[^\p{L}\s'’.\-]/u, SO_LETRAS],
+  orgaoEmissor: [/[^\p{L}\s/.\-]/u, SO_LETRAS],
+  cidade: [/[^\p{L}\s'’\-]/u, SO_LETRAS],
+  bairro: [/[^\p{L}\s'’\-]/u, SO_LETRAS],
+}
+const temporizadores = {}
+const avisando = {} // campos com aviso de digitação na tela
+
+function avisarDigitacao(campo, valor) {
+  const regra = proibidos[campo]
+  if (!regra || !regra[0].test(valor)) return
+  errors[campo] = regra[1]
+  avisando[campo] = true
+  clearTimeout(temporizadores[campo])
+  temporizadores[campo] = setTimeout(() => {
+    delete avisando[campo]
+    if (errors[campo] === regra[1]) delete errors[campo]
+  }, 3000)
+}
+
 function atualizar(campo, valor) {
   form[campo] = mascaras[campo] ? mascaras[campo](valor) : valor
-  delete errors[campo]
+  if (!avisando[campo]) delete errors[campo] // o aviso de digitação some sozinho em 3 s
+  avisarDigitacao(campo, valor)
   if (campo === 'senha') delete errors.confirmarSenha
 }
 

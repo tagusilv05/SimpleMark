@@ -123,7 +123,7 @@ function mascaraCep(v) {
 
 // Só caracteres válidos de e-mail, sem espaços e com um único @
 function filtroEmail(v) {
-  const limpo = v.replace(/[^a-zA-Z0-9@._+-]/g, '').toLowerCase().slice(0, 100)
+  const limpo = v.replace(/[^a-zA-Z0-9@._+-]/g, '').slice(0, 100)
   const i = limpo.indexOf('@')
   return i === -1 ? limpo : limpo.slice(0, i + 1) + limpo.slice(i + 1).replace(/@/g, '')
 }
@@ -143,14 +143,14 @@ const filtros = {
   logradouro: (v) =>
     v.replace(/[^\p{L}\d\s,.\-/ºª#]/gu, '').replace(/\s{2,}/g, ' ').slice(0, 150),
 
-  numero: (v) => v.replace(/[^\p{L}\d/-]/gu, '').slice(0, 20),
+  numero: (v) => v.replace(/\D/g, '').slice(0, 8), // só números
 
   bairro: (v) =>
-    v.replace(/[^\p{L}\d\s'-]/gu, '').replace(/\s{2,}/g, ' ').slice(0, 100),
+    v.replace(/[^\p{L}\s'-]/gu, '').replace(/\s{2,}/g, ' ').slice(0, 100), // só letras
 
   complemento: (v) => v.slice(0, 150),
 
-  numeroConselho: (v) => v.replace(/[^\p{L}\d./-]/gu, '').slice(0, 30),
+  numeroConselho: (v) => v.replace(/\D/g, '').slice(0, 15), // só números; a sigla (CRM-PI) vai no campo órgão
 
   orgaoConselho: (v) => soLetras(v).slice(0, 30),
 
@@ -160,9 +160,42 @@ const filtros = {
     confirmarSenha: (v) => v.replace(/\s/g, '').slice(0, 64),
 }
 
+// Aviso na hora da digitação: se a pessoa digitar (ou colar) algo que o campo não
+// aceita, a mensagem aparece abaixo do campo e some sozinha depois de 3 segundos.
+const SO_NUMEROS = 'Este campo aceita apenas números.'
+const SO_LETRAS = 'Este campo aceita apenas letras (não use números).'
+const proibidos = {
+  nascimento: [/[^\d/\-\s]/, SO_NUMEROS],
+  cpf: [/[^\d.\-\s]/, SO_NUMEROS],
+  celular: [/[^\d()\s\-+]/, SO_NUMEROS],
+  cep: [/[^\d\-\s]/, SO_NUMEROS],
+  numero: [/\D/, SO_NUMEROS],
+  numeroConselho: [/\D/, SO_NUMEROS],
+  nome: [/[^\p{L}\s]/u, SO_LETRAS],
+  orgaoEmissor: [/[^\p{L}\s]/u, SO_LETRAS],
+  orgaoConselho: [/[^\p{L}\s]/u, SO_LETRAS],
+  cidade: [/[^\p{L}\s'\-]/u, SO_LETRAS],
+  bairro: [/[^\p{L}\s'\-]/u, SO_LETRAS],
+}
+const temporizadores = {}
+const avisando = {} // campos com aviso de digitação na tela
+
+function avisarDigitacao(campo, valor) {
+  const regra = proibidos[campo]
+  if (!regra || !regra[0].test(valor)) return
+  errors[campo] = regra[1]
+  avisando[campo] = true
+  clearTimeout(temporizadores[campo])
+  temporizadores[campo] = setTimeout(() => {
+    delete avisando[campo]
+    if (errors[campo] === regra[1]) delete errors[campo]
+  }, 3000)
+}
+
 function atualizar(campo, valor) {
   form[campo] = filtros[campo](valor)
-  delete errors[campo]
+  if (!avisando[campo]) delete errors[campo] // o aviso de digitação some sozinho em 3 s
+  avisarDigitacao(campo, valor)
   if (campo === 'senha') delete errors.confirmarSenha
 }
 
@@ -289,7 +322,7 @@ async function criarConta() {
       complemento: form.complemento.trim() || null,
 
       numero_conselho: form.numeroConselho.trim(),
-      orgao_conselho: form.orgaoConselho.trim().toUpperCase(),
+      orgao_conselho: form.orgaoConselho.trim(),
 
       info_profissional: form.informacoes.trim(),
 
