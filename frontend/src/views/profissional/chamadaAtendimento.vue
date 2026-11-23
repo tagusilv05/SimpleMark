@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import api from '@/services/api'
 import { useAtendimentoStore } from '@/stores/atendimento'
+import { urlExternaSegura } from '@/utils/url'
 import AppHeader from '@/components/shared/AppHeader.vue'
 import BackLink from '@/components/shared/BackLink.vue'
 import UserAvatar from '@/components/shared/UserAvatar.vue'
@@ -48,7 +49,7 @@ async function carregarVideochamada() {
   if (!id) return false
   try {
     const data = await atendimento.carregarConsulta(id)
-    meetLink.value = data.meet_link
+    meetLink.value = urlExternaSegura(data.meet_link)
   } catch (e) {
     console.error(e)
   }

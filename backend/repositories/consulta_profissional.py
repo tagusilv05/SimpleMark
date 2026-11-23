@@ -16,6 +16,17 @@ def listar_consultas_do_profissional(
 
     Filtros opcionais por status e intervalo de datas; ordena por data e hora
     crescentes.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_profissional (int): Id do profissional.
+        status (str | None): Status das consultas; None não filtra.
+        data_inicio (date | None): Data mínima da consulta; None não filtra.
+        data_fim (date | None): Data máxima da consulta; None não filtra.
+
+    Returns:
+        list[Consulta]: Consultas do profissional com paciente e especialidade
+        carregados.
     """
     query = (
         db.query(Consulta)

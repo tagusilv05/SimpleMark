@@ -44,7 +44,11 @@ _ALFABETO_PROTOCOLO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sem 0/O e 1/I
 
 
 def pasta_uploads() -> Path:
-    """Pasta onde os anexos são gravados (OUVIDORIA_PASTA_UPLOADS, padrão uploads/ouvidoria)."""
+    """Pasta onde os anexos são gravados (OUVIDORIA_PASTA_UPLOADS, padrão uploads/ouvidoria).
+
+    Returns:
+        Path: Caminho da pasta de anexos da Ouvidoria.
+    """
     return Path(os.getenv("OUVIDORIA_PASTA_UPLOADS", "uploads/ouvidoria"))
 
 
@@ -72,7 +76,11 @@ class ServicoOuvidoria:
     """Valida e grava manifestações da Ouvidoria."""
 
     def __init__(self, db: Session) -> None:
-        """Guarda a sessão do banco."""
+        """Guarda a sessão do banco.
+
+        Args:
+            db (Session): Sessão do SQLAlchemy usada nas consultas e gravações.
+        """
         self.db = db
 
     def abrir(
@@ -84,6 +92,17 @@ class ServicoOuvidoria:
         """Valida os dados, grava a manifestação e os anexos e devolve o registro.
 
         Responde 422 com dados inválidos. Se o banco falhar, apaga os arquivos já gravados.
+
+        Args:
+            dados (NovaManifestacao): Dados do formulário, ainda sem validar.
+            anexos (list[AnexoRecebido]): Arquivos enviados junto da manifestação.
+            usuario (Usuario | None): Usuário autenticado, se houver.
+
+        Returns:
+            ManifestacaoOuvidoria: A manifestação gravada, com protocolo e anexos.
+
+        Raises:
+            ErroNegocio: Com status 422, quando os dados ou os anexos são inválidos.
         """
         limpos = self._validar(dados)
         formatos = [self._validar_anexo(anexo) for anexo in self._validar_lista_anexos(anexos)]
@@ -129,7 +148,17 @@ class ServicoOuvidoria:
     # ---------- validação ----------
 
     def _validar(self, dados: NovaManifestacao) -> NovaManifestacao:
-        """Normaliza os campos e levanta ErroNegocio 422 na primeira regra quebrada."""
+        """Normaliza os campos e confere as regras do formulário.
+
+        Args:
+            dados (NovaManifestacao): Dados do formulário como chegaram.
+
+        Returns:
+            NovaManifestacao: Os dados normalizados.
+
+        Raises:
+            ErroNegocio: Com status 422, na primeira regra quebrada.
+        """
         solicitante = (dados.solicitante or "").strip().lower()
         if solicitante not in SOLICITANTES:
             raise ErroNegocio("Informe se você é paciente ou profissional de saúde.", 422)
@@ -170,14 +199,35 @@ class ServicoOuvidoria:
 
     @staticmethod
     def _validar_lista_anexos(anexos: list[AnexoRecebido]) -> list[AnexoRecebido]:
-        """Limita a quantidade de anexos."""
+        """Limita a quantidade de anexos.
+
+        Args:
+            anexos (list[AnexoRecebido]): Arquivos enviados.
+
+        Returns:
+            list[AnexoRecebido]: A mesma lista, se estiver dentro do limite.
+
+        Raises:
+            ErroNegocio: Com status 422, quando há mais de ANEXOS_MAX arquivos.
+        """
         if len(anexos) > ANEXOS_MAX:
             raise ErroNegocio(f"Envie no máximo {ANEXOS_MAX} arquivos.", 422)
         return anexos
 
     @staticmethod
     def _validar_anexo(anexo: AnexoRecebido) -> tuple[str, str]:
-        """Confere extensão, tamanho e conteúdo; devolve (extensão, content-type)."""
+        """Confere extensão, tamanho e conteúdo do anexo.
+
+        Args:
+            anexo (AnexoRecebido): Arquivo a conferir.
+
+        Returns:
+            tuple[str, str]: A extensão (``jpeg`` vira ``jpg``) e o content-type.
+
+        Raises:
+            ErroNegocio: Com status 422, quando o formato não é aceito, o arquivo está
+                vazio, passa de 10 MB ou o conteúdo não bate com a extensão.
+        """
         nome = Path(anexo.nome or "").name
         extensao = nome.rsplit(".", 1)[-1].lower() if "." in nome else ""
         if extensao not in FORMATOS:
@@ -194,7 +244,15 @@ class ServicoOuvidoria:
     # ---------- protocolo ----------
 
     def _gerar_protocolo(self) -> str:
-        """Gera um protocolo inédito no formato OUV-AAAAMMDD-XXXXXX."""
+        """Gera um protocolo inédito no formato OUV-AAAAMMDD-XXXXXX.
+
+        Returns:
+            str: O protocolo gerado.
+
+        Raises:
+            ErroNegocio: Com status 503, quando não acha um protocolo livre em 10
+                tentativas.
+        """
         data = agora_utc().strftime("%Y%m%d")
         for _ in range(10):
             sufixo = "".join(secrets.choice(_ALFABETO_PROTOCOLO) for _ in range(6))

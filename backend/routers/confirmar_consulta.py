@@ -22,6 +22,18 @@ def confirmar_consulta(dados: ConfirmarConsultaInput, tarefas: BackgroundTasks, 
     Rota sem autenticação. Responde 400 se o paciente ou o profissional não existir
     ou estiver inativo, ou se o profissional não tiver a especialidade; outros
     erros, 500. Falha ao gerar o link não desfaz a consulta.
+
+    Args:
+        dados (ConfirmarConsultaInput): Dados da consulta a criar.
+        tarefas (BackgroundTasks): Tarefas em segundo plano, injetadas pelo FastAPI.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        dict: Mensagem de sucesso e ``id_consulta`` criada.
+
+    Raises:
+        HTTPException: 400 quando o service levanta ``ValueError``; 500 para outros
+            erros.
     """
     try:
 

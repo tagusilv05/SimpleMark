@@ -13,6 +13,13 @@ def buscar_documento_para_atualizacao(db: Session, id_documento: int) -> Documen
     A trava evita que duas requisições simultâneas gerem dois QR-Codes para o
     mesmo documento. O SELECT é simples de propósito: no PostgreSQL o FOR UPDATE
     não pode ser aplicado junto de um LEFT JOIN.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_documento (int): Id do documento.
+
+    Returns:
+        DocumentoClinico | None: Documento travado, ou None se não existir.
     """
     return (
         db.query(DocumentoClinico)
@@ -23,7 +30,15 @@ def buscar_documento_para_atualizacao(db: Session, id_documento: int) -> Documen
 
 
 def buscar_profissional_da_consulta(db: Session, id_consulta: int) -> int | None:
-    """Id do profissional responsável pela consulta, via profissional_especialidade."""
+    """Id do profissional responsável pela consulta, via profissional_especialidade.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Id da consulta.
+
+    Returns:
+        int | None: Id do profissional, ou None se a consulta não existir.
+    """
     return (
         db.query(ProfissionalEspecialidade.id_profissional)
         .join(
@@ -36,7 +51,15 @@ def buscar_profissional_da_consulta(db: Session, id_consulta: int) -> int | None
 
 
 def existe_codigo_verificacao(db: Session, codigo: str) -> bool:
-    """Indica se o código de verificação já pertence a algum documento."""
+    """Indica se o código de verificação já pertence a algum documento.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        codigo (str): Código de verificação.
+
+    Returns:
+        bool: True se o código já está em uso.
+    """
     return (
         db.query(DocumentoClinico.id_documento)
         .filter(DocumentoClinico.codigo_verificacao == codigo)

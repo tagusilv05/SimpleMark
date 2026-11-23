@@ -10,12 +10,26 @@ _STATUS_SEM_LINK = {"cancelada", "cancelado"}
 
 
 def link_visivel(consulta: Consulta) -> str | None:
-    """Link da videochamada para exibir: some quando a consulta é cancelada."""
+    """Link da videochamada para exibir: some quando a consulta é cancelada.
+
+    Args:
+        consulta (Consulta): Consulta cujo link será exibido.
+
+    Returns:
+        str | None: Link da sala, ou ``None`` se a consulta estiver cancelada.
+    """
     return None if consulta.status in _STATUS_SEM_LINK else consulta.meet_link
 
 
 def _idade(nascimento: date | None) -> int | None:
-    """Idade em anos completos na data de hoje (horário de Brasília)."""
+    """Idade em anos completos na data de hoje (horário de Brasília).
+
+    Args:
+        nascimento (date | None): Data de nascimento, ou ``None``.
+
+    Returns:
+        int | None: Idade em anos, ou ``None`` se a data não for informada.
+    """
     if nascimento is None:
         return None
     hoje = agora_local().date()
@@ -23,7 +37,14 @@ def _idade(nascimento: date | None) -> int | None:
 
 
 def _cpf_mascarado(cpf: str | None) -> str | None:
-    """CPF só com os 3 primeiros e os 2 últimos dígitos: 123.***.***-01."""
+    """CPF só com os 3 primeiros e os 2 últimos dígitos: 123.***.***-01.
+
+    Args:
+        cpf (str | None): CPF com ou sem máscara, ou ``None``.
+
+    Returns:
+        str | None: CPF mascarado, ou ``None`` se não tiver 11 dígitos.
+    """
     digitos = "".join(c for c in (cpf or "") if c.isdigit())
     if len(digitos) != 11:
         return None
@@ -53,7 +74,14 @@ class VideochamadaOutput(BaseModel):
 
     @classmethod
     def da_consulta(cls, consulta: Consulta) -> "VideochamadaOutput":
-        """Monta a saída a partir do modelo, escondendo o link de consulta cancelada."""
+        """Monta a saída a partir do modelo, escondendo o link de consulta cancelada.
+
+        Args:
+            consulta (Consulta): Consulta com paciente e usuário carregados.
+
+        Returns:
+            VideochamadaOutput: Dados da videochamada da consulta.
+        """
         usuario = consulta.paciente.usuario if consulta.paciente else None
         paciente = (
             PacienteVideochamadaOutput(

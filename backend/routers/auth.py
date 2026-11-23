@@ -43,14 +43,14 @@ def login(
                 "paciente": {
                     "summary": "Paciente",
                     "value": {
-                        "identificador": "nordestino1971+paciente@gmail.com",
+                        "identificador": "paciente@example.com",
                         "senha": "Senha123",
                     },
                 },
                 "administrador": {
                     "summary": "Administradora Helena",
                     "value": {
-                        "identificador": "nordestino1971@gmail.com",
+                        "identificador": "admin@example.com",
                         "senha": "Senha123",
                     },
                 },
@@ -63,6 +63,14 @@ def login(
     Responde 401 com credencial errada, 403 com conta banida ou inativa, 422 com
     identificador inválido, 429 com a conta bloqueada por tentativas e 503 se o
     e-mail não sair.
+
+    Args:
+        servico (ServicoAutenticacao): Serviço de autenticação, injetado pelo FastAPI.
+        dados (LoginEntrada): Identificador (e-mail ou CPF) e senha.
+
+    Returns:
+        DesafioLoginResposta: Mensagem, ``id_desafio``, e-mail mascarado e validade do
+        código em segundos.
     """
     desafio = servico.iniciar_login(dados.identificador, dados.senha)
     minutos = max(1, desafio.expira_em_segundos // 60)
@@ -111,6 +119,13 @@ def confirmar_login(
 
     Responde 401 com código inválido, expirado ou incorreto, 403 com conta banida
     ou inativa e 429 com a conta bloqueada por tentativas.
+
+    Args:
+        servico (ServicoAutenticacao): Serviço de autenticação, injetado pelo FastAPI.
+        dados (ConfirmarLoginEntrada): ``id_desafio`` e código recebido por e-mail.
+
+    Returns:
+        TokenResposta: Token de acesso (bearer) e os dados públicos do usuário.
     """
     resultado = servico.confirmar_login(dados.id_desafio, dados.codigo)
     return TokenResposta(
@@ -127,7 +142,14 @@ def confirmar_login(
     responses={401: {"model": MensagemResposta}},
 )
 def eu(usuario: UsuarioAtual) -> UsuarioPublico:
-    """Devolve os dados públicos da conta logada. Sem token válido, responde 401."""
+    """Devolve os dados públicos da conta logada. Sem token válido, responde 401.
+
+    Args:
+        usuario (Usuario): Usuário logado, injetado pelo FastAPI.
+
+    Returns:
+        UsuarioPublico: Dados públicos da conta logada.
+    """
     return montar_usuario_publico(usuario)
 
 
@@ -138,5 +160,10 @@ def eu(usuario: UsuarioAtual) -> UsuarioPublico:
     responses={401: {"model": MensagemResposta}},
 )
 def sair(sessao: SessaoAtual, servico: ServicoSessaoDep) -> None:
-    """Encerra a sessão do token atual (logout). Sem token válido, responde 401."""
+    """Encerra a sessão do token atual (logout). Sem token válido, responde 401.
+
+    Args:
+        sessao (SessaoLogin): Sessão do token atual, injetada pelo FastAPI.
+        servico (ServicoSessao): Serviço de sessões, injetado pelo FastAPI.
+    """
     servico.encerrar(sessao)

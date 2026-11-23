@@ -11,6 +11,7 @@
  *   titulo     String  texto do cabeçalho
  */
 import { computed } from 'vue'
+import { urlExternaSegura } from '@/utils/url'
 
 const props = defineProps({
   documento: { type: Object, required: true },
@@ -20,6 +21,8 @@ const props = defineProps({
 const emitidoEm = computed(() =>
   new Date(props.documento.data_emissao).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }),
 )
+
+const linkValidacao = computed(() => urlExternaSegura(props.documento.url_validacao))
 </script>
 
 <template>
@@ -44,9 +47,10 @@ const emitidoEm = computed(() =>
         <span class="font-mono font-semibold tracking-wider text-[#08283a]">{{ documento.codigo_verificacao }}</span>
       </p>
       <a
-        :href="documento.url_validacao"
+        v-if="linkValidacao"
+        :href="linkValidacao"
         target="_blank"
-        rel="noopener"
+        rel="noopener noreferrer"
         class="truncate text-[#0a9ba5] underline"
       >
         Validar documento

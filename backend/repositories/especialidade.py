@@ -10,7 +10,11 @@ class RepositorioEspecialidade:
     """Reaproveita a especialidade pelo nome, sem diferenciar maiúsculas."""
 
     def __init__(self, db: Session) -> None:
-        """Guarda a sessão do banco usada nas consultas."""
+        """Guarda a sessão do banco usada nas consultas.
+
+        Args:
+            db (Session): Sessão do banco de dados.
+        """
         self.db = db
 
     def obter_ou_criar(self, nome: str) -> Especialidade:
@@ -18,6 +22,12 @@ class RepositorioEspecialidade:
 
         Compara com casefold em Python, carregando todas as especialidades.
         Quando cria, faz flush para o id já ficar disponível.
+
+        Args:
+            nome (str): Nome da especialidade.
+
+        Returns:
+            Especialidade: Especialidade existente ou recém-criada.
         """
         existentes = self.db.scalars(select(Especialidade)).all()
         for item in existentes:

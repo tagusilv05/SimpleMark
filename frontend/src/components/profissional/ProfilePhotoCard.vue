@@ -49,13 +49,26 @@ defineProps({
 const emit = defineEmits(['change'])
 
 const fileInput = ref(null)
+const erro = ref('')
+
+// Mesmas regras do backend (services/porfissional_minha_conta.py): só avisa antes
+// de enviar; quem garante a regra continua sendo o servidor.
+const TIPOS_ACEITOS = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const TAMANHO_MAX = 5 * 1024 * 1024 // 5 MB
 
 const uploadIcon =
   'M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z'
 
 function onFileChange(event) {
   const file = event.target.files?.[0]
-  if (file) emit('change', file)
+  erro.value = ''
+  if (file && !TIPOS_ACEITOS.includes(file.type)) {
+    erro.value = 'Envie uma imagem JPG, PNG, WEBP ou GIF.'
+  } else if (file && file.size > TAMANHO_MAX) {
+    erro.value = 'A imagem deve ter no máximo 5 MB.'
+  } else if (file) {
+    emit('change', file)
+  }
   // permite escolher o mesmo arquivo de novo depois
   event.target.value = ''
 }
@@ -120,6 +133,13 @@ function onFileChange(event) {
 
     <!-- Botão de upload -->
     <FormButton :icon="uploadIcon" @click="fileInput.click()">{{ buttonLabel }}</FormButton>
-    <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileChange" />
+    <input
+      ref="fileInput"
+      type="file"
+      accept="image/jpeg,image/png,image/webp,image/gif"
+      class="hidden"
+      @change="onFileChange"
+    />
+    <p v-if="erro" class="w-full text-sm text-red-600" role="alert">{{ erro }}</p>
   </div>
 </template>

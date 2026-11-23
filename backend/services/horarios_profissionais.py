@@ -4,17 +4,15 @@ from models.models import DataHorario, ProfissionalEspecialidade
 from repositories import horarios_profissional as horario_repository
 
 def listar_horarios(db, id_esp_prof: int, data):
-    """
-    Busca os horarios de um profissional com base no vinculo com a especialidade
-    
+    """Busca os horarios de um profissional com base no vinculo com a especialidade.
+
     Args:
-        db: Sessão do banco de dados
-        id_esp_prof (int): ID do vínculo entre profissional e especialidade
-        data (date): Data para filtrar os horarios
-        
+        db: Sessão do banco de dados.
+        id_esp_prof (int): ID do vínculo entre profissional e especialidade.
+        data (date): Data para filtrar os horarios.
+
     Returns:
-        List[DataHorario]: Lista de horarios encontrados
-    
+        List[DataHorario]: Lista de horarios encontrados.
     """
     
     return horario_repository.listar(
@@ -25,16 +23,22 @@ def listar_horarios(db, id_esp_prof: int, data):
 
 def criar_horarios_em_lote(db, dados_lote):
     
-    """
-    Cadastro os novos horarios de um profissional
-    
+    """Cadastra os novos horarios de um profissional.
+
+    Horários que já existem na mesma data e hora de início são ignorados. Em
+    qualquer erro faz rollback e relança.
+
     Args:
-        db: Sessão do banco de dados
-        dados_lote (HorariosEmLoteCreate): Dados contendo o ID do vínculo entre profissional e especialidade, 
-                                           as datas e os horarios a serem cadastrados.
-    
+        db: Sessão do banco de dados.
+        dados_lote (HorariosEmLoteCreate): Dados contendo o ID do vínculo entre
+            profissional e especialidade, as datas e os horarios a serem
+            cadastrados.
+
     Returns:
-        dict: Mensagem de sucesso ou erro
+        dict: Mensagem de sucesso.
+
+    Raises:
+        LookupError: Se o vínculo entre profissional e especialidade não existir.
     """
     
     try:
@@ -73,13 +77,12 @@ def criar_horarios_em_lote(db, dados_lote):
 
 def deletar_horario(db, id_horario: int):
     
-    """
-    Deleta um horario específico com base no ID fornecido.
-    
+    """Deleta um horario específico com base no ID fornecido.
+
     Args:
-        db: Sessão do banco de dados
+        db: Sessão do banco de dados.
         id_horario (int): ID do horario a ser deletado.
-        
+
     Returns:
         dict: Mensagem de sucesso ou None se o horario não for encontrado.
     """
@@ -94,16 +97,15 @@ def deletar_horario(db, id_horario: int):
 
 def atualizar_horario(db, id_horario: int, dados_atualizacao):
     
-    """
-    Atualiza um horario específico com base no ID fornecido.
-    
+    """Atualiza um horario específico com base no ID fornecido.
+
     Args:
-        db: Sessão do banco de dados
+        db: Sessão do banco de dados.
         id_horario (int): ID do horario a ser atualizado.
-        dados_atualizacao: Dados contendo os novos horarios.
-        
+        dados_atualizacao: Dados contendo os novos ``hora_inicio`` e ``hora_fim``.
+
     Returns:
-        dict: Mensagem de sucesso ou None se o horario não for encontrado.
+        DataHorario: Horário atualizado, ou None se o horario não for encontrado.
     """
     
     

@@ -23,7 +23,17 @@ class LoginEntrada(BaseModel):
     @field_validator("senha")
     @classmethod
     def senha_minima(cls, valor: str) -> str:
-        """Recusa senha com menos de 8 caracteres."""
+        """Recusa senha com menos de 8 caracteres.
+
+        Args:
+            valor (str): Senha informada.
+
+        Returns:
+            str: A senha, sem alteração.
+
+        Raises:
+            ValueError: Quando a senha tem menos de 8 caracteres.
+        """
         if len(valor) < 8:
             raise ValueError("A senha deve ter no mínimo 8 caracteres.")
         return valor
@@ -31,7 +41,17 @@ class LoginEntrada(BaseModel):
     @field_validator("identificador")
     @classmethod
     def identificador_preenchido(cls, valor: str) -> str:
-        """Exige o identificador e o normaliza como e-mail (com "@") ou CPF."""
+        """Exige o identificador e o normaliza como e-mail (com "@") ou CPF.
+
+        Args:
+            valor (str): E-mail ou CPF informado.
+
+        Returns:
+            str: E-mail ou CPF normalizado.
+
+        Raises:
+            ValueError: Quando o identificador está em branco ou o e-mail/CPF é inválido.
+        """
         texto = valor.strip()
         if not texto:
             raise ValueError("Informe o e-mail ou o CPF para entrar.")
@@ -49,7 +69,17 @@ class ConfirmarLoginEntrada(BaseModel):
     @field_validator("codigo")
     @classmethod
     def codigo_somente_numeros(cls, valor: str) -> str:
-        """Aceita só o código com a quantidade exata de dígitos (ASCII)."""
+        """Aceita só o código com a quantidade exata de dígitos (ASCII).
+
+        Args:
+            valor (str): Código informado.
+
+        Returns:
+            str: Código sem espaços nas pontas.
+
+        Raises:
+            ValueError: Quando o código não tem exatamente ``TAMANHO_CODIGO_LOGIN`` dígitos.
+        """
         texto = valor.strip()
         if len(texto) != TAMANHO_CODIGO_LOGIN or not (texto.isascii() and texto.isdigit()):
             raise ValueError(f"O código de confirmação deve ter {TAMANHO_CODIGO_LOGIN} números.")
@@ -98,6 +128,12 @@ class TokenResposta(BaseModel):
 def montar_usuario_publico(usuario: Usuario) -> UsuarioPublico:
     """Monta o UsuarioPublico com o perfil e os ids de paciente, profissional
     e administrador que a conta tiver.
+
+    Args:
+        usuario (Usuario): Conta a converter.
+
+    Returns:
+        UsuarioPublico: Dados públicos da conta.
     """
     return UsuarioPublico(
         id=usuario.id,

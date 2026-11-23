@@ -27,13 +27,27 @@ class AltereInfoPessoalInput(BaseModel):
     @field_validator("email")
     @classmethod
     def email_valido(cls, valor: str | None) -> str | None:
-        """Normaliza e valida o e-mail."""
+        """Normaliza e valida o e-mail.
+
+        Args:
+            valor (str | None): E-mail informado, ou ``None``.
+
+        Returns:
+            str | None: E-mail normalizado, ou ``None`` se não informado.
+        """
         return None if valor is None else normalizar_email(valor)
 
     @field_validator("telefone")
     @classmethod
     def telefone_valido(cls, valor: str | None) -> str | None:
-        """Normaliza e valida o telefone."""
+        """Normaliza e valida o telefone.
+
+        Args:
+            valor (str | None): Telefone informado, ou ``None``.
+
+        Returns:
+            str | None: Somente os dígitos do telefone, ou ``None`` se não informado.
+        """
         return None if valor is None else normalizar_telefone(valor)
 
 
@@ -64,13 +78,27 @@ class AltereEnderecoInput(BaseModel):
     @field_validator("numero", mode="before")
     @classmethod
     def numero_texto(cls, valor):
-        """Aceita número enviado como inteiro."""
+        """Aceita número enviado como inteiro.
+
+        Args:
+            valor: Número informado (texto, inteiro ou ``None``).
+
+        Returns:
+            str | None: Número convertido em texto, ou ``None`` se não informado.
+        """
         return None if valor is None else str(valor)
 
     @field_validator("cep")
     @classmethod
     def cep_valido(cls, valor: str | None) -> str | None:
-        """Normaliza e valida o CEP."""
+        """Normaliza e valida o CEP.
+
+        Args:
+            valor (str | None): CEP informado, ou ``None``.
+
+        Returns:
+            str | None: CEP no formato ``00000-000``, ou ``None`` se não informado.
+        """
         return None if valor is None else normalizar_cep(valor)
 
 
@@ -125,7 +153,17 @@ class AlterarSenhaInput(BaseModel):
     @field_validator("nova_senha")
     @classmethod
     def senha_minima(cls, valor: str) -> str:
-        """Mesma regra do cadastro: no mínimo 8 caracteres."""
+        """Mesma regra do cadastro: no mínimo 8 caracteres.
+
+        Args:
+            valor (str): Nova senha informada.
+
+        Returns:
+            str: A nova senha, sem alteração.
+
+        Raises:
+            ValueError: Quando a nova senha tem menos de 8 caracteres.
+        """
         if len(valor) < 8:
             raise ValueError("A nova senha deve ter no mínimo 8 caracteres.")
         return valor

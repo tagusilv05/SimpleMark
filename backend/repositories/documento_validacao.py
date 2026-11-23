@@ -12,6 +12,13 @@ def buscar_documento_por_codigo(db: Session, codigo_verificacao: str) -> Documen
 
     Os joins vêm carregados de uma vez porque a resposta precisa de todos eles e
     esta rota é pública: quanto menos ida e volta ao banco, melhor.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        codigo_verificacao (str): Código de verificação lido do QR-Code.
+
+    Returns:
+        DocumentoClinico | None: Documento encontrado, ou None.
     """
     caminho_esp_prof = (
         joinedload(DocumentoClinico.consulta)

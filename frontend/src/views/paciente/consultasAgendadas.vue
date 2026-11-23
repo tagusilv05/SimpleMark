@@ -18,6 +18,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/services/api'
+import { urlExternaSegura } from '@/utils/url'
 
 const router = useRouter()
 
@@ -109,12 +110,13 @@ async function entrarNaChamada(id) {
   const aba = window.open('', '_blank')
   try {
     const dados = await api.get(`/api/v1/consultas/${id}/videochamada`)
-    if (!dados.meet_link) throw new Error('A chamada desta consulta ainda não está disponível.')
+    const link = urlExternaSegura(dados.meet_link)
+    if (!link) throw new Error('A chamada desta consulta ainda não está disponível.')
     if (aba) {
       aba.opener = null
-      aba.location.href = dados.meet_link
+      aba.location.href = link
     } else {
-      window.location.href = dados.meet_link
+      window.location.href = link
     }
   } catch (e) {
     aba?.close()

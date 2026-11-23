@@ -17,9 +17,23 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migracoes:
+        condition: service_completed_successfully
+    volumes:
+      # Fotos dos profissionais e anexos da Ouvidoria (dados pessoais): fora da imagem
+      - uploads_data:/code/uploads
 
     environment:
+      # Usuário restrito do banco (só lê e grava dados; não cria nem altera tabelas)
       DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY:?Defina SECRET_KEY no .env}
+      AMBIENTE: ${AMBIENTE:-producao}
+      # Administradora inicial (criada só se as três estiverem definidas)
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_SENHA: ${ADMIN_SENHA:-}
+      ADMIN_CPF: ${ADMIN_CPF:-}
+      # Senha dos usuários de exemplo do seed (o seed só roda com AMBIENTE=desenvolvimento)
+      SEED_SENHA: ${SEED_SENHA:-}
       BASE_URL_VALIDACAO: ${BASE_URL_VALIDACAO}
       # Videochamada (Jitsi Meet): servidor onde as salas são abertas
       JITSI_BASE_URL: ${JITSI_BASE_URL:-https://meet.jit.si}
@@ -44,6 +58,20 @@ services:
       MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN}
       MERCADOPAGO_RETURN_URL: ${MERCADOPAGO_RETURN_URL}
 
+  # Aplica as migrações do Alembic (alembic upgrade head) e termina.
+  # Usa o DONO do esquema; o backend só sobe depois que ele termina com sucesso.
+  migracoes:
+    build:
+      context: .
+      dockerfile: Dockerfile.back
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:?Defina MIGRATION_DATABASE_URL no .env}
+    restart: "no"
+
   db:
     image: postgres:16
     container_name: postgres_db
@@ -52,10 +80,16 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5432:5432"
+      # Usuário restrito da API, criado por banco/init/01-usuario-app.sh em volume novo
+      APP_DB_USER: ${APP_DB_USER}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+    # Sem "ports": o banco só é acessível pela rede interna do Compose (host "db").
+    # Para acessar do seu computador, use o Adminer (abaixo) ou:
+    #   docker compose exec db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./banco/init:/docker-entrypoint-initdb.d:ro
+      - ./banco/sql:/banco/sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -76,8 +110,10 @@ services:
     image: adminer
     container_name: adminer
     restart: always
-    ports:  
-      - "8000:8080"
+    ports:
+      # Só acessível da própria máquina (não da rede)
+      - "127.0.0.1:8000:8080"
 
 volumes:
   postgres_data:
+  uploads_data:

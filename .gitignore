@@ -3,10 +3,22 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Variáveis de ambiente
+# Variáveis de ambiente (segredos). Só o .env.example, com valores fictícios, vai para o Git.
 .env
+.env.*
+!.env.example
 
 
 # Anexos enviados pela Ouvidoria (dados pessoais: nunca versionar)
-backend/uploads/ouvidoria/
+backend/uploads/
+
+# Backups e dumps do banco (contêm todos os dados pessoais)
+backups/
+*.sql
+!banco/sql/*.sql
+*.dump
+*.dump.gpg
 .venv/
+
+# Documentação gerada (Sphinx)
+docs/_build/

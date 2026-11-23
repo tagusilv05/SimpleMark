@@ -13,7 +13,18 @@ def _buscar_consultas_do_profissional(
     data_inicio: date | None,
     data_fim: date | None,
 ) -> list[Consulta]:
-    """Consultas do profissional com filtros opcionais, por data e hora."""
+    """Consultas do profissional com filtros opcionais, por data e hora.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_profissional (int): Identificador do profissional.
+        status (str | None): Filtra pelo status da consulta.
+        data_inicio (date | None): Data mínima das consultas.
+        data_fim (date | None): Data máxima das consultas.
+
+    Returns:
+        list[Consulta]: Consultas ordenadas por data e hora.
+    """
     query = (
         db.query(Consulta)
         .join(
@@ -39,7 +50,14 @@ def _buscar_consultas_do_profissional(
 
 
 def _para_schema(c: Consulta) -> ConsultaProfissionalOut:
-    """Monta a resposta da consulta com os dados de contato do paciente."""
+    """Monta a resposta da consulta com os dados de contato do paciente.
+
+    Args:
+        c (Consulta): Consulta a converter.
+
+    Returns:
+        ConsultaProfissionalOut: Consulta com os dados do paciente.
+    """
     usuario = c.paciente.usuario
     return ConsultaProfissionalOut(
         id_consulta=c.id_consulta,
@@ -67,7 +85,19 @@ def listar_consultas_do_profissional(
     data_inicio: date | None = None,
     data_fim: date | None = None,
 ) -> list[ConsultaProfissionalOut] | None:
-    """Consultas do profissional, ou None se ele não existir."""
+    """Consultas do profissional, ou None se ele não existir.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_profissional (int): Identificador do profissional.
+        status (str | None): Filtra pelo status da consulta.
+        data_inicio (date | None): Data mínima das consultas.
+        data_fim (date | None): Data máxima das consultas.
+
+    Returns:
+        list[ConsultaProfissionalOut] | None: Consultas do profissional, ou None
+        se ele não existir.
+    """
     profissional = (
         db.query(Profissional)
         .filter(Profissional.id_profissional == id_profissional)

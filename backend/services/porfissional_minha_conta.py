@@ -39,7 +39,17 @@ TAMANHO_MAX_IMAGEM = 5 * 1024 * 1024  # 5 MB
 
 
 def _extensao_imagem(nome_arquivo: str | None) -> str:
-    """Extensão da imagem enviada; recusa (400) o que não for imagem."""
+    """Extensão da imagem enviada; recusa (400) o que não for imagem.
+
+    Args:
+        nome_arquivo (str | None): Nome do arquivo enviado.
+
+    Returns:
+        str: Extensão em minúsculas, com o ponto.
+
+    Raises:
+        ErroNegocio: 400 se a extensão não for de imagem aceita.
+    """
     extensao = Path(nome_arquivo or "").suffix.lower()
     if extensao not in EXTENSOES_IMAGEM:
         raise ErroNegocio("Envie uma imagem JPG, PNG, WEBP ou GIF.", 400)
@@ -47,13 +57,27 @@ def _extensao_imagem(nome_arquivo: str | None) -> str:
 
 
 def _excluir_conselho_se_livre(id_conselho, db: Session, exceto_id_esp_prof=None) -> None:
-    """Apaga o conselho só se nenhum outro vínculo o usar (sem commit)."""
+    """Apaga o conselho só se nenhum outro vínculo o usar (sem commit).
+
+    Args:
+        id_conselho: Identificador do conselho, ou None.
+        db (Session): Sessão do banco de dados.
+        exceto_id_esp_prof: Vínculo a desconsiderar na verificação de uso.
+    """
     if id_conselho is not None and not repositories_conselho_em_uso(id_conselho, db, exceto_id_esp_prof):
         repositories_excluir_conselho(id_conselho=id_conselho, db=db)
 
 
 def _consultas_do_vinculo(id_esp_prof, db: Session):
-    """Consultas marcadas num vínculo profissional-especialidade."""
+    """Consultas marcadas num vínculo profissional-especialidade.
+
+    Args:
+        id_esp_prof: Identificador do vínculo profissional-especialidade.
+        db (Session): Sessão do banco de dados.
+
+    Returns:
+        list[Consulta]: Consultas do vínculo.
+    """
     return db.query(Consulta).filter(Consulta.id_esp_prof == id_esp_prof).all()
 
 # Busca o usuário, verifica se está ativo e retorna o profissional associado
@@ -61,6 +85,17 @@ def verificar_profissional_usuario(id_usuario, db: Session):
     """Profissional ligado ao usuário ou ao id_profissional.
 
     Aceita UUID (ou string de UUID) do usuário, ou ID inteiro (ou string numérica) do profissional.
+
+    Args:
+        id_usuario: UUID do usuário ou ID do profissional.
+        db (Session): Sessão do banco de dados.
+
+    Returns:
+        Profissional: Profissional associado.
+
+    Raises:
+        ValueError: Se o identificador for inválido, o usuário ou o profissional
+            não existir, ou o usuário estiver inativo.
     """
     is_numeric = False
     if isinstance(id_usuario, int):
@@ -96,7 +131,17 @@ def verificar_profissional_usuario(id_usuario, db: Session):
 
 # Atualiza a imagem do profissional no diretório de uploads
 async def atualizar_imagem_profissional(imagem):
-    """Salva a imagem enviada em uploads/profissionais e devolve o caminho."""
+    """Salva a imagem enviada em uploads/profissionais e devolve o caminho.
+
+    Args:
+        imagem (UploadFile): Arquivo de imagem enviado.
+
+    Returns:
+        str: Caminho do arquivo salvo.
+
+    Raises:
+        ErroNegocio: 400 se o arquivo não for imagem aceita ou passar de 5 MB.
+    """
 
     extensao = _extensao_imagem(imagem.filename)
     conteudo = await imagem.read()
@@ -115,8 +160,21 @@ async def atualizar_imagem_profissional(imagem):
 async def altera_info_profissional(dados, imagem, db: Session):
     """Atualiza a descrição, a imagem e adiciona especialidades ao profissional.
 
-    Cada especialidade nova cria um conselho e um vínculo com o valor da consulta.
-    Levanta ValueError se uma especialidade não existir. Em erro faz rollback.
+    Cada especialidade nova cria um conselho e um vínculo com o valor da consulta;
+    especialidade já vinculada tem o valor e o conselho atualizados. Em erro faz
+    rollback.
+
+    Args:
+        dados: Dados com ``id_usuario``, ``info_profissional`` e a lista
+            ``especialidade``.
+        imagem (UploadFile | None): Nova imagem do profissional, opcional.
+        db (Session): Sessão do banco de dados.
+
+    Returns:
+        Profissional: Profissional atualizado.
+
+    Raises:
+        ValueError: Se uma especialidade não existir ou o valor for negativo.
     """
 
     try:
@@ -196,7 +254,15 @@ async def altera_info_profissional(dados, imagem, db: Session):
 
 # Busca as informações do profissional e suas especialidades vinculadas
 def buscar_info_profissional(id_usuario, db: Session):
-    """Descrição do profissional e suas especialidades com conselho e valor."""
+    """Descrição do profissional e suas especialidades com conselho e valor.
+
+    Args:
+        id_usuario: UUID do usuário ou ID do profissional.
+        db (Session): Sessão do banco de dados.
+
+    Returns:
+        dict: Dados do profissional, com a lista de especialidades.
+    """
 
     profissional = verificar_profissional_usuario(id_usuario=id_usuario, db=db)
 
@@ -238,7 +304,15 @@ def buscar_info_profissional(id_usuario, db: Session):
 def alterar_valor_consulta(dados, db: Session):
     """Altera o valor da consulta do profissional em uma especialidade.
 
-    Levanta ValueError se o vínculo não existir ou se o valor for negativo.
+    Args:
+        dados: Dados com ``id_usuario``, ``id_especialidade`` e ``valor_consulta``.
+        db (Session): Sessão do banco de dados.
+
+    Returns:
+        ProfissionalEspecialidade: Vínculo com o valor atualizado.
+
+    Raises:
+        ValueError: Se o vínculo não existir ou se o valor for negativo.
     """
     try:
 
@@ -270,7 +344,15 @@ def alterar_valor_consulta(dados, db: Session):
 async def salvar_imagem_profissional(id_usuario, imagem, db: Session):
     """Salva a imagem enviada e grava o caminho no profissional.
 
-    Devolve o caminho do arquivo. Em erro faz rollback e relança.
+    Apaga a imagem antiga, se houver. Em erro faz rollback e relança.
+
+    Args:
+        id_usuario: UUID do usuário ou ID do profissional.
+        imagem (UploadFile): Arquivo de imagem enviado.
+        db (Session): Sessão do banco de dados.
+
+    Returns:
+        str: Caminho do arquivo salvo.
     """
     try:
         profissional = verificar_profissional_usuario(id_usuario=id_usuario, db=db)
@@ -298,7 +380,18 @@ async def salvar_imagem_profissional(id_usuario, imagem, db: Session):
 
 # Busca o caminho da imagem do profissional
 def buscar_imagem_profissional(id_usuario, db: Session):
-    """Caminho da imagem do profissional; ValueError se não houver arquivo."""
+    """Caminho da imagem do profissional.
+
+    Args:
+        id_usuario: UUID do usuário ou ID do profissional.
+        db (Session): Sessão do banco de dados.
+
+    Returns:
+        Path: Caminho do arquivo da imagem.
+
+    Raises:
+        ValueError: Se o profissional não tiver imagem ou o arquivo não existir.
+    """
 
     profissional = verificar_profissional_usuario(id_usuario=id_usuario, db=db)
 
@@ -317,6 +410,9 @@ def deletar_imagem_profissional(path_imagem):
     """Apaga o arquivo da imagem (caminho gravado em path_imagem), se existir.
 
     Só apaga arquivos dentro de uploads/profissionais.
+
+    Args:
+        path_imagem (str): Caminho gravado da imagem.
     """
     caminho = Path(path_imagem)
     if caminho.parent.resolve() != PASTA_IMAGENS.resolve():
@@ -332,8 +428,15 @@ def deletar_imagem_profissional(path_imagem):
 def excluir_profissional(id_usuario, db: Session):
     """Exclui o profissional com vínculos, horários, conselhos, endereço e usuário.
 
-    Levanta ValueError se o usuário não for profissional ativo. Em erro faz
-    rollback e relança.
+    Em erro faz rollback e relança.
+
+    Args:
+        id_usuario: UUID do usuário profissional.
+        db (Session): Sessão do banco de dados.
+
+    Raises:
+        ErroNegocio: 409 se houver consulta agendada que ainda vai acontecer.
+        ValueError: Se o usuário não for profissional ativo ou não existir.
     """
     try:
         
@@ -398,7 +501,14 @@ def excluir_profissional(id_usuario, db: Session):
 def excluir_especialidade_profissional(id_usuario, id_especialidade: int, db: Session):
     """Remove uma especialidade do profissional com seus horários e conselho.
 
-    Levanta ValueError se a especialidade não for do profissional.
+    Args:
+        id_usuario: UUID do usuário ou ID do profissional.
+        id_especialidade (int): Identificador da especialidade.
+        db (Session): Sessão do banco de dados.
+
+    Raises:
+        ValueError: Se a especialidade não for do profissional.
+        ErroNegocio: 409 se a especialidade já tiver consultas marcadas.
     """
     try:
 

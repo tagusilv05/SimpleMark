@@ -12,22 +12,54 @@ class RepositorioUsuario:
     """Consultas da tabela usuario. Não aplica regra de negócio."""
 
     def __init__(self, db: Session) -> None:
-        """Guarda a sessão do banco usada nas consultas."""
+        """Guarda a sessão do banco usada nas consultas.
+
+        Args:
+            db (Session): Sessão do banco de dados.
+        """
         self.db = db
 
     def buscar_por_id(self, id_usuario: uuid.UUID) -> Usuario | None:
-        """Usuário pelo id, ou None se não existir."""
+        """Usuário pelo id, ou None se não existir.
+
+        Args:
+            id_usuario (uuid.UUID): Id do usuário.
+
+        Returns:
+            Usuario | None: Usuário encontrado, ou None.
+        """
         return self.db.get(Usuario, id_usuario)
 
     def buscar_por_email(self, email: str) -> Usuario | None:
-        """Usuário pelo e-mail, ou None se não existir."""
+        """Usuário pelo e-mail, ou None se não existir.
+
+        Args:
+            email (str): E-mail do usuário.
+
+        Returns:
+            Usuario | None: Usuário encontrado, ou None.
+        """
         return self.db.scalar(select(Usuario).where(Usuario.email == email))
 
     def buscar_por_cpf(self, cpf: str) -> Usuario | None:
-        """Usuário pelo CPF, ou None se não existir."""
+        """Usuário pelo CPF, ou None se não existir.
+
+        Args:
+            cpf (str): CPF do usuário.
+
+        Returns:
+            Usuario | None: Usuário encontrado, ou None.
+        """
         return self.db.scalar(select(Usuario).where(Usuario.cpf == cpf))
 
     def adicionar(self, usuario: Usuario) -> Usuario:
-        """Inclui o usuário na sessão, sem flush nem commit."""
+        """Inclui o usuário na sessão, sem flush nem commit.
+
+        Args:
+            usuario (Usuario): Usuário a incluir.
+
+        Returns:
+            Usuario: O mesmo usuário recebido.
+        """
         self.db.add(usuario)
         return usuario

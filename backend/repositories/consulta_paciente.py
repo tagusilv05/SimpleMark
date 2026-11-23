@@ -12,7 +12,14 @@ STATUS_QUE_OCUPAM = ("agendada", "confirmada", "realizada", "em andamento")
 
 
 def _base_query(db: Session):
-    """Query de consulta com profissional, especialidade, avaliação e pagamento."""
+    """Query de consulta com profissional, especialidade, avaliação e pagamento.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+
+    Returns:
+        Query: Query de ``Consulta`` com os relacionamentos carregados.
+    """
     return (
         db.query(Consulta)
         .options(
@@ -40,6 +47,18 @@ def listar_por_paciente(
 
     Filtros opcionais por status e intervalo de datas; ordena da consulta mais
     recente para a mais antiga.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_paciente (int): Id do paciente.
+        status (Optional[str]): Status das consultas; None não filtra.
+        data_inicio (Optional[date]): Data mínima da consulta; None não filtra.
+        data_fim (Optional[date]): Data máxima da consulta; None não filtra.
+        skip (int): Quantidade de registros a pular.
+        limit (int): Quantidade máxima de registros da página.
+
+    Returns:
+        Tuple[list[Consulta], int]: Consultas da página e o total de registros.
     """
     query = _base_query(db).filter(Consulta.id_paciente == id_paciente)
 
@@ -63,7 +82,16 @@ def listar_por_paciente(
 def buscar_por_id_e_paciente(
     db: Session, id_consulta: int, id_paciente: int
 ) -> Optional[Consulta]:
-    """Consulta pelo id, só se pertencer ao paciente; senão None."""
+    """Consulta pelo id, só se pertencer ao paciente; senão None.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Id da consulta.
+        id_paciente (int): Id do paciente dono da consulta.
+
+    Returns:
+        Optional[Consulta]: Consulta encontrada, ou None.
+    """
     return (
         _base_query(db)
         .filter(
@@ -78,6 +106,13 @@ def buscar_horario_para_agendar(db: Session, id_horario: int) -> Optional[DataHo
     """Horário da agenda com profissional e especialidade, travado até o commit.
 
     O FOR UPDATE impede que dois pacientes agendem o mesmo horário ao mesmo tempo.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_horario (int): Id do horário.
+
+    Returns:
+        Optional[DataHorario]: Horário travado, ou None se não existir.
     """
     return (
         db.query(DataHorario)
@@ -93,7 +128,15 @@ def buscar_horario_para_agendar(db: Session, id_horario: int) -> Optional[DataHo
 
 
 def existe_consulta_no_horario(db: Session, horario: DataHorario) -> bool:
-    """Se já há consulta ativa no vínculo, data e hora do horário."""
+    """Se já há consulta ativa no vínculo, data e hora do horário.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        horario (DataHorario): Horário a verificar.
+
+    Returns:
+        bool: True se existe consulta com status que ocupa o horário.
+    """
     return (
         db.query(Consulta.id_consulta)
         .filter(
@@ -108,7 +151,16 @@ def existe_consulta_no_horario(db: Session, horario: DataHorario) -> bool:
 
 
 def criar_consulta_no_horario(db: Session, horario: DataHorario, id_paciente: int) -> Consulta:
-    """Grava a consulta no horário e marca o horário como ocupado (sem commit)."""
+    """Grava a consulta no horário e marca o horário como ocupado (sem commit).
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        horario (DataHorario): Horário em que a consulta será marcada.
+        id_paciente (int): Id do paciente.
+
+    Returns:
+        Consulta: Consulta criada (status ``agendada``), já com id após o flush.
+    """
     consulta = Consulta(
         id_paciente=id_paciente,
         id_esp_prof=horario.id_esp_prof,

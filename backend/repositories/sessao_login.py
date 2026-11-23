@@ -13,11 +13,23 @@ class RepositorioSessaoLogin:
     """Sessões de login: criação, busca e registro de atividade. Não aplica regra de negócio."""
 
     def __init__(self, db: Session) -> None:
-        """Guarda a sessão do banco usada nas consultas."""
+        """Guarda a sessão do banco usada nas consultas.
+
+        Args:
+            db (Session): Sessão do banco de dados.
+        """
         self.db = db
 
     def criar(self, id_usuario: uuid.UUID, agora: datetime) -> SessaoLogin:
-        """Abre uma sessão para o usuário e faz flush para o id já ficar disponível."""
+        """Abre uma sessão para o usuário e faz flush para o id já ficar disponível.
+
+        Args:
+            id_usuario (uuid.UUID): Id do usuário dono da sessão.
+            agora (datetime): Instante de criação e da última atividade.
+
+        Returns:
+            SessaoLogin: Sessão criada.
+        """
         sessao = SessaoLogin(
             id_usuario=id_usuario,
             criada_em=agora,
@@ -28,7 +40,15 @@ class RepositorioSessaoLogin:
         return sessao
 
     def buscar(self, id_sessao: uuid.UUID, id_usuario: uuid.UUID) -> SessaoLogin | None:
-        """Sessão pelo id, só se pertencer ao usuário; senão None."""
+        """Sessão pelo id, só se pertencer ao usuário; senão None.
+
+        Args:
+            id_sessao (uuid.UUID): Id da sessão.
+            id_usuario (uuid.UUID): Id do usuário dono da sessão.
+
+        Returns:
+            SessaoLogin | None: Sessão encontrada, ou None.
+        """
         comando = select(SessaoLogin).where(
             SessaoLogin.id == id_sessao,
             SessaoLogin.id_usuario == id_usuario,
@@ -40,6 +60,12 @@ class RepositorioSessaoLogin:
 
         Só grava se a atividade registrada for anterior a anterior_a, o que poupa
         um UPDATE a cada requisição. Não sincroniza objetos já carregados na sessão.
+
+        Args:
+            id_sessao (uuid.UUID): Id da sessão.
+            agora (datetime): Novo valor da última atividade.
+            anterior_a (datetime): Só atualiza se a última atividade for anterior a este
+                instante.
         """
         comando = (
             update(SessaoLogin)

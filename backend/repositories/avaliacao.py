@@ -19,7 +19,15 @@ from models.models import (
 
 
 def buscar_consulta(db: Session, id_consulta: int) -> Optional[Consulta]:
-    """Consulta pelo id, ou None se não existir."""
+    """Consulta pelo id, ou None se não existir.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Id da consulta.
+
+    Returns:
+        Optional[Consulta]: Consulta encontrada, ou None.
+    """
     return (
         db.query(Consulta)
         .filter(Consulta.id_consulta == id_consulta)
@@ -28,7 +36,15 @@ def buscar_consulta(db: Session, id_consulta: int) -> Optional[Consulta]:
 
 
 def buscar_avaliacao(db: Session, id_consulta: int) -> Optional[Avaliacao]:
-    """Avaliação da consulta, ou None se ainda não houver."""
+    """Avaliação da consulta, ou None se ainda não houver.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Id da consulta.
+
+    Returns:
+        Optional[Avaliacao]: Avaliação encontrada, ou None.
+    """
     return (
         db.query(Avaliacao)
         .filter(Avaliacao.id_consulta == id_consulta)
@@ -37,7 +53,15 @@ def buscar_avaliacao(db: Session, id_consulta: int) -> Optional[Avaliacao]:
 
 
 def criar_avaliacao(db: Session, avaliacao: Avaliacao) -> Avaliacao:
-    """Grava a avaliação com commit e a devolve recarregada do banco."""
+    """Grava a avaliação com commit e a devolve recarregada do banco.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        avaliacao (Avaliacao): Avaliação a gravar.
+
+    Returns:
+        Avaliacao: Avaliação gravada, recarregada do banco.
+    """
     db.add(avaliacao)
     db.commit()
     db.refresh(avaliacao)
@@ -50,6 +74,14 @@ def calcular_media_profissional(
     """Média (duas casas) e total de avaliações do profissional.
 
     Soma todas as especialidades dele. A média é None quando não há avaliação.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_profissional (int): Id do profissional.
+
+    Returns:
+        Tuple[Optional[float], int]: Média arredondada (ou None) e total de
+        avaliações.
     """
     media, total = (
         db.query(func.avg(Avaliacao.avaliacao), func.count(Avaliacao.id_consulta))
@@ -68,28 +100,69 @@ class RepositorioAvaliacao:
     """Consultas de avaliacao. Não aplica regra de negócio."""
 
     def __init__(self, db: Session) -> None:
-        """Guarda a sessão do banco usada nas consultas."""
+        """Guarda a sessão do banco usada nas consultas.
+
+        Args:
+            db (Session): Sessão do banco de dados.
+        """
         self.db = db
 
     def buscar_consulta(self, id_consulta: int) -> Consulta | None:
-        """Consulta pelo id, ou None se não existir."""
+        """Consulta pelo id, ou None se não existir.
+
+        Args:
+            id_consulta (int): Id da consulta.
+
+        Returns:
+            Consulta | None: Consulta encontrada, ou None.
+        """
         return self.db.get(Consulta, id_consulta)
 
     def buscar_por_consulta(self, id_consulta: int) -> Avaliacao | None:
-        """Avaliação pela chave da consulta, ou None se não houver."""
+        """Avaliação pela chave da consulta, ou None se não houver.
+
+        Args:
+            id_consulta (int): Id da consulta avaliada.
+
+        Returns:
+            Avaliacao | None: Avaliação encontrada, ou None.
+        """
         return self.db.get(Avaliacao, id_consulta)
 
     def adicionar(self, avaliacao: Avaliacao) -> Avaliacao:
-        """Inclui a avaliação na sessão, sem flush nem commit."""
+        """Inclui a avaliação na sessão, sem flush nem commit.
+
+        Args:
+            avaliacao (Avaliacao): Avaliação a incluir.
+
+        Returns:
+            Avaliacao: A mesma avaliação recebida.
+        """
         self.db.add(avaliacao)
         return avaliacao
 
     def buscar_profissional(self, id_profissional: int) -> Profissional | None:
-        """Profissional pelo id, ou None se não existir."""
+        """Profissional pelo id, ou None se não existir.
+
+        Args:
+            id_profissional (int): Id do profissional.
+
+        Returns:
+            Profissional | None: Profissional encontrado, ou None.
+        """
         return self.db.get(Profissional, id_profissional)
 
     def buscar_vinculo_para_atualizar(self, id_esp_prof: int) -> ProfissionalEspecialidade | None:
-        """Trava a linha para duas avaliações simultâneas não gravarem médias antigas."""
+        """Trava a linha para duas avaliações simultâneas não gravarem médias antigas.
+
+        Busca o vínculo profissional-especialidade com SELECT ... FOR UPDATE.
+
+        Args:
+            id_esp_prof (int): Id do vínculo profissional-especialidade.
+
+        Returns:
+            ProfissionalEspecialidade | None: Vínculo travado, ou None se não existir.
+        """
         comando = (
             select(ProfissionalEspecialidade)
             .where(ProfissionalEspecialidade.id_esp_prof == id_esp_prof)
@@ -101,6 +174,12 @@ class RepositorioAvaliacao:
         """Média das notas das consultas de um vínculo profissional-especialidade.
 
         Ignora avaliações sem nota; devolve None se não houver nenhuma.
+
+        Args:
+            id_esp_prof (int): Id do vínculo profissional-especialidade.
+
+        Returns:
+            float | None: Média das notas, ou None.
         """
         comando = (
             select(func.avg(Avaliacao.nota))
@@ -111,7 +190,16 @@ class RepositorioAvaliacao:
         return None if media is None else float(media)
 
     def contar_notas_do_profissional(self, id_profissional: int) -> dict[int, int]:
-        """Quantidade de avaliações por nota (1 a 5), somando todas as especialidades."""
+        """Quantidade de avaliações por nota (1 a 5), somando todas as especialidades.
+
+        Ignora avaliações sem nota.
+
+        Args:
+            id_profissional (int): Id do profissional.
+
+        Returns:
+            dict[int, int]: Mapa nota -> quantidade; notas sem avaliação não aparecem.
+        """
         comando = (
             select(Avaliacao.nota, func.count())
             .join(Consulta, Consulta.id_consulta == Avaliacao.id_consulta)
@@ -125,7 +213,16 @@ class RepositorioAvaliacao:
         return {int(nota): int(total) for nota, total in self.db.execute(comando)}
 
     def agregar_por_profissional(self, id_especialidade: int | None = None) -> list[tuple[int, str, float, int]]:
-        """(id_profissional, nome, média, total) dos profissionais ativos com ao menos uma nota."""
+        """(id_profissional, nome, média, total) dos profissionais ativos com ao menos uma nota.
+
+        Args:
+            id_especialidade (int | None): Restringe às avaliações dessa especialidade;
+                None considera todas.
+
+        Returns:
+            list[tuple[int, str, float, int]]: Uma tupla
+            (id_profissional, nome, média, total de notas) por profissional.
+        """
         comando = (
             select(
                 Profissional.id_profissional,
@@ -151,6 +248,12 @@ class RepositorioAvaliacao:
         """Nomes das especialidades de cada profissional, em ordem alfabética.
 
         Lista de ids vazia devolve dicionário vazio sem consultar o banco.
+
+        Args:
+            ids_profissionais (list[int]): Ids dos profissionais.
+
+        Returns:
+            dict[int, list[str]]: Mapa id do profissional -> nomes das especialidades.
         """
         if not ids_profissionais:
             return {}
@@ -169,6 +272,12 @@ class RepositorioAvaliacao:
         """id do usuário (UUID) de cada profissional, para o front buscar a foto.
 
         Lista de ids vazia devolve dicionário vazio sem consultar o banco.
+
+        Args:
+            ids_profissionais (list[int]): Ids dos profissionais.
+
+        Returns:
+            dict: Mapa id do profissional -> id do usuário (UUID).
         """
         if not ids_profissionais:
             return {}

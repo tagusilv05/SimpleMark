@@ -41,12 +41,26 @@ class FalhaGeracaoCodigo(Exception):
 
 
 def montar_url_validacao(codigo_verificacao: str) -> str:
-    """URL que o QR-Code carrega. O endpoint que a recebe é de outro módulo."""
+    """URL que o QR-Code carrega. O endpoint que a recebe é de outro módulo.
+
+    Args:
+        codigo_verificacao (str): Código único do documento.
+
+    Returns:
+        str: URL pública de validação do documento.
+    """
     return f"{base_url_validacao().rstrip('/')}/documentos/validar/{codigo_verificacao}"
 
 
 def _gerar_qrcode_base64(url: str) -> str:
-    """Imagem PNG do QR-Code da URL, em base64."""
+    """Imagem PNG do QR-Code da URL, em base64.
+
+    Args:
+        url (str): URL codificada no QR-Code.
+
+    Returns:
+        str: Imagem PNG codificada em base64.
+    """
     imagem = qrcode.make(url)
     buffer = io.BytesIO()
     imagem.save(buffer, format="PNG")
@@ -59,6 +73,16 @@ def aplicar_qrcode(db: Session, documento: DocumentoClinico) -> bool:
     Devolve True se gerou agora e False se já existia. Não faz commit: quem chama
     é dono da transação. Usado tanto pelo endpoint do QR-Code quanto pela emissão
     da receita e do atestado.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        documento (DocumentoClinico): Documento que recebe o código e o QR-Code.
+
+    Returns:
+        bool: True se gerou agora, False se já existia.
+
+    Raises:
+        FalhaGeracaoCodigo: Se não obtiver código livre após ``MAX_TENTATIVAS``.
     """
     if documento.codigo_verificacao and documento.qr_code:
         return False
@@ -92,6 +116,19 @@ def gerar_qrcode_documento(
 
     O segundo item da tupla diz se o QR-Code foi criado agora (201) ou se já
     existia (200).
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_documento (int): Identificador do documento.
+        usuario (Usuario): Usuário autenticado que fez o pedido.
+
+    Returns:
+        tuple[DocumentoClinico, bool]: Documento e se o QR-Code foi criado agora.
+
+    Raises:
+        ProfissionalNaoResponsavel: Se o usuário não for o profissional da
+            consulta do documento.
+        DocumentoNaoEncontrado: Se o documento não existir.
     """
     profissional = usuario.profissional
     if profissional is None:

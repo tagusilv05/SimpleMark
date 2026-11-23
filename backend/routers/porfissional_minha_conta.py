@@ -53,6 +53,20 @@ async def alterar_info_profissional(
     profissional já tem é atualizada, não duplicada). Exige login do próprio
     profissional. Responde 400 se o usuário não for profissional ativo, se o JSON
     for inválido ou se a especialidade não existir; outros erros, 500.
+
+    Args:
+        usuario (Usuario): Usuário logado, injetado pelo FastAPI.
+        dados (str): JSON em texto com os dados do perfil (inclui ``id_usuario``).
+        imagem (UploadFile | None): Imagem do profissional, opcional.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        dict: Mensagem de sucesso.
+
+    Raises:
+        HTTPException: 422 quando ``dados`` não é um JSON válido do perfil; 400
+            quando o service levanta ``ValueError``; 500 para outros erros.
+        ErroNegocio: Repassado sem alteração quando levantado pelo service.
     """
     try:
         dados_obj = AdicionaInfoProfissionalInput(**json.loads(dados))
@@ -83,6 +97,17 @@ async def buscar_info_profissional(id_usuario: str, db: Session = Depends(get_db
     """Devolve a descrição do profissional e suas especialidades, conselho e valor.
 
     Rota sem autenticação. Responde 404 se o usuário não for profissional ativo.
+
+    Args:
+        id_usuario (str): Id da conta do profissional.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        BuscarInfoProfissionalOutput: Descrição e especialidades do profissional.
+
+    Raises:
+        HTTPException: 404 quando o service levanta ``ValueError``; 500 para outros
+            erros.
     """
     try:
         resultado = service_buscar_info_profissional(id_usuario=id_usuario, db=db)
@@ -104,6 +129,18 @@ async def alterar_valor_consulta(dados: AlterarValorConsultaInput, usuario: Usua
 
     Exige login do próprio profissional. Responde 404 se o usuário não for profissional ativo, se
     não tiver a especialidade ou se o valor for negativo.
+
+    Args:
+        dados (AlterarValorConsultaInput): Id da conta, especialidade e novo valor.
+        usuario (Usuario): Usuário logado, injetado pelo FastAPI.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        AlterarValorConsultaOutput: Valor atualizado.
+
+    Raises:
+        HTTPException: 404 quando o service levanta ``ValueError``; 500 para outros
+            erros.
     """
     exigir_propria_conta(usuario, dados.id_usuario)
     try:
@@ -130,6 +167,20 @@ async def salvar_imagem_profissional(
     """Salva a imagem do profissional em uploads/profissionais e grava o caminho.
 
     Exige login do próprio profissional. Responde 404 se o usuário não for profissional ativo.
+
+    Args:
+        usuario (Usuario): Usuário logado, injetado pelo FastAPI.
+        id_usuario (uuid.UUID): Id da conta do profissional.
+        imagem (UploadFile): Arquivo da imagem.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        dict: Mensagem de sucesso.
+
+    Raises:
+        HTTPException: 404 quando o service levanta ``ValueError``; 500 para outros
+            erros.
+        ErroNegocio: Repassado sem alteração quando levantado pelo service.
     """
     exigir_propria_conta(usuario, id_usuario)
     try:
@@ -156,6 +207,17 @@ async def buscar_imagem_profissional(id_usuario: str, db: Session = Depends(get_
 
     Rota sem autenticação. Responde 404 se o usuário não for profissional ativo, se
     não tiver imagem ou se o arquivo não existir.
+
+    Args:
+        id_usuario (str): Id da conta do profissional.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        FileResponse: Arquivo da imagem.
+
+    Raises:
+        HTTPException: 404 quando o service levanta ``ValueError``; 500 para outros
+            erros.
     """
     try:
         caminho = service_buscar_imagem_profissional(id_usuario=id_usuario, db=db)
@@ -177,7 +239,18 @@ async def buscar_imagem_profissional(id_usuario: str, db: Session = Depends(get_
 # Endpoint responsável por listar todas as especialidades cadastradas
 @router.get("/lista-especialidade", response_model=list[BuscarEspecialidadeOutput])
 async def lista_especialidade(db: Session = Depends(get_db)):
-    """Lista todas as especialidades cadastradas. Rota pública."""
+    """Lista todas as especialidades cadastradas. Rota pública.
+
+    Args:
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        list: Especialidades cadastradas, serializadas como
+        ``BuscarEspecialidadeOutput``.
+
+    Raises:
+        HTTPException: Quando ocorre erro ao listar as especialidades (500).
+    """
     try:
         especialidades = repositories_listar_especialidades(db)
         return especialidades
@@ -194,6 +267,19 @@ def excluir_especialidade(dados: ExcluirEpecialidadeInput, usuario: UsuarioAtual
 
     Exige login do próprio profissional. Responde 404 se o usuário não for profissional ativo ou
     não tiver a especialidade.
+
+    Args:
+        dados (ExcluirEpecialidadeInput): Id da conta e id da especialidade.
+        usuario (Usuario): Usuário logado, injetado pelo FastAPI.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        dict: Mensagem de sucesso.
+
+    Raises:
+        HTTPException: 404 quando o service levanta ``ValueError``; 500 para outros
+            erros.
+        ErroNegocio: Repassado sem alteração quando levantado pelo service.
     """
     exigir_propria_conta(usuario, dados.id_usuario)
     try:

@@ -14,8 +14,18 @@ def avaliar_consulta(
 ) -> AvaliacaoResponse:
     """Registra a avaliação do paciente para uma consulta realizada.
 
-    Levanta HTTPException 404 se a consulta não existir, 403 se for de outro
-    paciente, 400 se não estiver "realizada" e 409 se já tiver sido avaliada.
+    Args:
+        db (Session): Sessão do banco de dados.
+        dados (AvaliacaoCreate): Consulta avaliada, nota e feedback.
+        id_paciente (int): Identificador do paciente que está avaliando.
+
+    Returns:
+        AvaliacaoResponse: Avaliação gravada, com o profissional da consulta.
+
+    Raises:
+        HTTPException: 404 se a consulta não existir, 403 se for de outro
+            paciente, 400 se não estiver "realizada" e 409 se já tiver sido
+            avaliada.
     """
     consulta = buscar_consulta(db, dados.id_consulta)
 
@@ -60,7 +70,15 @@ def avaliar_consulta(
 def obter_media_profissional(
     db: Session, id_profissional: int
 ) -> MediaProfissionalResponse:
-    """Média das avaliações do profissional e o total de avaliações."""
+    """Média das avaliações do profissional e o total de avaliações.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_profissional (int): Identificador do profissional.
+
+    Returns:
+        MediaProfissionalResponse: Média das notas e total de avaliações.
+    """
     media, total = calcular_media_profissional(db, id_profissional)
     return MediaProfissionalResponse(
         id_profissional=id_profissional,

@@ -17,7 +17,17 @@ class MedicamentoInput(BaseModel):
     @field_validator("medicamento", "dosagem", "posologia", "quantidade")
     @classmethod
     def sem_espaco_sobrando(cls, valor: str) -> str:
-        """Tira os espaços das pontas e recusa campo em branco."""
+        """Tira os espaços das pontas e recusa campo em branco.
+
+        Args:
+            valor (str): Valor informado no campo do medicamento.
+
+        Returns:
+            str: Valor sem espaços nas pontas.
+
+        Raises:
+            ValueError: Quando o campo está em branco.
+        """
         texto = valor.strip()
         if not texto:
             raise ValueError("Preencha todos os campos do medicamento.")

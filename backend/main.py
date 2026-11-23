@@ -1,14 +1,18 @@
 """Ponto de entrada da API SimpleMark.
 
-Na importação, cria as tabelas, aplica as migrações, cria o administrador
-inicial e roda o seed; depois monta o app FastAPI com CORS, tratadores de erro
-e rotas.
+Na importação, cria o administrador inicial (se configurado no .env) e, só em
+desenvolvimento, roda o seed; depois monta o app FastAPI com CORS, tratadores de
+erro e rotas.
+
+O esquema do banco NÃO é criado aqui: ele é versionado com o Alembic e aplicado
+com ``alembic upgrade head`` (serviço ``migracoes`` do docker compose), usando um
+usuário com permissão de DDL. A API conecta com um usuário que só lê e grava dados.
 """
+
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database.connection import Base, engine
-from database.migracoes import aplicar_migracoes
 from models import models
 import models.acesso  # registra credencial e sessao_login sem alterar as tabelas do grupo
 import models.administracao  # registra banimento e logs da administração sem alterar as tabelas do grupo
@@ -43,11 +47,11 @@ from routers.consulta_paciente import router as consulta_paciente_router
 # from routers import avaliacao
 from routers.avaliacao import router as avaliacao_router
 
-Base.metadata.create_all(bind=engine)
-aplicar_migracoes()
 criar_admin_inicial()
 
-criar_seed()
+# Dados de exemplo só em desenvolvimento, nunca no banco de uso real.
+if os.getenv("AMBIENTE") == "desenvolvimento":
+    criar_seed()
 
 app = FastAPI()
 

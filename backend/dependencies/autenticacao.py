@@ -28,31 +28,73 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 
 def get_servico_cadastro(db: DbSession) -> ServicoCadastro:
-    """Fornece o serviço de cadastro ligado à sessão do banco."""
+    """Fornece o serviço de cadastro ligado à sessão do banco.
+
+    Args:
+        db (Session): Sessão do banco da requisição.
+
+    Returns:
+        ServicoCadastro: Serviço de cadastro.
+    """
     return ServicoCadastro(db)
 
 
 def get_servico_autenticacao(db: DbSession) -> ServicoAutenticacao:
-    """Fornece o serviço de autenticação ligado à sessão do banco."""
+    """Fornece o serviço de autenticação ligado à sessão do banco.
+
+    Args:
+        db (Session): Sessão do banco da requisição.
+
+    Returns:
+        ServicoAutenticacao: Serviço de autenticação.
+    """
     return ServicoAutenticacao(db)
 
 
 def get_servico_sessao(db: DbSession) -> ServicoSessao:
-    """Fornece o serviço de sessão de login ligado à sessão do banco."""
+    """Fornece o serviço de sessão de login ligado à sessão do banco.
+
+    Args:
+        db (Session): Sessão do banco da requisição.
+
+    Returns:
+        ServicoSessao: Serviço de sessão de login.
+    """
     return ServicoSessao(db)
 
 
 def get_servico_validacao(db: DbSession) -> ServicoValidacaoProfissional:
-    """Fornece o serviço de validação de profissional ligado à sessão do banco."""
+    """Fornece o serviço de validação de profissional ligado à sessão do banco.
+
+    Args:
+        db (Session): Sessão do banco da requisição.
+
+    Returns:
+        ServicoValidacaoProfissional: Serviço de validação de profissional.
+    """
     return ServicoValidacaoProfissional(db)
 
 
 def get_servico_avaliacao(db: DbSession) -> ServicoAvaliacao:
-    """Fornece o serviço de avaliação ligado à sessão do banco."""
+    """Fornece o serviço de avaliação ligado à sessão do banco.
+
+    Args:
+        db (Session): Sessão do banco da requisição.
+
+    Returns:
+        ServicoAvaliacao: Serviço de avaliação.
+    """
     return ServicoAvaliacao(db)
 
 def get_servico_administracao(db: DbSession) -> ServicoAdministracao:
-    """Fornece o serviço de administração ligado à sessão do banco."""
+    """Fornece o serviço de administração ligado à sessão do banco.
+
+    Args:
+        db (Session): Sessão do banco da requisição.
+
+    Returns:
+        ServicoAdministracao: Serviço de administração.
+    """
     return ServicoAdministracao(db)
 
 
@@ -63,6 +105,18 @@ def sessao_atual(
     """Lê o token Bearer e devolve a sessão de login válida, renovando a atividade.
 
     Responde 401 sem token, com token inválido ou com sessão encerrada/expirada.
+
+    Args:
+        db (Session): Sessão do banco da requisição.
+        credenciais (HTTPAuthorizationCredentials | None): Credenciais do cabeçalho
+            Authorization, ou ``None`` se ausentes.
+
+    Returns:
+        SessaoLogin: Sessão de login válida e renovada.
+
+    Raises:
+        ErroNegocio: Com status 401, se o token não for informado, não for Bearer ou
+            for inválido.
     """
     if credenciais is None or credenciais.scheme.lower() != "bearer":
         raise ErroNegocio("Informe o token de acesso para continuar.", 401)
@@ -79,6 +133,17 @@ def usuario_atual(db: DbSession, sessao: Annotated[SessaoLogin, Depends(sessao_a
     """Devolve o usuário dono da sessão atual.
 
     Responde 401 se o usuário não existir ou estiver inativo, e 403 se estiver banido.
+
+    Args:
+        db (Session): Sessão do banco da requisição.
+        sessao (SessaoLogin): Sessão de login atual.
+
+    Returns:
+        Usuario: Usuário dono da sessão.
+
+    Raises:
+        ErroNegocio: Com status 401, se o usuário não existir ou estiver inativo; com
+            status 403, se estiver banido.
     """
     usuario = RepositorioUsuario(db).buscar_por_id(sessao.id_usuario)
     if usuario is None:
@@ -91,7 +156,17 @@ def usuario_atual(db: DbSession, sessao: Annotated[SessaoLogin, Depends(sessao_a
 
 
 def administrador_atual(usuario: Annotated[Usuario, Depends(usuario_atual)]) -> Usuario:
-    """Exige que o usuário logado seja administrador; caso contrário, responde 403."""
+    """Exige que o usuário logado seja administrador; caso contrário, responde 403.
+
+    Args:
+        usuario (Usuario): Usuário logado.
+
+    Returns:
+        Usuario: O próprio usuário, se for administrador.
+
+    Raises:
+        ErroNegocio: Com status 403, se o usuário não for administrador.
+    """
     if perfil_de(usuario) != PerfilUsuario.ADMINISTRADOR:
         raise ErroNegocio(
             "Somente o administrador pode validar o cadastro do profissional de saúde.",
@@ -104,6 +179,15 @@ def paciente_atual(usuario: Annotated[Usuario, Depends(usuario_atual)]) -> Pacie
     """Exige que o usuário logado seja paciente e devolve o registro de paciente.
 
     Caso contrário, responde 403.
+
+    Args:
+        usuario (Usuario): Usuário logado.
+
+    Returns:
+        Paciente: Registro de paciente do usuário.
+
+    Raises:
+        ErroNegocio: Com status 403, se o usuário não for paciente.
     """
     if perfil_de(usuario) != PerfilUsuario.PACIENTE:
         raise ErroNegocio("Somente o paciente pode avaliar uma consulta.", 403)

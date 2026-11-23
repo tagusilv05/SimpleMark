@@ -19,6 +19,14 @@ def validar(codigo_verificacao: str, response: Response, db: Session = Depends(g
 
     Rota pública; a resposta não traz observações clínicas nem identifica o
     paciente. Código desconhecido responde 404 com valido=false.
+
+    Args:
+        codigo_verificacao (str): Código de verificação lido do QR-Code.
+        response (Response): Resposta HTTP, usada para ajustar o status para 404.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        ValidacaoDocumentoOutput: Resultado da validação do documento.
     """
     resultado = validar_documento(db=db, codigo_verificacao=codigo_verificacao)
 

@@ -256,7 +256,7 @@ async function agendar() {
   agendando.value = true
   try {
     const consulta = await agendamento.agendar({ id_horario: slot.id_horario, inicio: slot.inicio, fim: slot.fim })
-    router.push({ name: 'confirmacaoAgendamento', params: { idConsulta: consulta.id_consulta } })
+    router.push({ name: 'pagamento-consulta', params: { idConsulta: consulta.id_consulta } })
   } catch (e) {
     aviso.value = e.message || 'Não foi possível agendar a consulta.'
     // Horário reservado por outra pessoa nesse meio-tempo: atualiza a agenda

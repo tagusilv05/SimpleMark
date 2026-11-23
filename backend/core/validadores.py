@@ -2,13 +2,31 @@
 
 
 def normalizar_cpf(valor: str) -> str:
-    """Devolve o CPF mascarado (14 caracteres), no tamanho da coluna usuario.cpf."""
+    """Devolve o CPF mascarado (14 caracteres), no tamanho da coluna usuario.cpf.
+
+    Args:
+        valor (str): CPF informado, com ou sem máscara.
+
+    Returns:
+        str: CPF no formato ``000.000.000-00``.
+
+    Raises:
+        ValueError: Quando o CPF não tem 11 dígitos, tem todos os dígitos iguais ou
+            os dígitos verificadores não conferem.
+    """
     digitos = "".join(caractere for caractere in valor if caractere.isdigit())
     if len(digitos) != 11 or digitos == digitos[0] * 11:
         raise ValueError("O CPF informado é inválido. Confira os números e tente novamente.")
 
     def digito(base: str) -> str:
-        """Calcula o dígito verificador do CPF para a base informada."""
+        """Calcula o dígito verificador do CPF para a base informada.
+
+        Args:
+            base (str): Dígitos do CPF usados no cálculo (9 ou 10 dígitos).
+
+        Returns:
+            str: Dígito verificador calculado, como texto.
+        """
         soma = sum(int(numero) * peso for numero, peso in zip(base, range(len(base) + 1, 1, -1)))
         resto = soma % 11
         if resto < 2:
@@ -21,7 +39,18 @@ def normalizar_cpf(valor: str) -> str:
 
 
 def normalizar_email(valor: str) -> str:
-    """E-mail em minúsculas, no máximo 150 caracteres (coluna usuario.email)."""
+    """E-mail em minúsculas, no máximo 150 caracteres (coluna usuario.email).
+
+    Args:
+        valor (str): E-mail informado.
+
+    Returns:
+        str: E-mail sem espaços nas pontas e em minúsculas.
+
+    Raises:
+        ValueError: Quando o e-mail passa de 150 caracteres, contém espaço, não tem
+            exatamente um ``@`` ou tem parte local ou domínio inválidos.
+    """
     email = valor.strip().lower()
     if len(email) > 150 or " " in email or email.count("@") != 1:
         raise ValueError("O e-mail informado é inválido. Verifique e tente novamente.")
@@ -32,7 +61,17 @@ def normalizar_email(valor: str) -> str:
 
 
 def normalizar_cep(valor: str) -> str:
-    """CEP com hífen (9 caracteres), no tamanho da coluna endereco.cep."""
+    """CEP com hífen (9 caracteres), no tamanho da coluna endereco.cep.
+
+    Args:
+        valor (str): CEP informado, com ou sem hífen.
+
+    Returns:
+        str: CEP no formato ``00000-000``.
+
+    Raises:
+        ValueError: Quando o CEP não tem 8 dígitos.
+    """
     digitos = "".join(caractere for caractere in valor if caractere.isdigit())
     if len(digitos) != 8:
         raise ValueError("O CEP informado é inválido. Use 8 números.")
@@ -40,7 +79,17 @@ def normalizar_cep(valor: str) -> str:
 
 
 def normalizar_telefone(valor: str) -> str:
-    """Guarda só os dígitos. A coluna telefone aceita até 20 caracteres."""
+    """Guarda só os dígitos. A coluna telefone aceita até 20 caracteres.
+
+    Args:
+        valor (str): Telefone informado, em qualquer formato.
+
+    Returns:
+        str: Somente os dígitos do telefone.
+
+    Raises:
+        ValueError: Quando o telefone tem menos de 10 ou mais de 20 dígitos.
+    """
     digitos = "".join(caractere for caractere in valor if caractere.isdigit())
     if len(digitos) < 10 or len(digitos) > 20:
         raise ValueError("O telefone informado é inválido. Informe o DDD e o número.")

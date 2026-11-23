@@ -1,13 +1,15 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import AppHeader from '@/components/shared/AppHeader.vue'
 import BackLink from '@/components/shared/BackLink.vue'
 import MetodoPagamento from '@/components/pagamento/MetodoPagamento.vue'
 import ResumoConsulta from '@/components/pagamento/ResumoConsulta.vue'
 import { api } from '@/services/api'
+import { urlExternaSegura } from '@/utils/url'
 
 const route = useRoute()
+const router = useRouter()
 const consulta = ref(null)
 const usuario = ref(null)
 const metodo = ref('pix')
@@ -71,6 +73,8 @@ async function verificarRetorno() {
   if (status === 'aprovado') {
     pago.value = true
     aviso.value = 'Pagamento aprovado! A consulta está confirmada.'
+    // Só agora o agendamento está confirmado: mostra a tela de confirmação
+    router.replace({ name: 'confirmacaoAgendamento', params: { idConsulta: consulta.value.id_consulta } })
   } else {
     aviso.value = 'Você saiu do Mercado Pago sem concluir o pagamento. Escolha Pix, cartão ou boleto para tentar novamente.'
   }
@@ -83,8 +87,10 @@ async function finalizar() {
   aviso.value = ''
   try {
     const resposta = await api.post('/api/v1/pagamento/preferencia', { id_consulta: consulta.value.id_consulta })
+    const checkout = urlExternaSegura(resposta.init_point)
+    if (!checkout) throw new Error('Link de pagamento inválido. Tente novamente.')
     gravarMarca(consulta.value.id_consulta)
-    window.location.assign(resposta.init_point)
+    window.location.assign(checkout)
   } catch (error) {
     erro.value = error.message || 'Não foi possível iniciar o pagamento.'
     processando.value = false

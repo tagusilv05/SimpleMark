@@ -29,6 +29,12 @@ def _to_response(consulta: Consulta) -> ConsultaPacienteResponse:
 
     Inclui o profissional, o status do pagamento, a avaliação, se ainda pode
     avaliar e o link da videochamada quando visível.
+
+    Args:
+        consulta (Consulta): Consulta a converter.
+
+    Returns:
+        ConsultaPacienteResponse: Resposta da consulta para o paciente.
     """
     profissional_especialidade = consulta.profissional_especialidade
     profissional = profissional_especialidade.profissional
@@ -73,7 +79,20 @@ def listar_consultas(
 ) -> ListaConsultasResponse:
     """Consultas do paciente com filtros de status e período, paginadas.
 
-    Levanta HTTPException 400 se data_inicio for maior que data_fim.
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_paciente (int): Identificador do paciente.
+        status_consulta (Optional[str]): Filtra pelo status da consulta.
+        data_inicio (Optional[date]): Data mínima das consultas.
+        data_fim (Optional[date]): Data máxima das consultas.
+        skip (int): Quantidade de registros a pular.
+        limit (int): Quantidade máxima de registros.
+
+    Returns:
+        ListaConsultasResponse: Total encontrado e itens da página.
+
+    Raises:
+        HTTPException: 400 se ``data_inicio`` for maior que ``data_fim``.
     """
     if data_inicio and data_fim and data_inicio > data_fim:
         raise HTTPException(
@@ -93,7 +112,19 @@ def listar_consultas(
 def detalhar_consulta(
     db: Session, id_consulta: int, id_paciente: int
 ) -> ConsultaPacienteResponse:
-    """Detalhe de uma consulta do paciente; 404 se não existir ou for de outro."""
+    """Detalhe de uma consulta do paciente; 404 se não existir ou for de outro.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Identificador da consulta.
+        id_paciente (int): Identificador do paciente.
+
+    Returns:
+        ConsultaPacienteResponse: Detalhe da consulta.
+
+    Raises:
+        HTTPException: 404 se a consulta não existir ou for de outro paciente.
+    """
     consulta = buscar_por_id_e_paciente(db, id_consulta, id_paciente)
     if consulta is None:
         # Também retorna 404 para consultas de outros pacientes.
@@ -109,8 +140,19 @@ def agendar_consulta(
     """Agenda a consulta do paciente num horário livre da agenda do profissional.
 
     Profissional, especialidade, data, hora e valor saem do próprio horário, então
-    o paciente não escolhe o preço. Responde 404 se o horário não existir e 409 se
-    ele já passou, já foi ocupado ou o profissional está inativo.
+    o paciente não escolhe o preço.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_horario (int): Identificador do horário escolhido.
+        id_paciente (int): Identificador do paciente.
+
+    Returns:
+        Consulta: Consulta criada no horário.
+
+    Raises:
+        HTTPException: 404 se o horário não existir e 409 se ele já passou, já
+            foi ocupado ou o profissional está inativo.
     """
     horario = buscar_horario_para_agendar(db, id_horario)
     if horario is None:

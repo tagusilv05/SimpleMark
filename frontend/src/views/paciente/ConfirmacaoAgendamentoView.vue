@@ -2,9 +2,9 @@
 /**
  * ConfirmacaoAgendamentoView — "Agendamento Confirmado!"
  *
- * Rota /agendamento/confirmacao/:idConsulta. Usa a consulta recém-criada da store
- * de agendamento; se a página for recarregada, busca em GET /consultas/minhas/{id}.
- * Leva ao pagamento da consulta.
+ * Rota /agendamento/confirmacao/:idConsulta. Só confirma depois do pagamento:
+ * busca a consulta em GET /consultas/minhas/{id} e, se o pagamento ainda não
+ * estiver aprovado, manda o paciente para a tela de pagamento.
  */
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -19,9 +19,12 @@ const agendamento = useAgendamentoStore()
 
 const erro = ref('')
 
-const consulta = computed(() =>
-  String(agendamento.consulta?.id_consulta) === String(route.params.idConsulta) ? agendamento.consulta : null,
-)
+// Só exibe a confirmação de consulta com pagamento aprovado
+const consulta = computed(() => {
+  const atual = agendamento.consulta
+  const mesma = String(atual?.id_consulta) === String(route.params.idConsulta)
+  return mesma && atual.pagamento_status === 'aprovado' ? atual : null
+})
 const medico = computed(() => consulta.value?.profissional ?? {})
 
 const dataExtenso = computed(() => {
@@ -54,27 +57,21 @@ const iniciais = computed(() =>
     .join(''),
 )
 
-// O link da chamada vai por e-mail e aparece em Meus Agendamentos depois do pagamento
-const avisoLink = computed(() => {
-  if (consulta.value?.pagamento_status === 'aprovado') return 'Link enviado para o seu e-mail'
-  return 'Link liberado após o pagamento'
-})
-
-function irParaPagamento() {
-  router.push({ name: 'pagamento-consulta', params: { idConsulta: route.params.idConsulta } })
-}
-
 // Comprovante: a área de impressão do navegador permite salvar como PDF
 function baixarPdf() {
   window.print()
 }
 
+// Sempre recarrega: o status do pagamento pode ter mudado desde o agendamento
 onMounted(async () => {
-  if (consulta.value) return
   try {
     await agendamento.carregar(route.params.idConsulta)
   } catch (e) {
     erro.value = e.message || 'Não foi possível carregar o agendamento.'
+    return
+  }
+  if (!consulta.value) {
+    router.replace({ name: 'pagamento-consulta', params: { idConsulta: route.params.idConsulta } })
   }
 })
 </script>
@@ -142,7 +139,7 @@ onMounted(async () => {
               <div>
                 <dt class="text-xs text-gray-500">Local</dt>
                 <dd class="text-lg font-semibold text-[#0b2f5b]">Teleconsulta</dd>
-                <dd class="mt-1 inline-block rounded bg-[#ddf5f7] px-1 text-xs text-[#00a0b0]">{{ avisoLink }}</dd>
+                <dd class="mt-1 inline-block rounded bg-[#ddf5f7] px-1 text-xs text-[#00a0b0]">Link enviado para o seu e-mail</dd>
               </div>
             </div>
 
@@ -164,15 +161,7 @@ onMounted(async () => {
         </div>
       </article>
 
-      <button
-        type="button"
-        class="mt-8 flex h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#00a0b0] print:hidden font-semibold text-white transition-colors hover:bg-[#008a98]"
-        @click="irParaPagamento"
-      >
-        Ir para Pagamento <span aria-hidden="true">→</span>
-      </button>
-
-      <div class="mt-4 grid w-full gap-4 sm:grid-cols-2 print:hidden">
+      <div class="mt-8 grid w-full gap-4 sm:grid-cols-2 print:hidden">
         <RouterLink
           :to="{ name: 'meusAgendamentos' }"
           class="flex h-14 items-center justify-center rounded-lg bg-[#0b2f5b] font-semibold text-white transition-colors hover:bg-[#0b417d]"

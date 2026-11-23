@@ -22,11 +22,15 @@ _STATUS_QUE_OCUPAM = ("agendada", "confirmada", "realizada", "em andamento")
 
 
 def _horario_ja_agendado():
-    """Horário com consulta marcada em cima, mesmo com a flag `ocupado` falsa.
+    """Horário com consulta marcada em cima, mesmo com a flag ``ocupado`` falsa.
 
     A flag é o caminho normal, mas ela depende de quem agenda lembrar de marcá-la.
     Este EXISTS fecha a brecha: o paciente não enxerga um horário que já tem
     consulta naquele vínculo, data e hora.
+
+    Returns:
+        Exists: Subconsulta EXISTS, verdadeira quando há consulta com status que ocupa
+        o horário.
     """
     return (
         select(Consulta.id_consulta)
@@ -41,7 +45,16 @@ def _horario_ja_agendado():
 
 
 def _aplicar_especialidade(query, filtro: FiltroBuscaProfissional):
-    """Filtra por especialidade, se o filtro tiver algum valor."""
+    """Filtra por especialidade, se o filtro tiver algum valor.
+
+    Args:
+        query (Query): Query de horários a filtrar.
+        filtro (FiltroBuscaProfissional): Filtro da busca; usa ``id_especialidade`` e
+            ``especialidade`` (parte do nome).
+
+    Returns:
+        Query: Query com os filtros de especialidade aplicados.
+    """
     if filtro.id_especialidade is not None:
         query = query.filter(
             ProfissionalEspecialidade.id_especialidade == filtro.id_especialidade
@@ -54,7 +67,19 @@ def _aplicar_especialidade(query, filtro: FiltroBuscaProfissional):
 
 
 def _aplicar_periodo(query, filtro: FiltroBuscaProfissional, momento: datetime):
-    """Filtra por período, se o filtro tiver algum valor."""
+    """Filtra por período, se o filtro tiver algum valor.
+
+    Também descarta horários de hoje que já começaram.
+
+    Args:
+        query (Query): Query de horários a filtrar.
+        filtro (FiltroBuscaProfissional): Filtro da busca; usa ``data_inicio``,
+            ``data_fim``, ``hora_inicio`` e ``hora_fim``.
+        momento (datetime): Instante atual, usado para ignorar horários passados.
+
+    Returns:
+        Query: Query com os filtros de período aplicados.
+    """
     if filtro.data_inicio is not None:
         query = query.filter(DataHorario.data_consulta >= filtro.data_inicio)
     if filtro.data_fim is not None:
@@ -74,7 +99,15 @@ def _aplicar_periodo(query, filtro: FiltroBuscaProfissional, momento: datetime):
 
 
 def _aplicar_valor(query, filtro: FiltroBuscaProfissional):
-    """Filtra pela faixa de valor da consulta (valor_min e valor_max)."""
+    """Filtra pela faixa de valor da consulta (valor_min e valor_max).
+
+    Args:
+        query (Query): Query de horários a filtrar.
+        filtro (FiltroBuscaProfissional): Filtro da busca.
+
+    Returns:
+        Query: Query com os filtros de valor aplicados.
+    """
     if filtro.valor_min is not None:
         query = query.filter(ProfissionalEspecialidade.valor_consulta >= filtro.valor_min)
     if filtro.valor_max is not None:
@@ -91,6 +124,15 @@ def buscar_horarios_disponiveis(
 
     O join com data_horario também serve de filtro: profissional sem agenda
     aberta no período simplesmente não aparece na busca.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        filtro (FiltroBuscaProfissional): Filtro já normalizado pelo service.
+        momento (datetime): Instante atual, usado para ignorar horários passados.
+
+    Returns:
+        list[DataHorario]: Horários livres ordenados por nome do profissional, data e
+        hora de início.
     """
     caminho_vinculo = joinedload(DataHorario.profissional_especialidade)
     query = (

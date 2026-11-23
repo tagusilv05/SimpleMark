@@ -26,7 +26,14 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 
 def get_servico_ouvidoria(db: DbSession) -> ServicoOuvidoria:
-    """Fornece o serviço da Ouvidoria ligado à sessão do banco."""
+    """Fornece o serviço da Ouvidoria ligado à sessão do banco.
+
+    Args:
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        ServicoOuvidoria: Serviço da Ouvidoria pronto para uso.
+    """
     return ServicoOuvidoria(db)
 
 
@@ -38,6 +45,14 @@ def usuario_opcional(
 
     A Ouvidoria é aberta a qualquer pessoa: token ausente ou inválido não
     bloqueia o envio, só deixa a manifestação sem vínculo com uma conta.
+
+    Args:
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+        credenciais (HTTPAuthorizationCredentials | None): Credenciais Bearer da
+            requisição, injetadas pelo FastAPI; ``None`` quando não há token.
+
+    Returns:
+        Usuario | None: Usuário dono do token ou ``None`` se não houver token válido.
     """
     if credenciais is None:
         return None
@@ -74,7 +89,27 @@ async def abrir_manifestacao(
     codigo_consulta: Annotated[str | None, Form()] = None,
     anexos: Annotated[list[UploadFile] | None, File()] = None,
 ) -> ManifestacaoCriadaResposta:
-    """Abre a manifestação e devolve o protocolo. Responde 422 com dados ou anexos inválidos."""
+    """Abre a manifestação e devolve o protocolo. Responde 422 com dados ou anexos inválidos.
+
+    Args:
+        servico (ServicoOuvidoria): Serviço da Ouvidoria, injetado pelo FastAPI.
+        usuario (Usuario | None): Usuário logado, se houver, injetado pelo FastAPI.
+        solicitante (str): Quem abre a manifestação: paciente ou profissional.
+        tipo (str): Tipo da manifestação (reclamacao, teleconsulta, sugestao, elogio
+            ou duvida).
+        assunto (str): Assunto da manifestação.
+        descricao (str): Texto da manifestação.
+        aceite_lgpd (bool): Se o solicitante aceitou os termos da LGPD.
+        codigo_consulta (str | None): Código da consulta relacionada, se houver.
+        anexos (list[UploadFile] | None): Arquivos anexados (PDF, PNG ou JPEG).
+
+    Returns:
+        ManifestacaoCriadaResposta: Mensagem, protocolo, status, data de criação e
+        quantidade de anexos da manifestação registrada.
+
+    Raises:
+        ErroNegocio: Quando são enviados mais anexos do que o máximo permitido (422).
+    """
     arquivos = [a for a in (anexos or []) if a.filename]
     if len(arquivos) > ANEXOS_MAX:
         raise ErroNegocio(f"Envie no máximo {ANEXOS_MAX} arquivos.", 422)

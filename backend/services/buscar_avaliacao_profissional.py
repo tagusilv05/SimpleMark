@@ -17,6 +17,18 @@ def buscar_avaliacoes_profissional(dados, db: Session):
 
     Devolve a lista (paciente, data, nota e feedback), o total e a contagem por
     nota.
+
+    Args:
+        dados: Objeto com ``id_usuario`` do profissional e ``id_especialidade``
+            opcional.
+        db (Session): Sessão do banco de dados.
+
+    Returns:
+        tuple: Lista de avaliações (mais recentes primeiro), total de avaliações
+        e dicionário com a contagem por nota ("1" a "5").
+
+    Raises:
+        ValueError: Se a especialidade informada não for do profissional.
     """
 
     # 1. Verifica se o usuário é um profissional

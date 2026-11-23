@@ -41,20 +41,43 @@ def registrar_erros(app: FastAPI) -> None:
 
     Erros de validação viram mensagens em português só nas rotas /api/v1; as
     demais mantêm a resposta padrão do FastAPI.
+
+    Args:
+        app (FastAPI): Aplicação onde os tratadores são registrados.
     """
     app.add_exception_handler(ErroNegocio, _erro_negocio)
     app.add_exception_handler(RequestValidationError, _erro_validacao)
 
 
 def _erro_negocio(_request: Request, exc: Exception) -> JSONResponse:
-    """Converte ErroNegocio em JSON {mensagem}; no 401 envia WWW-Authenticate."""
+    """Converte ErroNegocio em JSON {mensagem}; no 401 envia WWW-Authenticate.
+
+    Args:
+        _request (Request): Requisição que gerou o erro (não usada).
+        exc (Exception): Exceção capturada; se não for ``ErroNegocio``, usa uma
+            mensagem genérica com status 400.
+
+    Returns:
+        JSONResponse: Resposta com o status do erro e o corpo ``{"mensagem": ...}``.
+    """
     erro = exc if isinstance(exc, ErroNegocio) else ErroNegocio("Não foi possível concluir a solicitação.")
     headers = {"WWW-Authenticate": "Bearer"} if erro.status_code == 401 else None
     return JSONResponse(status_code=erro.status_code, content={"mensagem": erro.mensagem}, headers=headers)
 
 
 async def _erro_validacao(request: Request, exc: Exception) -> JSONResponse:
-    """Responde 422 com mensagens em português nas rotas /api/v1."""
+    """Responde 422 com mensagens em português nas rotas /api/v1.
+
+    Fora de /api/v1, usa o tratador padrão do FastAPI.
+
+    Args:
+        request (Request): Requisição que gerou o erro.
+        exc (Exception): Exceção capturada, normalmente ``RequestValidationError``.
+
+    Returns:
+        JSONResponse: Resposta 422 com ``{"mensagem": ...}`` nas rotas /api/v1, ou a
+        resposta padrão nas demais.
+    """
     if not isinstance(exc, RequestValidationError) or not request.url.path.startswith("/api/v1"):
         if isinstance(exc, RequestValidationError):
             return await request_validation_exception_handler(request, exc)
@@ -65,7 +88,14 @@ async def _erro_validacao(request: Request, exc: Exception) -> JSONResponse:
 
 
 def _mensagem_validacao(erro: dict) -> str:
-    """Traduz um erro de validação do Pydantic para uma mensagem amigável."""
+    """Traduz um erro de validação do Pydantic para uma mensagem amigável.
+
+    Args:
+        erro (dict): Item de ``RequestValidationError.errors()``.
+
+    Returns:
+        str: Mensagem em português para o erro.
+    """
     tipo = str(erro.get("type", ""))
     texto = str(erro.get("msg", "Revise os dados enviados e tente novamente."))
     prefixo = "Value error, "
@@ -94,7 +124,15 @@ def _mensagem_validacao(erro: dict) -> str:
 
 
 def _rotulo(loc: object) -> str:
-    """Nome legível do campo a partir do loc do erro ("informado" se faltar)."""
+    """Nome legível do campo a partir do loc do erro ("informado" se faltar).
+
+    Args:
+        loc (object): Caminho do campo no erro (tupla ou lista).
+
+    Returns:
+        str: Rótulo em português do campo, o próprio nome se não houver rótulo, ou
+        ``"informado"`` se ``loc`` estiver vazio ou inválido.
+    """
     if not isinstance(loc, (tuple, list)) or not loc:
         return "informado"
     nome = str(loc[-1])

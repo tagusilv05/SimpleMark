@@ -50,7 +50,17 @@ class AvaliacaoEntrada(BaseModel):
     @field_validator("nota")
     @classmethod
     def nota_valida(cls, valor: int | None) -> int | None:
-        """Aceita nota ausente ou de 1 a 5."""
+        """Aceita nota ausente ou de 1 a 5.
+
+        Args:
+            valor (int | None): Nota informada, ou ``None``.
+
+        Returns:
+            int | None: A nota, sem alteração.
+
+        Raises:
+            ValueError: Quando a nota está fora do intervalo de 1 a 5.
+        """
         if valor is not None and not 1 <= valor <= 5:
             raise ValueError("A nota deve ser de 1 a 5 estrelas.")
         return valor
@@ -58,7 +68,17 @@ class AvaliacaoEntrada(BaseModel):
     @field_validator("feedback")
     @classmethod
     def feedback_valido(cls, valor: str | None) -> str | None:
-        """Trata comentário vazio como ausente; limita a 1000 caracteres."""
+        """Trata comentário vazio como ausente; limita a 1000 caracteres.
+
+        Args:
+            valor (str | None): Comentário informado, ou ``None``.
+
+        Returns:
+            str | None: O comentário, ou ``None`` se vazio ou ausente.
+
+        Raises:
+            ValueError: Quando o comentário passa de 1000 caracteres.
+        """
         if valor is None or valor == "":
             return None
         if len(valor) > 1000:
@@ -67,7 +87,14 @@ class AvaliacaoEntrada(BaseModel):
 
     @model_validator(mode="after")
     def ao_menos_um_campo(self) -> "AvaliacaoEntrada":
-        """Exige a nota ou o comentário."""
+        """Exige a nota ou o comentário.
+
+        Returns:
+            AvaliacaoEntrada: A própria entrada validada.
+
+        Raises:
+            ValueError: Quando a nota e o comentário estão ausentes.
+        """
         if self.nota is None and self.feedback is None:
             raise ValueError("Informe a nota em estrelas ou um comentário para avaliar.")
         return self

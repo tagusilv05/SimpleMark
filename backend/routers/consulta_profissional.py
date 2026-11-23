@@ -22,6 +22,19 @@ def consultas_do_profissional(
 
     Rota sem autenticação. Por padrão traz só as agendadas e aceita filtro por
     período. Responde 404 se o profissional não existir.
+
+    Args:
+        id_profissional (int): Id do profissional.
+        status (str | None): Filtro por status; padrão ``agendada``.
+        data_inicio (date | None): Início do período.
+        data_fim (date | None): Fim do período.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        list[ConsultaProfissionalOut]: Consultas do profissional com os dados do paciente.
+
+    Raises:
+        HTTPException: Quando o profissional não existe (404).
     """
     consultas = listar_consultas_do_profissional(
         db, id_profissional, status, data_inicio, data_fim

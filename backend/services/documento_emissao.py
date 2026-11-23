@@ -50,7 +50,21 @@ class ConsultaNaoPermiteEmissao(Exception):
 
 
 def _consulta_do_profissional(db: Session, id_consulta: int, usuario: Usuario) -> Consulta:
-    """Carrega a consulta e confirma que ela é de quem está pedindo (RN9)."""
+    """Carrega a consulta e confirma que ela é de quem está pedindo (RN9).
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Identificador da consulta.
+        usuario (Usuario): Usuário autenticado que fez o pedido.
+
+    Returns:
+        Consulta: Consulta do profissional.
+
+    Raises:
+        ProfissionalNaoResponsavel: Se o usuário não for profissional ou não for
+            o profissional da consulta.
+        ConsultaNaoEncontrada: Se a consulta não existir.
+    """
     profissional = usuario.profissional
     if profissional is None:
         raise ProfissionalNaoResponsavel(
@@ -72,7 +86,19 @@ def _consulta_do_profissional(db: Session, id_consulta: int, usuario: Usuario) -
 def _consulta_do_participante(db: Session, id_consulta: int, usuario: Usuario) -> Consulta:
     """Consulta que o usuário pode LER: o profissional dela ou o paciente dela.
 
-    Emitir continua só com o profissional (_consulta_do_profissional).
+    Emitir continua só com o profissional (``_consulta_do_profissional``).
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Identificador da consulta.
+        usuario (Usuario): Usuário autenticado que fez o pedido.
+
+    Returns:
+        Consulta: Consulta da qual o usuário participa.
+
+    Raises:
+        ConsultaNaoEncontrada: Se a consulta não existir.
+        ProfissionalNaoResponsavel: Se a consulta for de outro paciente.
     """
     paciente = usuario.paciente
     if paciente is None:
@@ -89,8 +115,19 @@ def _consulta_do_participante(db: Session, id_consulta: int, usuario: Usuario) -
 def _criar_documento(db: Session, consulta: Consulta, tipo: bool, observacoes: str | None):
     """Cria o documento clínico da consulta e faz flush para obter o id.
 
-    Levanta ConsultaNaoPermiteEmissao se a consulta estiver cancelada. Não faz
-    commit.
+    Não faz commit.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        consulta (Consulta): Consulta à qual o documento pertence.
+        tipo (bool): Tipo do documento (receita ou atestado).
+        observacoes (str | None): Observações do documento.
+
+    Returns:
+        DocumentoClinico: Documento criado, já com ``id_documento``.
+
+    Raises:
+        ConsultaNaoPermiteEmissao: Se a consulta estiver cancelada.
     """
     if consulta.status in STATUS_IMPEDE_EMISSAO:
         raise ConsultaNaoPermiteEmissao(
@@ -109,14 +146,28 @@ def _criar_documento(db: Session, consulta: Consulta, tipo: bool, observacoes: s
 
 
 def _descrever_conselho(esp_prof) -> str | None:
-    """Conselho do vínculo no formato "ÓRGÃO NÚMERO", ou None."""
+    """Conselho do vínculo no formato "ÓRGÃO NÚMERO", ou None.
+
+    Args:
+        esp_prof: Vínculo profissional+especialidade.
+
+    Returns:
+        str | None: Órgão e número do conselho, ou None.
+    """
     if esp_prof.conselho is None:
         return None
     return f"{esp_prof.conselho.orgao_conselho} {esp_prof.conselho.numero_conselho}"
 
 
 def _para_schema(documento: DocumentoClinico) -> DocumentoEmitidoOutput:
-    """Monta a resposta do documento, com os campos da receita ou do atestado."""
+    """Monta a resposta do documento, com os campos da receita ou do atestado.
+
+    Args:
+        documento (DocumentoClinico): Documento a converter.
+
+    Returns:
+        DocumentoEmitidoOutput: Dados do documento emitido.
+    """
     consulta = documento.consulta
     esp_prof = consulta.profissional_especialidade
     paciente = consulta.paciente
@@ -167,6 +218,14 @@ def emitir_receita(db: Session, dados: EmitirReceitaInput, usuario: Usuario) -> 
     """Emite a receita da consulta com seus medicamentos e o QR-Code.
 
     Só o profissional da consulta pode emitir (RN9). Faz commit.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        dados (EmitirReceitaInput): Consulta, validade, observações e medicamentos.
+        usuario (Usuario): Usuário autenticado que emite a receita.
+
+    Returns:
+        DocumentoEmitidoOutput: Receita emitida.
     """
     consulta = _consulta_do_profissional(db, dados.id_consulta, usuario)
     documento = _criar_documento(db, consulta, TIPO_RECEITA, dados.observacoes)
@@ -195,6 +254,15 @@ def emitir_atestado(db: Session, dados: EmitirAtestadoInput, usuario: Usuario) -
 
     Só o profissional da consulta pode emitir (RN9). O CID é gravado em
     maiúsculas. Faz commit.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        dados (EmitirAtestadoInput): Consulta, dias de afastamento, data de
+            início, CID, finalidade e observações.
+        usuario (Usuario): Usuário autenticado que emite o atestado.
+
+    Returns:
+        DocumentoEmitidoOutput: Atestado emitido.
     """
     consulta = _consulta_do_profissional(db, dados.id_consulta, usuario)
     documento = _criar_documento(db, consulta, TIPO_ATESTADO, dados.observacoes)
@@ -218,7 +286,16 @@ def emitir_atestado(db: Session, dados: EmitirAtestadoInput, usuario: Usuario) -
 def buscar_documento_emitido(db: Session, id_documento: int, usuario: Usuario) -> DocumentoEmitidoOutput:
     """Documento emitido, visível ao profissional e ao paciente da consulta.
 
-    Levanta DocumentoNaoEncontrado se o documento não existir.
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_documento (int): Identificador do documento.
+        usuario (Usuario): Usuário autenticado que fez o pedido.
+
+    Returns:
+        DocumentoEmitidoOutput: Dados do documento.
+
+    Raises:
+        DocumentoNaoEncontrado: Se o documento não existir.
     """
     documento = buscar_documento(db, id_documento)
     if documento is None:
@@ -229,7 +306,16 @@ def buscar_documento_emitido(db: Session, id_documento: int, usuario: Usuario) -
 
 
 def listar_documentos(db: Session, id_consulta: int, usuario: Usuario) -> list[DocumentoResumoOutput]:
-    """Resumo dos documentos da consulta, para o profissional e o paciente dela."""
+    """Resumo dos documentos da consulta, para o profissional e o paciente dela.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Identificador da consulta.
+        usuario (Usuario): Usuário autenticado que fez o pedido.
+
+    Returns:
+        list[DocumentoResumoOutput]: Resumo de cada documento da consulta.
+    """
     _consulta_do_participante(db, id_consulta, usuario)
     return [
         DocumentoResumoOutput(

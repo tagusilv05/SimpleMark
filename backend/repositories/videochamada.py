@@ -18,6 +18,13 @@ def buscar_para_atualizar(db: Session, id_consulta: int) -> Consulta | None:
     consulta ao mesmo tempo: a segunda espera a primeira e relê a linha já
     com o link (populate_existing descarta o que a sessão tinha em memória).
     No SQLite dos testes o FOR UPDATE é ignorado.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Id da consulta.
+
+    Returns:
+        Consulta | None: Consulta travada, ou None se não existir.
     """
     return (
         db.query(Consulta)
@@ -29,7 +36,15 @@ def buscar_para_atualizar(db: Session, id_consulta: int) -> Consulta | None:
 
 
 def buscar_com_participantes(db: Session, id_consulta: int) -> Consulta | None:
-    """Consulta pelo id com paciente e profissional (e seus usuários) carregados, ou None."""
+    """Consulta pelo id com paciente e profissional (e seus usuários) carregados, ou None.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Id da consulta.
+
+    Returns:
+        Consulta | None: Consulta com os participantes carregados, ou None.
+    """
     return (
         db.query(Consulta)
         .filter(Consulta.id_consulta == id_consulta)
@@ -44,7 +59,17 @@ def buscar_com_participantes(db: Session, id_consulta: int) -> Consulta | None:
 
 
 def buscar_horario(db: Session, id_esp_prof: int, data_consulta: date, hora_inicio: time) -> DataHorario | None:
-    """Horário da agenda do profissional que começa na data e hora informadas, ou None."""
+    """Horário da agenda do profissional que começa na data e hora informadas, ou None.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_esp_prof (int): Id do vínculo profissional-especialidade.
+        data_consulta (date): Data do horário.
+        hora_inicio (time): Hora de início do horário.
+
+    Returns:
+        DataHorario | None: Horário encontrado, ou None.
+    """
     return (
         db.query(DataHorario)
         .filter(
@@ -59,7 +84,18 @@ def buscar_horario(db: Session, id_esp_prof: int, data_consulta: date, hora_inic
 def horario_tem_outra_consulta(
     db: Session, id_esp_prof: int, data_consulta: date, hora: time, id_consulta: int
 ) -> bool:
-    """True se outra consulta ativa já ocupa esse vínculo, data e hora."""
+    """True se outra consulta ativa já ocupa esse vínculo, data e hora.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_esp_prof (int): Id do vínculo profissional-especialidade.
+        data_consulta (date): Data da consulta.
+        hora (time): Hora da consulta.
+        id_consulta (int): Id da consulta a desconsiderar na verificação.
+
+    Returns:
+        bool: True se outra consulta com status que ocupa o horário existe.
+    """
     return (
         db.query(Consulta.id_consulta)
         .filter(

@@ -17,14 +17,28 @@ from schemas.documento_validacao import ValidacaoDocumentoOutput
 
 
 def _descrever_conselho(conselho) -> str | None:
-    """Conselho no formato "ÓRGÃO NÚMERO", ou None se não houver."""
+    """Conselho no formato "ÓRGÃO NÚMERO", ou None se não houver.
+
+    Args:
+        conselho: Registro do conselho profissional, ou None.
+
+    Returns:
+        str | None: Órgão e número do conselho, ou None.
+    """
     if conselho is None:
         return None
     return f"{conselho.orgao_conselho} {conselho.numero_conselho}"
 
 
 def _para_schema(documento: DocumentoClinico) -> ValidacaoDocumentoOutput:
-    """Resposta da validação, sem paciente nem observações clínicas (RNF17)."""
+    """Resposta da validação, sem paciente nem observações clínicas (RNF17).
+
+    Args:
+        documento (DocumentoClinico): Documento encontrado pelo código.
+
+    Returns:
+        ValidacaoDocumentoOutput: Dados públicos do documento autêntico.
+    """
     esp_prof = documento.consulta.profissional_especialidade
     return ValidacaoDocumentoOutput(
         valido=True,
@@ -43,6 +57,14 @@ def validar_documento(db: Session, codigo_verificacao: str) -> ValidacaoDocument
 
     O router converte o None em 404. Código inexistente, expirado ou adulterado
     caem todos no mesmo caso: não existe documento com aquele código.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        codigo_verificacao (str): Código lido do QR-Code.
+
+    Returns:
+        ValidacaoDocumentoOutput | None: Dados do documento, ou None se o código
+        não existir.
     """
     documento = buscar_documento_por_codigo(db, codigo_verificacao)
     if documento is None:

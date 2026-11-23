@@ -14,18 +14,26 @@ from models.models import Administrador, Endereco, Usuario
 
 logger = logging.getLogger("simplemark.admin_inicial")
 
-EMAIL_ADMIN = "nordestino1971@gmail.com"
-SENHA_ADMIN = "Senha123"
-CPF_ADMIN = "847.329.105-05"
+# Credenciais da administradora inicial: vêm do .env (nunca do código).
+# ADMIN_SENHA só é usada quando a conta é criada; depois, troque pela tela "Minha conta".
+EMAIL_ADMIN = os.getenv("ADMIN_EMAIL", "").strip().lower()
+SENHA_ADMIN = os.getenv("ADMIN_SENHA", "")
+CPF_ADMIN = os.getenv("ADMIN_CPF", "").strip()
 
 
 def criar_admin_inicial() -> None:
     """Garante uma administradora no banco sempre que a API sobe.
 
-    Em ambiente de teste não faz nada. Se o banco estiver fora, só registra o aviso
-    para a API de horários continuar no ar.
+    Em ambiente de teste não faz nada. Sem ADMIN_EMAIL, ADMIN_SENHA e ADMIN_CPF no
+    ambiente, também não faz nada (só avisa). Se o banco estiver fora, só registra o
+    aviso para a API de horários continuar no ar.
     """
     if os.getenv("AMBIENTE") == "teste":
+        return
+    if not (EMAIL_ADMIN and SENHA_ADMIN and CPF_ADMIN):
+        logger.warning(
+            "Administradora inicial não criada: defina ADMIN_EMAIL, ADMIN_SENHA e ADMIN_CPF no .env."
+        )
         return
 
     from database.connection import SessionLocal

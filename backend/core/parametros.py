@@ -8,48 +8,88 @@ import os
 
 
 def segredo_jwt() -> str:
-    """Chave de assinatura do JWT (SECRET_KEY), com valor de desenvolvimento como padrão."""
+    """Chave de assinatura do JWT (SECRET_KEY), com valor de desenvolvimento como padrão.
+
+    Returns:
+        str: Chave secreta usada para assinar e validar o JWT.
+    """
     return os.getenv("SECRET_KEY", "simplemark-dev-secret-troque-em-producao")
 
 
 def login_max_tentativas() -> int:
-    """Tentativas de login com falha antes do bloqueio (padrão 5)."""
+    """Tentativas de login com falha antes do bloqueio (padrão 5).
+
+    Returns:
+        int: Número máximo de tentativas de login com falha.
+    """
     return int(os.getenv("LOGIN_MAX_TENTATIVAS", "5"))
 
 
 def login_bloqueio_minutos() -> int:
-    """Duração do bloqueio de login, em minutos (padrão 60)."""
+    """Duração do bloqueio de login, em minutos (padrão 60).
+
+    Returns:
+        int: Duração do bloqueio, em minutos.
+    """
     return int(os.getenv("LOGIN_BLOQUEIO_MINUTOS", "60"))
 
 
 def sessao_inatividade_horas() -> int:
-    """Horas sem uso até a sessão expirar (padrão 24)."""
+    """Horas sem uso até a sessão expirar (padrão 24).
+
+    Returns:
+        int: Horas de inatividade até a sessão expirar.
+    """
     return int(os.getenv("SESSAO_INATIVIDADE_HORAS", "24"))
 
 def base_url_validacao() -> str:
-    """Base da URL pública que o QR-Code do documento clínico aponta."""
+    """Base da URL pública que o QR-Code do documento clínico aponta.
+
+    Returns:
+        str: URL base usada no link de validação do documento.
+    """
     return os.getenv("BASE_URL_VALIDACAO", "http://localhost:8080/api/v1")
 
 def smtp_host() -> str:
-    """Servidor SMTP do e-mail do código de login (padrão smtp.gmail.com)."""
+    """Servidor SMTP do e-mail do código de login (padrão smtp.gmail.com).
+
+    Returns:
+        str: Host do servidor SMTP.
+    """
     return os.getenv("SMTP_HOST", "smtp.gmail.com")
 
 
 def smtp_porta() -> int:
-    """Porta SMTP com SSL do e-mail do código de login (padrão 465)."""
+    """Porta SMTP com SSL do e-mail do código de login (padrão 465).
+
+    Returns:
+        int: Porta do servidor SMTP.
+    """
     return int(os.getenv("SMTP_PORT", "465"))
 
 
 def smtp_email() -> str:
-    """Conta que envia o e-mail do código de login (SMTP_EMAIL)."""
+    """Conta que envia o e-mail do código de login (SMTP_EMAIL).
+
+    Returns:
+        str: E-mail remetente, ou string vazia quando não configurado.
+    """
     return os.getenv("SMTP_EMAIL", "")
 
 
 def smtp_senha_app() -> str:
-    """Senha de app da conta remetente (SMTP_SENHA_APP)."""
+    """Senha de app da conta remetente (SMTP_SENHA_APP).
+
+    Returns:
+        str: Senha de app, ou string vazia quando não configurada.
+    """
     return os.getenv("SMTP_SENHA_APP", "")
 
 
 def codigo_login_validade_minutos() -> int:
-    """Quanto tempo o código de confirmação do login vale, em minutos."""
+    """Quanto tempo o código de confirmação do login vale, em minutos.
+
+    Returns:
+        int: Validade do código de login, em minutos (padrão 5).
+    """
     return int(os.getenv("CODIGO_LOGIN_VALIDADE_MINUTOS", "5"))

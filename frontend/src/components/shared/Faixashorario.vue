@@ -1,7 +1,60 @@
 <script setup>
+import { ref, watch } from 'vue'
+
 // faixas: [{ key, inicio: 'HH:MM', fim: 'HH:MM' }]
 const faixas = defineModel('faixas', { type: Array, required: true })
+// repeticao: null (só o dia selecionado) ou { diasSemana: [0..6], ate: 'YYYY-MM-DD' }
+const repeticao = defineModel('repeticao', { type: Object, default: null })
+const props = defineProps({
+  // Dia selecionado no calendário: primeiro dia da repetição
+  data: { type: Date, default: () => new Date() },
+})
 const emit = defineEmits(['salvar'])
+
+const DIAS_SEMANA = [
+  { valor: 1, rotulo: 'Seg' },
+  { valor: 2, rotulo: 'Ter' },
+  { valor: 3, rotulo: 'Qua' },
+  { valor: 4, rotulo: 'Qui' },
+  { valor: 5, rotulo: 'Sex' },
+  { valor: 6, rotulo: 'Sáb' },
+  { valor: 0, rotulo: 'Dom' },
+]
+const SEMANAS_PADRAO = 4
+
+const toISODate = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+const repetir = ref(false)
+const diasSemana = ref([])
+const ate = ref('')
+
+// Ao trocar o dia no calendário, a repetição recomeça a partir dele
+watch(
+  () => props.data,
+  (dia) => {
+    diasSemana.value = [dia.getDay()]
+    const limite = new Date(dia)
+    limite.setDate(limite.getDate() + 7 * SEMANAS_PADRAO)
+    ate.value = toISODate(limite)
+  },
+  { immediate: true },
+)
+
+// Mantém o v-model:repeticao em dia com o painel
+watch(
+  [repetir, diasSemana, ate],
+  () => {
+    repeticao.value = repetir.value ? { diasSemana: [...diasSemana.value], ate: ate.value } : null
+  },
+  { immediate: true },
+)
+
+function alternarDia(dia) {
+  diasSemana.value = diasSemana.value.includes(dia)
+    ? diasSemana.value.filter((d) => d !== dia)
+    : [...diasSemana.value, dia]
+}
 
 function adicionar() {
   faixas.value = [...faixas.value, { key: `novo-${Date.now()}`, inicio: '', fim: '' }]
@@ -22,6 +75,48 @@ function atualizar(i, campo, valor) {
 <template>
   <div>
     <h3 class="mb-3 text-xs font-bold text-[#0b2f5b]">Horário de Atendimento</h3>
+
+    <!-- Repetição semanal: as faixas novas entram em todos os dias escolhidos, até a data final -->
+    <div class="mb-2.5 rounded-lg border border-[#dfe5f1] bg-white px-4 py-3">
+      <label class="flex cursor-pointer items-center gap-2 text-xs font-semibold text-[#0b2f5b]">
+        <input v-model="repetir" type="checkbox" class="h-4 w-4 accent-[#0b2f5b]" />
+        Repetir toda semana
+      </label>
+
+      <div v-if="repetir" class="mt-3 flex flex-col gap-3">
+        <div class="flex flex-wrap gap-1.5" role="group" aria-label="Dias da semana">
+          <button
+            v-for="dia in DIAS_SEMANA"
+            :key="dia.valor"
+            type="button"
+            :aria-pressed="diasSemana.includes(dia.valor)"
+            class="w-11 cursor-pointer rounded-md border py-1.5 text-[11px] font-semibold transition"
+            :class="
+              diasSemana.includes(dia.valor)
+                ? 'border-[#0b2f5b] bg-[#0b2f5b] text-white'
+                : 'border-[#dfe5f1] bg-white text-[#0b2f5b] hover:bg-[#eef2ff]'
+            "
+            @click="alternarDia(dia.valor)"
+          >
+            {{ dia.rotulo }}
+          </button>
+        </div>
+
+        <label class="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+          De {{ data.toLocaleDateString('pt-BR') }} até
+          <input
+            v-model="ate"
+            type="date"
+            :min="toISODate(data)"
+            aria-label="Repetir até"
+            class="rounded-md border border-[#dfe5f1] bg-white px-2.5 py-1.5 text-xs font-medium text-[#0b2f5b] outline-none focus:ring-2 focus:ring-[#0b2f5b]/30"
+          />
+        </label>
+        <p class="text-[11px] text-gray-500">
+          Os próximos horários adicionados entram em todos esses dias. Editar ou remover vale só para o dia aberto.
+        </p>
+      </div>
+    </div>
 
     <ul class="flex flex-col gap-2.5">
       <li

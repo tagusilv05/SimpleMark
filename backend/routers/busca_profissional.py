@@ -60,6 +60,22 @@ def buscar(
     Rota pública. Cada vínculo profissional-especialidade vem com os horários livres
     a partir de hoje; quem não tem horário livre fica de fora. Responde 400 com
     intervalo de data, horário ou valor invertido.
+
+    Args:
+        id_especialidade (int | None): Id exato da especialidade no catálogo.
+        especialidade (str | None): Parte do nome da especialidade.
+        data_inicio (date | None): Primeiro dia do período; padrão, hoje.
+        data_fim (date | None): Último dia do período.
+        hora_inicio (time | None): Horário mínimo de início dos horários livres.
+        hora_fim (time | None): Horário máximo de término dos horários livres.
+        valor_min (float | None): Valor mínimo da consulta.
+        valor_max (float | None): Valor máximo da consulta.
+        ordenar_por (OrdenacaoBusca): Critério de ordenação: nome, valor ou avaliacao.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        list[ProfissionalBuscaOutput]: Profissionais encontrados, cada um com os
+        horários livres.
     """
     filtro = FiltroBuscaProfissional(
         id_especialidade=id_especialidade,

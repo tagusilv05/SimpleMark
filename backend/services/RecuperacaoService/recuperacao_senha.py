@@ -4,6 +4,7 @@ Etapa 1 (solicitar): recebe o e-mail e envia um código de 6 dígitos para ele.
 Etapa 2 (redefinir): confere o código e grava a nova senha.
 
 Regras que seguem o login em duas etapas:
+
 - O código vale poucos minutos, só pode ser usado uma vez e só o HMAC dele vai
   para o banco.
 - Erros de código contam no mesmo contador do login (`tentativas_login_falhas`):
@@ -57,7 +58,11 @@ MENSAGEM_SENHA_IGUAL = "A nova senha deve ser diferente da senha atual."
 
 
 def validade_minutos() -> int:
-    """Quanto tempo o código de recuperação vale, em minutos (padrão 10)."""
+    """Quanto tempo o código de recuperação vale, em minutos (padrão 10).
+
+    Returns:
+        int: Validade lida de CODIGO_RECUPERACAO_VALIDADE_MINUTOS.
+    """
     return int(os.getenv("CODIGO_RECUPERACAO_VALIDADE_MINUTOS", "10"))
 
 
@@ -66,18 +71,41 @@ def calcular_hash_codigo(id_usuario: uuid.UUID, codigo: str) -> str:
 
     O prefixo "recuperacao:" faz o hash ser diferente do hash de um código de
     login, então um código de um fluxo nunca serve no outro.
+
+    Args:
+        id_usuario (uuid.UUID): ID do usuário dono do código.
+        codigo (str): Código em texto.
+
+    Returns:
+        str: O HMAC-SHA256 do código, em hexadecimal.
     """
     mensagem = f"recuperacao:{id_usuario}:{codigo}".encode("utf-8")
     return hmac.new(segredo_jwt().encode("utf-8"), mensagem, hashlib.sha256).hexdigest()
 
 
 def codigo_confere(hash_guardado: str, id_usuario: uuid.UUID, codigo: str) -> bool:
-    """Compara o hash guardado com o do código informado, em tempo constante."""
+    """Compara o hash guardado com o do código informado, em tempo constante.
+
+    Args:
+        hash_guardado (str): Hash gravado no banco.
+        id_usuario (uuid.UUID): ID do usuário dono do código.
+        codigo (str): Código informado.
+
+    Returns:
+        bool: ``True`` se o código confere.
+    """
     return hmac.compare_digest(hash_guardado, calcular_hash_codigo(id_usuario, codigo))
 
 
 def _mensagem_bloqueio(restante: timedelta) -> str:
-    """Mensagem de bloqueio com o tempo restante arredondado para cima, em minutos."""
+    """Mensagem de bloqueio com o tempo restante arredondado para cima, em minutos.
+
+    Args:
+        restante (timedelta): Tempo que falta para o fim do bloqueio.
+
+    Returns:
+        str: Mensagem para o usuário com os minutos restantes.
+    """
     minutos = max(1, math.ceil(restante.total_seconds() / 60))
     unidade = "minuto" if minutos == 1 else "minutos"
     return (
@@ -99,7 +127,11 @@ class ServicoRecuperacaoSenha:
     """Pede o código de recuperação e redefine a senha."""
 
     def __init__(self, db: Session) -> None:
-        """Guarda a sessão do banco e monta os repositórios usados."""
+        """Guarda a sessão do banco e monta os repositórios usados.
+
+        Args:
+            db (Session): Sessão do SQLAlchemy usada nas consultas e gravações.
+        """
         self.db = db
         self.usuarios = RepositorioUsuario(db)
         self.credenciais = RepositorioCredencial(db)
@@ -111,6 +143,15 @@ class ServicoRecuperacaoSenha:
         """Envia o código de recuperação para o e-mail, se houver conta.
 
         Sem conta (ou com conta banida) não envia nada, mas responde igual.
+
+        Args:
+            email (str): E-mail informado.
+
+        Returns:
+            DesafioRecuperacao: ID do desafio, e-mail mascarado e validade em segundos.
+
+        Raises:
+            ErroNegocio: Com status 503, quando o envio do e-mail falha.
         """
         validade = timedelta(minutes=validade_minutos())
         segundos = int(validade.total_seconds())
@@ -160,6 +201,16 @@ class ServicoRecuperacaoSenha:
 
         Código errado conta no contador de falhas do login. Código certo, mas
         senha igual à atual, é recusado sem gastar o código.
+
+        Args:
+            id_desafio (uuid.UUID): ID do desafio criado na primeira etapa.
+            codigo (str): Código recebido por e-mail.
+            nova_senha (str): Nova senha da conta.
+
+        Raises:
+            ErroNegocio: Com status 400, quando o código é inválido, expirou, está
+                incorreto ou a nova senha é igual à atual; 403, quando a conta está
+                banida; ou 429, quando a conta está ou fica bloqueada.
         """
         desafio = self.codigos.buscar(id_desafio)
         if desafio is None:
@@ -216,8 +267,16 @@ class ServicoRecuperacaoSenha:
     def _sortear_inedito(self, id_usuario: uuid.UUID) -> tuple[str, str]:
         """Sorteia um código cujo hash ainda não existe para o usuário.
 
-        Devolve o código e o hash. Tenta até TENTATIVAS_DE_SORTEIO vezes e, se não
-        achar um livre, levanta ErroNegocio 503.
+        Tenta até TENTATIVAS_DE_SORTEIO vezes.
+
+        Args:
+            id_usuario (uuid.UUID): ID do usuário dono do código.
+
+        Returns:
+            tuple[str, str]: O código e o hash dele.
+
+        Raises:
+            ErroNegocio: Com status 503, quando não acha um código livre.
         """
         for _ in range(TENTATIVAS_DE_SORTEIO):
             codigo = gerar_codigo_login()
@@ -230,6 +289,13 @@ class ServicoRecuperacaoSenha:
         """Tempo que falta de bloqueio, ou None.
 
         Bloqueio vencido é limpo junto com a contagem de falhas, sem commit.
+
+        Args:
+            credencial (Credencial): Credencial do usuário.
+            agora (datetime): Instante atual, em UTC.
+
+        Returns:
+            timedelta | None: Tempo restante de bloqueio, ou ``None`` se não houver.
         """
         if credencial.bloqueado_ate is None:
             return None
@@ -244,6 +310,13 @@ class ServicoRecuperacaoSenha:
         """Conta o código errado e bloqueia a conta ao atingir o limite de tentativas.
 
         Devolve a duração do bloqueio quando ele começa, ou None. Faz o commit.
+
+        Args:
+            credencial (Credencial): Credencial do usuário.
+            agora (datetime): Instante atual, em UTC.
+
+        Returns:
+            timedelta | None: Duração do bloqueio iniciado, ou ``None``.
         """
         credencial.tentativas_login_falhas += 1
         restante = None

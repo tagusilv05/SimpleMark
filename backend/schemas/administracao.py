@@ -41,7 +41,14 @@ class ProfissionalIdResposta(BaseModel):
 
     @classmethod
     def de_profissional(cls, profissional: Profissional) -> "ProfissionalIdResposta":
-        """Monta a resposta a partir do modelo, com os dados do usuário."""
+        """Monta a resposta a partir do modelo, com os dados do usuário.
+
+        Args:
+            profissional (Profissional): Profissional com o usuário carregado.
+
+        Returns:
+            ProfissionalIdResposta: Resposta com status ``"ativo"`` ou ``"pendente"``.
+        """
         usuario = profissional.usuario
         return cls(
             id_profissional=profissional.id_profissional,
@@ -70,7 +77,14 @@ class PacienteIdResposta(BaseModel):
 
     @classmethod
     def de_paciente(cls, paciente: Paciente) -> "PacienteIdResposta":
-        """Monta a resposta a partir do modelo, com os dados do usuário."""
+        """Monta a resposta a partir do modelo, com os dados do usuário.
+
+        Args:
+            paciente (Paciente): Paciente com o usuário carregado.
+
+        Returns:
+            PacienteIdResposta: Resposta com status ``"ativo"`` ou ``"inativo"``.
+        """
         usuario = paciente.usuario
         return cls(
             id_paciente=paciente.id_paciente,
@@ -108,5 +122,12 @@ class LogAcaoResposta(BaseModel):
 
     @classmethod
     def de_log(cls, log: LogAcaoAdministrador) -> "LogAcaoResposta":
-        """Converte o registro do banco na resposta."""
+        """Converte o registro do banco na resposta.
+
+        Args:
+            log (LogAcaoAdministrador): Registro da ação do administrador.
+
+        Returns:
+            LogAcaoResposta: Ação convertida para a resposta.
+        """
         return cls.model_validate(log)

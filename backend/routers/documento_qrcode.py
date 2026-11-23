@@ -32,6 +32,20 @@ def gerar_qrcode(
     Exige login e só o profissional responsável pela consulta pode gerar (403).
     Responde 201 quando gera agora, 200 quando já existia, 404 se o documento não
     existir e 500 se o código não puder ser gerado.
+
+    Args:
+        documento_id (int): Id do documento clínico.
+        usuario (Usuario): Usuário logado, injetado pelo FastAPI.
+        response (Response): Resposta HTTP, usada para ajustar o status para 200.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        QrCodeDocumentoOutput: Id do documento, código de verificação, URL de
+        validação e QR-Code em base64.
+
+    Raises:
+        HTTPException: 404 se o documento não existe, 403 se o usuário não é o
+            profissional responsável e 500 se o código não pode ser gerado.
     """
     try:
         documento, criado = gerar_qrcode_documento(

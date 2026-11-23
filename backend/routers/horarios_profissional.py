@@ -19,16 +19,15 @@ def listar_horarios(
     data: date = Query(..., description="Data no formato YYYY-MM-DD"),
     db: Session = Depends(get_db)
 ):
-    """
-    Lista os horarios de um profissional para uma data especifica.
-    
+    """Lista os horarios de um profissional para uma data especifica.
+
     Args:
-        id_esp_prof (int): ID do vinculo entre profissional e especialidade
-        data (date): Data para filtrar os horarios no formato YYYY-MM-DD
-        db: Sessao do banco de dados
-    
+        id_esp_prof (int): ID do vinculo entre profissional e especialidade.
+        data (date): Data para filtrar os horarios no formato YYYY-MM-DD.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
     Returns:
-        List[HorarioOut]: Lista de horarios encontrados
+        List[HorarioOut]: Lista de horarios encontrados.
     """
     horarios = horarios_profissionais.listar_horarios(
         db=db,
@@ -42,16 +41,19 @@ def cadastrar_horarios_em_lote(
     payload: HorariosEmLoteCreate,
     db: Session = Depends(get_db)
 ):
-    """
-    Cadastra horarios para um profissional.
-    
+    """Cadastra horarios para um profissional.
+
     Args:
-        payload (HorariosEmLoteCreate): Dados contendo o ID do vinculo entre profissional e especialidade,
-                                         as datas e os horarios a serem cadastrados.
-        db: Sessao do banco de dados
-    
+        payload (HorariosEmLoteCreate): Dados contendo o ID do vinculo entre profissional
+            e especialidade, as datas e os horarios a serem cadastrados.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
     Returns:
-        dict: Mensagem de sucesso ou erro
+        dict: Mensagem de sucesso.
+
+    Raises:
+        HTTPException: 404 quando o service levanta ``LookupError``; 400 para qualquer
+            outro erro ao salvar os horarios.
     """
     try:
         horarios_profissionais.criar_horarios_em_lote(db=db, dados_lote=payload)
@@ -70,15 +72,17 @@ def cadastrar_horarios_em_lote(
 @router.delete("/{id_horario}", status_code=status.HTTP_200_OK)
 def deletar_horario(id_horario: int, db: Session = Depends(get_db)):
     
-    """
-    Deleta um horario especifico de um profissional.
-    
+    """Deleta um horario especifico de um profissional.
+
     Args:
-        id_horario (int): ID do horario a ser deletado
-        db: Sessao do banco de dados
-        
+        id_horario (int): ID do horario a ser deletado.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
     Returns:
-        dict: Mensagem de sucesso ou erro
+        dict: Resultado da remocao devolvido pelo service.
+
+    Raises:
+        HTTPException: Quando o horario nao e encontrado (404).
     """
     
     resultado = horarios_profissionais.deletar_horario(db, id_horario)
@@ -89,16 +93,18 @@ def deletar_horario(id_horario: int, db: Session = Depends(get_db)):
 @router.put("/{id_horario}", status_code=status.HTTP_200_OK)
 def atualizar_horario(id_horario: int, payload: HorariosUpdate, db: Session = Depends(get_db)):
     
-    """
-    Atualiza um horario especifico de um profissional.
-    
+    """Atualiza um horario especifico de um profissional.
+
     Args:
-        id_horario (int): ID do horario a ser atualizado
-        payload (HorariosUpdate): Dados para atualizacao do horario
-        db: Sessao do banco de dados
-    
+        id_horario (int): ID do horario a ser atualizado.
+        payload (HorariosUpdate): Dados para atualizacao do horario.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
     Returns:
-        dict: Mensagem de sucesso ou erro
+        dict: Resultado da atualizacao devolvido pelo service.
+
+    Raises:
+        HTTPException: Quando o horario nao e encontrado (404).
     """
     
     

@@ -46,7 +46,15 @@ class ErroEnvioEmail(Exception):
 
 @dataclass
 class DadosEmailConsulta:
-    """O que as mensagens ao paciente precisam saber da consulta."""
+    """O que as mensagens ao paciente precisam saber da consulta.
+
+    Attributes:
+        email_paciente (str): E-mail de destino do paciente.
+        nome_paciente (str): Nome do paciente.
+        nome_profissional (str): Nome do profissional.
+        inicio (datetime): Início da consulta, no fuso America/Sao_Paulo.
+        meet_link (str | None): Link da videochamada, se houver.
+    """
 
     email_paciente: str
     nome_paciente: str
@@ -56,13 +64,30 @@ class DadosEmailConsulta:
 
 
 def formatar_data_hora(momento: datetime) -> str:
-    """Ex.: "terça-feira, 20/01/2026 às 10:00 (horário de Brasília)"."""
+    """Ex.: "terça-feira, 20/01/2026 às 10:00 (horário de Brasília)".
+
+    Args:
+        momento (datetime): Data e hora a formatar.
+
+    Returns:
+        str: Data e hora por extenso, com o dia da semana.
+    """
     dia = _DIAS_SEMANA[momento.weekday()]
     return f"{dia}, {momento:%d/%m/%Y} às {momento:%H:%M} (horário de Brasília)"
 
 
 def _montar(destinatario: str, assunto: str, paragrafos: list[str], dados: DadosEmailConsulta) -> EmailMessage:
-    """Monta a mensagem em texto puro e HTML, com o link e as orientações quando houver link."""
+    """Monta a mensagem em texto puro e HTML, com o link e as orientações quando houver link.
+
+    Args:
+        destinatario (str): E-mail de destino.
+        assunto (str): Assunto da mensagem.
+        paragrafos (list[str]): Parágrafos do corpo da mensagem.
+        dados (DadosEmailConsulta): Dados da consulta (nome do paciente e link).
+
+    Returns:
+        EmailMessage: Mensagem pronta para envio.
+    """
     texto = [f"Olá, {dados.nome_paciente}!", "", *paragrafos]
     html = [f"<p>Olá, {escape(dados.nome_paciente)}!</p>"]
     html += [f"<p>{escape(p)}</p>" for p in paragrafos]
@@ -93,7 +118,14 @@ def _montar(destinatario: str, assunto: str, paragrafos: list[str], dados: Dados
 
 
 def email_confirmacao(dados: DadosEmailConsulta) -> EmailMessage:
-    """Consulta confirmada, com o link da videochamada."""
+    """Consulta confirmada, com o link da videochamada.
+
+    Args:
+        dados (DadosEmailConsulta): Dados da consulta.
+
+    Returns:
+        EmailMessage: Mensagem de confirmação.
+    """
     return _montar(
         dados.email_paciente,
         "Sua teleconsulta está confirmada",
@@ -106,7 +138,15 @@ def email_confirmacao(dados: DadosEmailConsulta) -> EmailMessage:
 
 
 def email_reagendamento(dados: DadosEmailConsulta, inicio_anterior: datetime) -> EmailMessage:
-    """Consulta movida para nova data; o link da videochamada continua o mesmo."""
+    """Consulta movida para nova data; o link da videochamada continua o mesmo.
+
+    Args:
+        dados (DadosEmailConsulta): Dados da consulta, já com a nova data.
+        inicio_anterior (datetime): Data e hora em que a consulta estava marcada.
+
+    Returns:
+        EmailMessage: Mensagem de reagendamento.
+    """
     paragrafos = [
         f"Sua teleconsulta com {dados.nome_profissional}, que estava marcada para "
         f"{formatar_data_hora(inicio_anterior)}, foi reagendada.",
@@ -120,7 +160,14 @@ def email_reagendamento(dados: DadosEmailConsulta, inicio_anterior: datetime) ->
 
 
 def email_cancelamento(dados: DadosEmailConsulta) -> EmailMessage:
-    """Consulta cancelada (sem link, que deixou de valer)."""
+    """Consulta cancelada (sem link, que deixou de valer).
+
+    Args:
+        dados (DadosEmailConsulta): Dados da consulta.
+
+    Returns:
+        EmailMessage: Mensagem de cancelamento.
+    """
     sem_link = DadosEmailConsulta(
         email_paciente=dados.email_paciente,
         nome_paciente=dados.nome_paciente,
@@ -140,7 +187,14 @@ def email_cancelamento(dados: DadosEmailConsulta) -> EmailMessage:
 
 
 def enviar_email(mensagem: EmailMessage) -> None:
-    """Envia a mensagem pelo SMTP configurado. Qualquer falha vira ErroEnvioEmail."""
+    """Envia a mensagem pelo SMTP configurado. Qualquer falha vira ErroEnvioEmail.
+
+    Args:
+        mensagem (EmailMessage): Mensagem a enviar.
+
+    Raises:
+        ErroEnvioEmail: Se o SMTP não estiver configurado ou o servidor falhar.
+    """
     host = smtp_host()
     if not host:
         raise ErroEnvioEmail("Envio de e-mail não configurado (SMTP_HOST).")

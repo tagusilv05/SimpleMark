@@ -23,6 +23,18 @@ def buscar_avaliacoes(dados: AvaliacaoConsultaInput, db: Session = Depends(get_d
 
     Rota sem autenticação. Responde 400 se o usuário não for profissional ativo, se
     não tiver a especialidade ou se não houver avaliações; outros erros, 500.
+
+    Args:
+        dados (AvaliacaoConsultaInput): Profissional e especialidade a consultar.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        dict: Avaliações (``avaliacao``), total geral (``total``) e total por nota
+        (``sub_total``).
+
+    Raises:
+        HTTPException: 400 quando o service levanta ``ValueError``; 500 para
+            qualquer outro erro.
     """
     try:
 

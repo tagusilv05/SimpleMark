@@ -4,7 +4,7 @@
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from dependencies.autenticacao import UsuarioAtual
@@ -16,13 +16,23 @@ from schemas.consulta_paciente import (
     ListaConsultasResponse,
 )
 from services.consulta_paciente import agendar_consulta, detalhar_consulta, listar_consultas
-from services.videochamada import enviar_email_confirmacao, gerar_link_nova_consulta
+from services.videochamada import gerar_link_nova_consulta
 
 router = APIRouter(prefix="/consultas", tags=["Consultas do paciente"])
 
 
 def get_paciente_logado(usuario: UsuarioAtual) -> Paciente:
-    """Devolve o paciente da conta logada; outros perfis recebem 403."""
+    """Devolve o paciente da conta logada; outros perfis recebem 403.
+
+    Args:
+        usuario (Usuario): Usuário logado, injetado pelo FastAPI.
+
+    Returns:
+        Paciente: Paciente vinculado à conta logada.
+
+    Raises:
+        HTTPException: Quando a conta logada não é de paciente (403).
+    """
     paciente = usuario.paciente
     if paciente is None:
         raise HTTPException(
@@ -39,19 +49,25 @@ def get_paciente_logado(usuario: UsuarioAtual) -> Paciente:
 )
 def agendar(
     dados: AgendarConsultaInput,
-    tarefas: BackgroundTasks,
     paciente: Paciente = Depends(get_paciente_logado),
     db: Session = Depends(get_db),
 ):
     """Agenda uma consulta do paciente logado num horário livre.
 
     Somente pacientes. Responde 404 se o horário não existir e 409 se ele não
-    estiver mais livre. Gera o link da videochamada e envia o e-mail de
-    confirmação em segundo plano.
+    estiver mais livre. Gera o link da videochamada; o e-mail de confirmação
+    só é enviado depois que o pagamento for aprovado (PagamentoService).
+
+    Args:
+        dados (AgendarConsultaInput): Id do horário escolhido.
+        paciente (Paciente): Paciente logado, injetado pelo FastAPI.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        ConsultaPacienteResponse: Detalhes da consulta agendada.
     """
     consulta = agendar_consulta(db, dados.id_horario, paciente.id_paciente)
     gerar_link_nova_consulta(db, consulta.id_consulta)
-    tarefas.add_task(enviar_email_confirmacao, consulta.id_consulta)
     return detalhar_consulta(db, consulta.id_consulta, paciente.id_paciente)
 
 
@@ -69,6 +85,18 @@ def minhas_consultas(
 
     Somente pacientes (401 sem token, 403 para outros perfis). Filtra por status e
     período; responde 400 se data_inicio for maior que data_fim.
+
+    Args:
+        status_consulta (str | None): Filtro por status (parâmetro ``status``).
+        data_inicio (date | None): Início do período.
+        data_fim (date | None): Fim do período.
+        skip (int): Quantidade de registros a pular (paginação).
+        limit (int): Quantidade máxima de registros (1 a 100).
+        paciente (Paciente): Paciente logado, injetado pelo FastAPI.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        ListaConsultasResponse: Consultas encontradas, paginadas.
     """
     return listar_consultas(
         db,
@@ -91,5 +119,13 @@ def detalhar_minha_consulta(
 
     Somente pacientes. Responde 404 se a consulta não existir ou for de outro
     paciente.
+
+    Args:
+        id_consulta (int): Id da consulta.
+        paciente (Paciente): Paciente logado, injetado pelo FastAPI.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        ConsultaPacienteResponse: Detalhes da consulta.
     """
     return detalhar_consulta(db, id_consulta, paciente.id_paciente)

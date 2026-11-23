@@ -32,31 +32,69 @@ class CadastroUsuarioEntrada(BaseModel):
     @field_validator("cpf")
     @classmethod
     def cpf_valido(cls, valor: str) -> str:
-        """Normaliza e valida o CPF."""
+        """Normaliza e valida o CPF.
+
+        Args:
+            valor (str): CPF informado.
+
+        Returns:
+            str: CPF no formato ``000.000.000-00``.
+        """
         return normalizar_cpf(valor)
 
     @field_validator("email")
     @classmethod
     def email_valido(cls, valor: str) -> str:
-        """Normaliza e valida o e-mail."""
+        """Normaliza e valida o e-mail.
+
+        Args:
+            valor (str): E-mail informado.
+
+        Returns:
+            str: E-mail normalizado.
+        """
         return normalizar_email(valor)
 
     @field_validator("cep")
     @classmethod
     def cep_valido(cls, valor: str) -> str:
-        """Normaliza e valida o CEP."""
+        """Normaliza e valida o CEP.
+
+        Args:
+            valor (str): CEP informado.
+
+        Returns:
+            str: CEP no formato ``00000-000``.
+        """
         return normalizar_cep(valor)
 
     @field_validator("telefone")
     @classmethod
     def telefone_valido(cls, valor: str) -> str:
-        """Normaliza e valida o telefone."""
+        """Normaliza e valida o telefone.
+
+        Args:
+            valor (str): Telefone informado.
+
+        Returns:
+            str: Somente os dígitos do telefone.
+        """
         return normalizar_telefone(valor)
 
     @field_validator("senha")
     @classmethod
     def senha_minima(cls, valor: str) -> str:
-        """Recusa senha com menos de 8 caracteres."""
+        """Recusa senha com menos de 8 caracteres.
+
+        Args:
+            valor (str): Senha informada.
+
+        Returns:
+            str: A senha, sem alteração.
+
+        Raises:
+            ValueError: Quando a senha tem menos de 8 caracteres.
+        """
         if len(valor) < 8:
             raise ValueError("A senha deve ter no mínimo 8 caracteres.")
         return valor
@@ -64,7 +102,17 @@ class CadastroUsuarioEntrada(BaseModel):
     @field_validator("consentimento_lgpd")
     @classmethod
     def consentimento_obrigatorio(cls, valor: bool) -> bool:
-        """Exige o consentimento LGPD marcado."""
+        """Exige o consentimento LGPD marcado.
+
+        Args:
+            valor (bool): Consentimento informado.
+
+        Returns:
+            bool: O consentimento, sem alteração.
+
+        Raises:
+            ValueError: Quando o consentimento não é ``True``.
+        """
         if valor is not True:
             raise ValueError(
                 "É preciso autorizar o consentimento para o tratamento dos dados pessoais."
@@ -74,7 +122,17 @@ class CadastroUsuarioEntrada(BaseModel):
     @field_validator("data_nascimento")
     @classmethod
     def nascimento_no_passado(cls, valor: date) -> date:
-        """Exige data de nascimento anterior a hoje."""
+        """Exige data de nascimento anterior a hoje.
+
+        Args:
+            valor (date): Data de nascimento informada.
+
+        Returns:
+            date: A data, sem alteração.
+
+        Raises:
+            ValueError: Quando a data é hoje ou futura.
+        """
         if valor >= date.today():
             raise ValueError("A data de nascimento precisa ser anterior a hoje. Use o formato AAAA-MM-DD.")
         return valor
@@ -82,7 +140,14 @@ class CadastroUsuarioEntrada(BaseModel):
     @field_validator("complemento")
     @classmethod
     def complemento_opcional(cls, valor: str | None) -> str | None:
-        """Trata complemento em branco como ausente."""
+        """Trata complemento em branco como ausente.
+
+        Args:
+            valor (str | None): Complemento informado, ou ``None``.
+
+        Returns:
+            str | None: Complemento sem espaços nas pontas, ou ``None`` se em branco.
+        """
         if valor is None:
             return None
         texto = valor.strip()
@@ -104,6 +169,16 @@ class CadastroProfissionalEntrada(CadastroUsuarioEntrada):
     def especialidades_validas(cls, valor: list[str]) -> list[str]:
         """Limpa a lista: tira itens vazios e repetidos (sem diferenciar
         maiúsculas) e exige ao menos uma especialidade de até 100 caracteres.
+
+        Args:
+            valor (list[str]): Especialidades informadas.
+
+        Returns:
+            list[str]: Especialidades limpas, sem vazias nem repetidas.
+
+        Raises:
+            ValueError: Quando alguma especialidade passa de 100 caracteres ou não sobra
+                nenhuma especialidade válida.
         """
         limpas: list[str] = []
         for item in valor:
@@ -134,7 +209,14 @@ class ProfissionalPendenteResposta(BaseModel):
 
     @classmethod
     def de_profissional(cls, profissional: Profissional) -> "ProfissionalPendenteResposta":
-        """Monta a resposta com as especialidades e o primeiro conselho achado."""
+        """Monta a resposta com as especialidades e o primeiro conselho achado.
+
+        Args:
+            profissional (Profissional): Profissional com usuário e especialidades carregados.
+
+        Returns:
+            ProfissionalPendenteResposta: Resposta montada a partir do profissional.
+        """
         numero = None
         orgao = None
         nomes: list[str] = []

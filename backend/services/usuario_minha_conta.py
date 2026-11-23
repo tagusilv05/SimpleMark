@@ -25,8 +25,16 @@ from repositories.usuario_minha_conta import (
 def verificar_paciente_usuario(id_usuario, db: Session):
     """Paciente ligado ao usuário.
 
-    Levanta ValueError se o usuário não existir, estiver inativo ou não for
-    paciente.
+    Args:
+        id_usuario: UUID do usuário.
+        db (Session): Sessão do banco de dados.
+
+    Returns:
+        Paciente: Paciente associado ao usuário.
+
+    Raises:
+        ValueError: Se o usuário não existir, estiver inativo ou não for
+            paciente.
     """
 
     usuario = repositories_buscar_usuario_por_id(id_usuario=id_usuario,db=db)
@@ -49,7 +57,16 @@ def verificar_paciente_usuario(id_usuario, db: Session):
 def altera_info_pessoal(dados, db: Session):
     """Atualiza nome, e-mail e telefone que vierem preenchidos.
 
-    Levanta ValueError se o usuário não existir ou se o commit falhar.
+    Args:
+        dados: Dados com ``id``, ``nome``, ``email`` e ``telefone``.
+        db (Session): Sessão do banco de dados.
+
+    Returns:
+        Usuario: Usuário atualizado.
+
+    Raises:
+        ValueError: Se o usuário não existir ou se o commit falhar.
+        ErroNegocio: 409 se o e-mail já estiver em uso por outra conta.
     """
 
     usuario = repositories_buscar_usuario_por_id(dados.id, db)
@@ -85,7 +102,15 @@ def altera_info_pessoal(dados, db: Session):
 def altera_endereco(dados, db: Session):
     """Atualiza os campos do endereço que vierem preenchidos.
 
-    Levanta ValueError se o endereço não existir ou se o commit falhar.
+    Args:
+        dados: Dados com ``id_usuario`` e os campos do endereço.
+        db (Session): Sessão do banco de dados.
+
+    Returns:
+        Endereco: Endereço atualizado.
+
+    Raises:
+        ValueError: Se o endereço não existir ou se o commit falhar.
     """
 
     endereco = repositories_buscar_endereco_por_usuario(dados.id_usuario, db)
@@ -123,7 +148,14 @@ def altera_endereco(dados, db: Session):
 
 
 def recusar_se_tem_consulta_futura(consultas) -> None:
-    """Impede excluir a conta com consulta agendada que ainda vai acontecer (409)."""
+    """Impede excluir a conta com consulta agendada que ainda vai acontecer (409).
+
+    Args:
+        consultas: Consultas do usuário.
+
+    Raises:
+        ErroNegocio: 409 se alguma consulta ainda vai acontecer.
+    """
     agora = agora_local()
     if any(repositories_consulta_ainda_vai_acontecer(consulta, agora) for consulta in consultas):
         raise ErroNegocio(
@@ -136,8 +168,14 @@ def recusar_se_tem_consulta_futura(consultas) -> None:
 def excluir_paciente(id_usuario, db: Session):
     """Exclui o paciente, suas consultas e dados ligados, o endereço e o usuário.
 
-    Levanta ValueError se o usuário não for paciente ativo e ErroNegocio 409 se
-    houver consulta agendada por vir. Em erro faz rollback.
+    Em erro faz rollback.
+
+    Args:
+        id_usuario: UUID do usuário paciente.
+        db (Session): Sessão do banco de dados.
+
+    Raises:
+        ValueError: Se o usuário não existir.
     """
     try:
         paciente = verificar_paciente_usuario(id_usuario=id_usuario, db=db)
@@ -174,7 +212,15 @@ def excluir_paciente(id_usuario, db: Session):
 
 # Inativar o usuário no banco de dados.
 def inativar_usuario(id_usuario, db: Session):
-    """Marca o usuário como inativo e encerra as sessões abertas; ValueError se ele não existir."""
+    """Marca o usuário como inativo e encerra as sessões abertas.
+
+    Args:
+        id_usuario: UUID do usuário.
+        db (Session): Sessão do banco de dados.
+
+    Raises:
+        ValueError: Se o usuário não existir.
+    """
     try:
         usuario = repositories_buscar_usuario_por_id(id_usuario=id_usuario, db=db)
 
@@ -200,8 +246,17 @@ def inativar_usuario(id_usuario, db: Session):
 def alterar_senha(id_usuario, senha_atual: str, nova_senha: str, db: Session) -> None:
     """Troca a senha depois de conferir a atual.
 
-    Responde 400 se a senha atual estiver errada ou se a nova for igual à atual.
     A sessão em uso continua valendo.
+
+    Args:
+        id_usuario: UUID do usuário.
+        senha_atual (str): Senha atual informada.
+        nova_senha (str): Nova senha desejada.
+        db (Session): Sessão do banco de dados.
+
+    Raises:
+        ErroNegocio: 400 se a conta não tiver senha, se a senha atual estiver
+            errada ou se a nova for igual à atual.
     """
     credencial = RepositorioCredencial(db).buscar_para_atualizar(id_usuario)
     if credencial is None:

@@ -497,7 +497,7 @@ O médico nasce com `"status": false`, porque precisa ser aprovado pelo administ
 
 1. **Autenticação → `POST /api/v1/auth/login`** com o administrador inicial:
    ```json
-   { "identificador": "nordestino1971@gmail.com", "senha": "Senha123" }
+   { "identificador": "<ADMIN_EMAIL do .env>", "senha": "<ADMIN_SENHA do .env>" }
    ```
    📝 Anote o `access_token`: é o **TOKEN_ADMIN**. Cole-o no **Authorize**.
 2. **Administração → `POST /api/v1/administracao/profissionais/{id_profissional}/validar`**, com `id_profissional` = **ID_PROFISSIONAL**. Resposta esperada: `200`, com `"status": true`.

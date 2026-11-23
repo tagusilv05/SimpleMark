@@ -1,6 +1,7 @@
 """Videochamada (Jitsi Meet) da consulta: geração do link, reagendamento, cancelamento e e-mails.
 
 Fluxo:
+
 - O link é gerado no próprio backend, sem chamada externa, na mesma
   requisição que confirma a consulta. Só o e-mail ao paciente vai para
   segundo plano.
@@ -68,7 +69,11 @@ esperar = relogio.sleep
 
 
 def gerar_link_sala() -> str:
-    """Link de uma sala nova e imprevisível no servidor Jitsi configurado (JITSI_BASE_URL)."""
+    """Link de uma sala nova e imprevisível no servidor Jitsi configurado (JITSI_BASE_URL).
+
+    Returns:
+        str: URL da sala de videochamada.
+    """
     return f"{jitsi_base_url()}/{PREFIXO_SALA}{secrets.token_urlsafe(BYTES_ALEATORIOS_SALA)}"
 
 
@@ -78,27 +83,64 @@ def gerar_link_sala() -> str:
 
 
 def _momento(data_consulta: date, hora: time) -> datetime:
-    """Data e hora no fuso das consultas (FUSO_CONSULTAS)."""
+    """Data e hora no fuso das consultas (FUSO_CONSULTAS).
+
+    Args:
+        data_consulta (date): Data da consulta.
+        hora (time): Hora da consulta.
+
+    Returns:
+        datetime: Momento com fuso horário.
+    """
     return datetime.combine(data_consulta, hora, tzinfo=ZoneInfo(FUSO_CONSULTAS))
 
 
 def inicio_da_consulta(consulta: Consulta) -> datetime:
-    """Início da consulta no fuso America/Sao_Paulo."""
+    """Início da consulta no fuso America/Sao_Paulo.
+
+    Args:
+        consulta (Consulta): Consulta de referência.
+
+    Returns:
+        datetime: Data e hora de início com fuso horário.
+    """
     return _momento(consulta.data, consulta.hora)
 
 
 def _usuario_paciente(consulta: Consulta) -> Usuario:
-    """Usuário do paciente da consulta."""
+    """Usuário do paciente da consulta.
+
+    Args:
+        consulta (Consulta): Consulta de referência.
+
+    Returns:
+        Usuario: Usuário do paciente.
+    """
     return consulta.paciente.usuario
 
 
 def _usuario_profissional(consulta: Consulta) -> Usuario:
-    """Usuário do profissional da consulta."""
+    """Usuário do profissional da consulta.
+
+    Args:
+        consulta (Consulta): Consulta de referência.
+
+    Returns:
+        Usuario: Usuário do profissional.
+    """
     return consulta.profissional_especialidade.profissional.usuario
 
 
 def eh_profissional_da_consulta(usuario: Usuario, consulta: Consulta) -> bool:
-    """True se o usuário é o profissional responsável pela consulta."""
+    """True se o usuário é o profissional responsável pela consulta.
+
+    Args:
+        usuario (Usuario): Usuário a verificar.
+        consulta (Consulta): Consulta de referência.
+
+    Returns:
+        bool: True se o usuário é o profissional da consulta.
+    """
     profissional = usuario.profissional
     return (
         profissional is not None
@@ -107,18 +149,40 @@ def eh_profissional_da_consulta(usuario: Usuario, consulta: Consulta) -> bool:
 
 
 def eh_paciente_da_consulta(usuario: Usuario, consulta: Consulta) -> bool:
-    """True se o usuário é o paciente da consulta."""
+    """True se o usuário é o paciente da consulta.
+
+    Args:
+        usuario (Usuario): Usuário a verificar.
+        consulta (Consulta): Consulta de referência.
+
+    Returns:
+        bool: True se o usuário é o paciente da consulta.
+    """
     paciente = usuario.paciente
     return paciente is not None and consulta.id_paciente == paciente.id_paciente
 
 
 def _ativa(consulta: Consulta) -> bool:
-    """Consulta que ainda vai acontecer: nem cancelada nem realizada."""
+    """Consulta que ainda vai acontecer: nem cancelada nem realizada.
+
+    Args:
+        consulta (Consulta): Consulta a verificar.
+
+    Returns:
+        bool: True se a consulta está ativa.
+    """
     return consulta.status not in STATUS_CANCELADOS | STATUS_REALIZADOS
 
 
 def _dados_email(consulta: Consulta) -> DadosEmailConsulta:
-    """Dados dos e-mails da consulta; consulta cancelada vai sem link."""
+    """Dados dos e-mails da consulta; consulta cancelada vai sem link.
+
+    Args:
+        consulta (Consulta): Consulta com paciente e profissional carregados.
+
+    Returns:
+        DadosEmailConsulta: Dados usados nos modelos de e-mail.
+    """
     paciente = _usuario_paciente(consulta)
     link = None if consulta.status in STATUS_CANCELADOS else consulta.meet_link
     return DadosEmailConsulta(
@@ -134,6 +198,14 @@ def _com_retentativas(acao, etapa: str, id_consulta: int):
     """Executa a ação com retentativas e backoff exponencial (2s, 4s, 8s...).
 
     Só repete falhas de envio de e-mail; na última, relança o erro.
+
+    Args:
+        acao (Callable): Função sem argumentos a executar.
+        etapa (str): Nome da etapa, usado no log.
+        id_consulta (int): Identificador da consulta, usado no log.
+
+    Returns:
+        Any: O retorno de ``acao``.
     """
     tentativas = videochamada_tentativas()
     espera = videochamada_backoff_segundos()
@@ -151,7 +223,16 @@ def _com_retentativas(acao, etapa: str, id_consulta: int):
 
 
 def _enviar(mensagem, etapa: str, id_consulta: int) -> bool:
-    """Envia o e-mail com retentativas. Falha final só fica no log: não desfaz a consulta."""
+    """Envia o e-mail com retentativas. Falha final só fica no log: não desfaz a consulta.
+
+    Args:
+        mensagem (EmailMessage): Mensagem a enviar.
+        etapa (str): Nome da etapa, usado no log.
+        id_consulta (int): Identificador da consulta, usado no log.
+
+    Returns:
+        bool: True se enviou, False se todas as tentativas falharam.
+    """
     try:
         _com_retentativas(lambda: remetente_email(mensagem), etapa, id_consulta)
     except ErroEnvioEmail:
@@ -169,7 +250,13 @@ def _enviar(mensagem, etapa: str, id_consulta: int) -> bool:
 def _atribuir_link(consulta: Consulta) -> bool:
     """Grava um link novo na consulta ativa que ainda não tem. Não faz commit.
 
-    True se atribuiu agora. Um link existente nunca é trocado.
+    Um link existente nunca é trocado.
+
+    Args:
+        consulta (Consulta): Consulta que recebe o link.
+
+    Returns:
+        bool: True se atribuiu agora.
     """
     if consulta.meet_link or not _ativa(consulta):
         return False
@@ -183,7 +270,14 @@ def garantir_link(db: Session, id_consulta: int) -> bool:
     """Gera e grava o link da consulta, se ela estiver ativa e ainda não tiver um.
 
     A linha fica travada até o commit, então duas chamadas simultâneas não
-    gravam links diferentes. True se gerou agora.
+    gravam links diferentes.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Identificador da consulta.
+
+    Returns:
+        bool: True se gerou agora.
     """
     consulta = repositorio.buscar_para_atualizar(db, id_consulta)
     if consulta is None or not _atribuir_link(consulta):
@@ -203,6 +297,9 @@ def enviar_email_confirmacao(id_consulta: int) -> None:
 
     Se o link ainda não existir (ex.: falhou ao gravar na requisição), gera aqui.
     Consulta cancelada ou realizada não recebe o e-mail.
+
+    Args:
+        id_consulta (int): Identificador da consulta.
     """
     db = fabrica_sessao()
     try:
@@ -219,7 +316,13 @@ def enviar_email_confirmacao(id_consulta: int) -> None:
 
 
 def enviar_email_reagendamento(id_consulta: int, data_anterior: date, hora_anterior: time) -> None:
-    """Avisa o paciente da nova data, com o mesmo link."""
+    """Avisa o paciente da nova data, com o mesmo link.
+
+    Args:
+        id_consulta (int): Identificador da consulta.
+        data_anterior (date): Data em que a consulta estava marcada.
+        hora_anterior (time): Hora em que a consulta estava marcada.
+    """
     db = fabrica_sessao()
     try:
         consulta = repositorio.buscar_com_participantes(db, id_consulta)
@@ -234,7 +337,11 @@ def enviar_email_reagendamento(id_consulta: int, data_anterior: date, hora_anter
 
 
 def enviar_email_cancelamento(id_consulta: int) -> None:
-    """Avisa o paciente do cancelamento (o e-mail não leva o link)."""
+    """Avisa o paciente do cancelamento (o e-mail não leva o link).
+
+    Args:
+        id_consulta (int): Identificador da consulta.
+    """
     db = fabrica_sessao()
     try:
         consulta = repositorio.buscar_com_participantes(db, id_consulta)
@@ -257,6 +364,10 @@ def gerar_link_nova_consulta(db: Session, id_consulta: int) -> None:
 
     Uma falha aqui não desfaz a consulta, que já foi gravada: o link é gerado
     de novo na tarefa do e-mail ou quando alguém consultar a videochamada.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Identificador da consulta.
     """
     try:
         garantir_link(db, id_consulta)
@@ -268,7 +379,17 @@ def gerar_link_nova_consulta(db: Session, id_consulta: int) -> None:
 def _consulta_do_participante(db: Session, id_consulta: int, usuario: Usuario) -> Consulta:
     """Consulta travada para alteração, só se o usuário for o profissional ou o paciente dela.
 
-    Para qualquer outra pessoa responde 404, sem revelar se a consulta existe.
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Identificador da consulta.
+        usuario (Usuario): Usuário autenticado que fez o pedido.
+
+    Returns:
+        Consulta: Consulta travada para alteração.
+
+    Raises:
+        ErroNegocio: 404 para qualquer outra pessoa, sem revelar se a consulta
+            existe.
     """
     consulta = repositorio.buscar_para_atualizar(db, id_consulta)
     if consulta is None or not (
@@ -283,7 +404,19 @@ def consultar_videochamada(db: Session, id_consulta: int, usuario: Usuario) -> t
     """Consulta com os dados da videochamada, visível só ao profissional e ao paciente dela.
 
     Consulta ativa sem link (ex.: criada antes desta integração) ganha o link
-    agora. Devolve a consulta e se o link acabou de ser gerado.
+    agora.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Identificador da consulta.
+        usuario (Usuario): Usuário autenticado que fez o pedido.
+
+    Returns:
+        tuple[Consulta, bool]: A consulta e se o link acabou de ser gerado.
+
+    Raises:
+        ErroNegocio: 404 se a consulta não existir ou o usuário não participar
+            dela.
     """
     consulta = repositorio.buscar_com_participantes(db, id_consulta)
     if consulta is None or not (
@@ -302,6 +435,17 @@ def reprocessar(db: Session, id_consulta: int, usuario: Usuario) -> Consulta:
 
     Serve para consultas antigas, para link que não chegou a ser gravado e
     para e-mail que não chegou ao paciente.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Identificador da consulta.
+        usuario (Usuario): Usuário autenticado que fez o pedido.
+
+    Returns:
+        Consulta: Consulta com o link garantido.
+
+    Raises:
+        ErroNegocio: 400 se a consulta não estiver ativa.
     """
     consulta = _consulta_do_participante(db, id_consulta, usuario)
     if not _ativa(consulta):
@@ -319,7 +463,22 @@ def reagendar(db: Session, id_consulta: int, usuario: Usuario, nova_data: date, 
 
     O novo horário tem de estar na agenda do profissional (data_horario), livre
     e no futuro. O link continua o mesmo (se não houver, é gerado agora).
-    Devolve a consulta e a data/hora anteriores.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Identificador da consulta.
+        usuario (Usuario): Usuário autenticado que fez o pedido.
+        nova_data (date): Nova data da consulta.
+        nova_hora (time): Nova hora da consulta.
+
+    Returns:
+        tuple[Consulta, date, time]: A consulta e a data/hora anteriores.
+
+    Raises:
+        ErroNegocio: 403 se o usuário não for o profissional responsável; 400 se
+            a consulta estiver cancelada ou realizada, se a data/hora não mudar,
+            não estiver no futuro ou não existir na agenda; 409 se o novo
+            horário estiver ocupado.
     """
     consulta = _consulta_do_participante(db, id_consulta, usuario)
     try:
@@ -359,6 +518,17 @@ def cancelar(db: Session, id_consulta: int, usuario: Usuario) -> Consulta:
     """Cancela a consulta (status "cancelada"). Profissional ou paciente da consulta podem cancelar.
 
     O link fica gravado (auditoria), mas deixa de ser exibido pela API.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Identificador da consulta.
+        usuario (Usuario): Usuário autenticado que fez o pedido.
+
+    Returns:
+        Consulta: Consulta cancelada.
+
+    Raises:
+        ErroNegocio: 400 se a consulta já estiver cancelada ou já realizada.
     """
     consulta = _consulta_do_participante(db, id_consulta, usuario)
     if consulta.status in STATUS_CANCELADOS:

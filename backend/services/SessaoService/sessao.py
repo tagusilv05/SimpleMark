@@ -21,12 +21,23 @@ class ServicoSessao:
     """Controla a sessão de login: abertura, validação com renovação e encerramento."""
 
     def __init__(self, db: Session) -> None:
-        """Guarda a sessão do banco e monta o repositório de sessões de login."""
+        """Guarda a sessão do banco e monta o repositório de sessões de login.
+
+        Args:
+            db (Session): Sessão do SQLAlchemy usada nas consultas e gravações.
+        """
         self.db = db
         self.sessoes = RepositorioSessaoLogin(db)
 
     def abrir(self, id_usuario: uuid.UUID) -> SessaoLogin:
-        """Cria a sessão do usuário e faz o commit."""
+        """Cria a sessão do usuário e faz o commit.
+
+        Args:
+            id_usuario (uuid.UUID): ID do usuário que entrou.
+
+        Returns:
+            SessaoLogin: A sessão criada.
+        """
         sessao = self.sessoes.criar(id_usuario, agora_utc())
         self.db.commit()
         return sessao
@@ -35,6 +46,17 @@ class ServicoSessao:
         """Confere se a sessão ainda vale e empurra o prazo de inatividade.
 
         Sessão encerrada ou parada pelo tempo configurado responde 401.
+
+        Args:
+            id_sessao (uuid.UUID): ID da sessão, vindo do token.
+            id_usuario (uuid.UUID): ID do usuário, vindo do token.
+
+        Returns:
+            SessaoLogin: A sessão válida.
+
+        Raises:
+            ErroNegocio: Com status 401, quando a sessão não existe, foi encerrada ou
+                expirou por inatividade.
         """
         agora = agora_utc()
         sessao = self.sessoes.buscar(id_sessao, id_usuario)
@@ -53,6 +75,10 @@ class ServicoSessao:
         return sessao
 
     def encerrar(self, sessao: SessaoLogin) -> None:
-        """Marca a sessão como encerrada (logout) e faz o commit."""
+        """Marca a sessão como encerrada (logout) e faz o commit.
+
+        Args:
+            sessao (SessaoLogin): Sessão a encerrar.
+        """
         sessao.encerrada_em = agora_utc()
         self.db.commit()

@@ -17,8 +17,16 @@ class PerfilUsuario(str, Enum):
 def perfil_de(usuario: Usuario) -> PerfilUsuario:
     """Descobre o perfil da conta pelo registro vinculado.
 
-    A ordem de prioridade é administrador, profissional e paciente. Sem nenhum
-    deles, levanta ErroNegocio com 403.
+    A ordem de prioridade é administrador, profissional e paciente.
+
+    Args:
+        usuario (Usuario): Conta a verificar.
+
+    Returns:
+        PerfilUsuario: Perfil encontrado para a conta.
+
+    Raises:
+        ErroNegocio: Com status 403, se a conta não tiver nenhum dos perfis.
     """
     if usuario.administrador is not None:
         return PerfilUsuario.ADMINISTRADOR

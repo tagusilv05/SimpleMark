@@ -4,7 +4,7 @@ import { api } from '@/services/api'
 
 /**
  * Agendamento em andamento, compartilhado entre as telas
- * Agendamento -> Confirmação do agendamento -> Pagamento.
+ * Agendamento -> Pagamento -> Confirmação do agendamento.
  *
  *   consulta  resposta de POST /consultas/agendar (mesmo formato de GET /consultas/minhas/{id})
  *   horario   { id_horario, inicio: 'HH:MM', fim: 'HH:MM' } escolhido na tela de agendamento

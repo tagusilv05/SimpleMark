@@ -18,7 +18,14 @@ router = APIRouter(prefix="/auth/senha", tags=["Recuperação de senha"])
 
 
 def get_servico_recuperacao(db: Annotated[Session, Depends(get_db)]) -> ServicoRecuperacaoSenha:
-    """Fornece o serviço de recuperação de senha ligado à sessão do banco."""
+    """Fornece o serviço de recuperação de senha ligado à sessão do banco.
+
+    Args:
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        ServicoRecuperacaoSenha: Serviço de recuperação de senha pronto para uso.
+    """
     return ServicoRecuperacaoSenha(db)
 
 
@@ -45,6 +52,14 @@ def esqueci_senha(
     """Etapa 1: envia o código de recuperação por e-mail.
 
     Responde 422 com e-mail inválido e 503 se o e-mail não sair.
+
+    Args:
+        servico (ServicoRecuperacaoSenha): Serviço de recuperação, injetado pelo FastAPI.
+        dados (EsqueciSenhaEntrada): E-mail da conta.
+
+    Returns:
+        DesafioRecuperacaoResposta: Mensagem, ``id_desafio``, e-mail mascarado e
+        validade do código em segundos.
     """
     desafio = servico.solicitar(dados.email)
     minutos = max(1, desafio.expira_em_segundos // 60)
@@ -85,6 +100,13 @@ def redefinir_senha(
     Responde 400 com código inválido, expirado ou incorreto (ou senha igual à
     atual), 403 com conta banida, 422 com dados inválidos e 429 com a conta
     bloqueada por tentativas.
+
+    Args:
+        servico (ServicoRecuperacaoSenha): Serviço de recuperação, injetado pelo FastAPI.
+        dados (RedefinirSenhaEntrada): ``id_desafio``, código e nova senha.
+
+    Returns:
+        MensagemResposta: Mensagem de confirmação.
     """
     servico.redefinir(dados.id_desafio, dados.codigo, dados.nova_senha)
     return MensagemResposta(mensagem="Senha redefinida com sucesso. Entre com a nova senha.")

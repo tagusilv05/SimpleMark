@@ -39,6 +39,15 @@ def ver_videochamada(
 
     Consulta ativa ainda sem link (ex.: criada antes desta integração) ganha o
     link agora, e o paciente recebe o e-mail de confirmação com ele.
+
+    Args:
+        id_consulta (int): Id da consulta.
+        usuario (Usuario): Usuário logado, injetado pelo FastAPI.
+        tarefas (BackgroundTasks): Tarefas em segundo plano, injetadas pelo FastAPI.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        VideochamadaOutput: Dados da videochamada da consulta.
     """
     consulta, gerado_agora = servico.consultar_videochamada(db, id_consulta, usuario)
     if gerado_agora:
@@ -66,6 +75,15 @@ def reprocessar_videochamada(
     reenvia ao paciente, em segundo plano, o e-mail de confirmação.
 
     Aceito para o profissional ou o paciente de uma consulta ativa.
+
+    Args:
+        id_consulta (int): Id da consulta.
+        usuario (Usuario): Usuário logado, injetado pelo FastAPI.
+        tarefas (BackgroundTasks): Tarefas em segundo plano, injetadas pelo FastAPI.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        OperacaoVideochamadaOutput: Mensagem e dados da videochamada.
     """
     consulta = servico.reprocessar(db, id_consulta, usuario)
     tarefas.add_task(servico.enviar_email_confirmacao, consulta.id_consulta)
@@ -97,6 +115,16 @@ def reagendar_consulta(
 
     O link da videochamada continua o mesmo, e o paciente recebe um e-mail com
     a data antiga e a nova.
+
+    Args:
+        id_consulta (int): Id da consulta.
+        dados (ReagendarConsultaInput): Nova data e nova hora.
+        usuario (Usuario): Usuário logado, injetado pelo FastAPI.
+        tarefas (BackgroundTasks): Tarefas em segundo plano, injetadas pelo FastAPI.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        OperacaoVideochamadaOutput: Mensagem e dados da consulta reagendada.
     """
     consulta, data_anterior, hora_anterior = servico.reagendar(db, id_consulta, usuario, dados.data, dados.hora)
     tarefas.add_task(servico.enviar_email_reagendamento, consulta.id_consulta, data_anterior, hora_anterior)
@@ -125,6 +153,15 @@ def cancelar_consulta(
 
     O link deixa de ser devolvido pela API. A sala do Jitsi não pode ser
     fechada; a proteção é o link sumir e o nome da sala ser imprevisível.
+
+    Args:
+        id_consulta (int): Id da consulta.
+        usuario (Usuario): Usuário logado, injetado pelo FastAPI.
+        tarefas (BackgroundTasks): Tarefas em segundo plano, injetadas pelo FastAPI.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        OperacaoVideochamadaOutput: Mensagem e dados da consulta cancelada.
     """
     consulta = servico.cancelar(db, id_consulta, usuario)
     tarefas.add_task(servico.enviar_email_cancelamento, consulta.id_consulta)

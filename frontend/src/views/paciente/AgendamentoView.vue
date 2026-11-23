@@ -8,7 +8,7 @@
  *   ?profissional=<id>    já deixa esse profissional selecionado
  *
  * Ao confirmar, cria a consulta em POST /consultas/agendar (paciente logado)
- * e vai para a tela de confirmação.
+ * e vai para o pagamento. A confirmação do agendamento só aparece depois do pagamento aprovado.
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -97,7 +97,7 @@ async function confirmar() {
   precisaLogin.value = false
   try {
     const consulta = await agendamento.agendar(horario.value)
-    router.push({ name: 'confirmacaoAgendamento', params: { idConsulta: consulta.id_consulta } })
+    router.push({ name: 'pagamento-consulta', params: { idConsulta: consulta.id_consulta } })
   } catch (e) {
     erro.value = e.message
     if (e.status === 401 || e.status === 403) {

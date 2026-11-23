@@ -16,8 +16,15 @@ TIMEOUT_SMTP_SEGUNDOS = 15
 def enviar_codigo_recuperacao(destinatario: str, codigo: str, validade_minutos: int) -> None:
     """Manda o código de recuperação de senha ao destinatário por SMTP com SSL.
 
-    Levanta RuntimeError se o remetente ou a senha de app não estiverem
-    configurados. Erros de conexão e de envio do smtplib sobem para quem chama.
+    Erros de conexão e de envio do smtplib sobem para quem chama.
+
+    Args:
+        destinatario (str): E-mail que recebe o código.
+        codigo (str): Código de recuperação.
+        validade_minutos (int): Validade do código, em minutos, citada no texto.
+
+    Raises:
+        RuntimeError: Quando o remetente ou a senha de app não estão configurados.
     """
     remetente = smtp_email()
     senha_app = smtp_senha_app()

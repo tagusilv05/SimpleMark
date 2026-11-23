@@ -11,8 +11,17 @@ import mercadopago
 def gerar_link_pagamento(preco_consulta):
     """Cria uma preferência no Mercado Pago e devolve o link de pagamento.
 
-    Usa MERCADOPAGO_ACCESS_TOKEN e levanta RuntimeError se ele não estiver
-    configurado. O item e as URLs de retorno são fixos (localhost).
+    Usa a variável de ambiente MERCADOPAGO_ACCESS_TOKEN. O item e as URLs de
+    retorno são fixos (localhost).
+
+    Args:
+        preco_consulta (float): Preço unitário da consulta, em reais.
+
+    Returns:
+        str: Link (``init_point``) para iniciar o pagamento.
+
+    Raises:
+        RuntimeError: Quando MERCADOPAGO_ACCESS_TOKEN não está configurado.
     """
     token = os.getenv("MERCADOPAGO_ACCESS_TOKEN")
     if not token:

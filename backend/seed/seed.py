@@ -1,4 +1,10 @@
+"""Seed do banco com dados de exemplo para desenvolvimento e testes.
 
+Cadastra um paciente, um médico cardiologista com conselho e especialidade,
+horários disponíveis na agenda, uma consulta realizada e a avaliação dela.
+"""
+
+import os
 from datetime import date, time
 from decimal import Decimal
 
@@ -20,6 +26,28 @@ from models.models import (
 
 
 def criar_seed():
+    """Cadastra os dados de exemplo no banco, sem duplicar registros já existentes.
+
+    Só deve rodar em desenvolvimento (o main.py confere ``AMBIENTE``). Os dados são
+    fictícios: e-mails em example.com (domínio reservado para exemplos) e CPFs de
+    teste. Sem ``SEED_SENHA`` no ambiente, não cadastra nada.
+
+    Cria (ou localiza) o paciente Joao Silva e o médico Marcos Silva, com suas
+    credenciais (senha lida de ``SEED_SENHA``), a especialidade Cardiologia, o conselho
+    CRM-PI 123456, o vínculo médico/especialidade com consulta a R$ 250,00, seis
+    horários disponíveis em 05/11/2026 e 06/11/2026, uma teleconsulta realizada em
+    20/10/2026 e a avaliação de 5 estrelas dessa consulta. Ao final, grava tudo e
+    exibe um resumo no terminal.
+
+    Raises:
+        Exception: Repassa qualquer erro ocorrido durante o cadastro, depois de
+            desfazer a transação.
+    """
+    senha = os.getenv("SEED_SENHA", "")
+    if not senha:
+        print("Seed ignorado: defina SEED_SENHA no .env para criar os usuários de exemplo.")
+        return
+
     db = SessionLocal()
 
     try:
@@ -29,19 +57,19 @@ def criar_seed():
 
         usuario_paciente = (
             db.query(Usuario)
-            .filter(Usuario.email == "joaomarcos0416@gmail.com")
+            .filter(Usuario.email == "paciente.seed@example.com")
             .first()
         )
 
         if usuario_paciente is None:
             usuario_paciente = Usuario(
                 nome="Joao Silva",
-                cpf="041.609.790-17",
+                cpf="123.456.789-09",
                 orgao_emissor="SSP",
                 data_nascimento=date(1995, 5, 15),
                 genero="Masculino",
-                telefone="8932439212",
-                email="joaomarcos0416@gmail.com",
+                telefone="86900000001",
+                email="paciente.seed@example.com",
                 status=True,
             )
 
@@ -69,7 +97,7 @@ def criar_seed():
         if credencial_paciente is None:
             credencial_paciente = Credencial(
                 id_usuario=usuario_paciente.id,
-                senha_hash=gerar_hash_senha("minhasenha123"),
+                senha_hash=gerar_hash_senha(senha),
                 consentimento_lgpd=True,
                 tentativas_login_falhas=0,
                 bloqueado_ate=None,
@@ -83,19 +111,19 @@ def criar_seed():
 
         usuario_medico = (
             db.query(Usuario)
-            .filter(Usuario.email == "joaomarcos0416@outlook.com")
+            .filter(Usuario.email == "medico.seed@example.com")
             .first()
         )
 
         if usuario_medico is None:
             usuario_medico = Usuario(
                 nome="Marcos Silva",
-                cpf="920.285.800-46",
+                cpf="111.444.777-35",
                 orgao_emissor="SSP",
                 data_nascimento=date(1980, 3, 10),
                 genero="Masculino",
-                telefone="8932254654",
-                email="joaomarcos0416@outlook.com",
+                telefone="86900000002",
+                email="medico.seed@example.com",
                 status=True,
             )
 
@@ -127,7 +155,7 @@ def criar_seed():
         if credencial_medico is None:
             credencial_medico = Credencial(
                 id_usuario=usuario_medico.id,
-                senha_hash=gerar_hash_senha("minhasenha123"),
+                senha_hash=gerar_hash_senha(senha),
                 consentimento_lgpd=True,
                 tentativas_login_falhas=0,
                 bloqueado_ate=None,

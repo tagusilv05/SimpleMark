@@ -217,7 +217,7 @@ async function salvarSenha(valores) {
 }
 
 function buscarCep() {
-  window.open('https://buscacepinter.correios.com.br/app/endereco/index.php', '_blank')
+  window.open('https://buscacepinter.correios.com.br/app/endereco/index.php', '_blank', 'noopener,noreferrer')
 }
 
 function trocarFoto(file) {

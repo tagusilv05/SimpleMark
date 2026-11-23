@@ -28,7 +28,19 @@ router = APIRouter(tags=["Documentos Clínicos"])
 
 
 def _tratar(acao):
-    """Converte os erros do service nos status da API."""
+    """Converte os erros do service nos status da API.
+
+    Args:
+        acao (Callable[[], Any]): Função sem argumentos que chama o service.
+
+    Returns:
+        Any: O retorno de ``acao``.
+
+    Raises:
+        HTTPException: 404 para consulta ou documento inexistente, 403 para
+            profissional não responsável, 400 quando a consulta não permite emissão e
+            500 quando o código de verificação não pode ser gerado.
+    """
     try:
         return acao()
 
@@ -58,6 +70,14 @@ def emitir_receita_medica(
     Exige login e só o profissional responsável pela consulta pode emitir (403).
     Responde 404 se a consulta não existir, 400 se estiver cancelada e 500 se o
     código não puder ser gerado.
+
+    Args:
+        dados (EmitirReceitaInput): Consulta e conteúdo da receita.
+        usuario (Usuario): Usuário logado, injetado pelo FastAPI.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        DocumentoEmitidoOutput: Receita emitida.
     """
     return _tratar(lambda: emitir_receita(db=db, dados=dados, usuario=usuario))
 
@@ -74,6 +94,14 @@ def emitir_atestado_medico(
     Exige login e só o profissional responsável pela consulta pode emitir (403).
     Responde 404 se a consulta não existir, 400 se estiver cancelada e 500 se o
     código não puder ser gerado.
+
+    Args:
+        dados (EmitirAtestadoInput): Consulta e conteúdo do atestado.
+        usuario (Usuario): Usuário logado, injetado pelo FastAPI.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        DocumentoEmitidoOutput: Atestado emitido.
     """
     return _tratar(lambda: emitir_atestado(db=db, dados=dados, usuario=usuario))
 
@@ -89,6 +117,14 @@ def documentos_da_consulta(
 
     Exige login; só o profissional responsável e o paciente da consulta podem ver (403).
     Responde 404 se a consulta não existir.
+
+    Args:
+        id_consulta (int): Id da consulta.
+        usuario (Usuario): Usuário logado, injetado pelo FastAPI.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        list[DocumentoResumoOutput]: Resumo dos documentos emitidos.
     """
     return _tratar(lambda: listar_documentos(db=db, id_consulta=id_consulta, usuario=usuario))
 
@@ -104,5 +140,13 @@ def documento_emitido(
 
     Exige login; só o profissional responsável e o paciente da consulta podem ver (403).
     Responde 404 se o documento não existir.
+
+    Args:
+        documento_id (int): Id do documento clínico.
+        usuario (Usuario): Usuário logado, injetado pelo FastAPI.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        DocumentoEmitidoOutput: Documento emitido, por inteiro.
     """
     return _tratar(lambda: buscar_documento_emitido(db=db, id_documento=documento_id, usuario=usuario))

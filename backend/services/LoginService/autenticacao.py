@@ -39,7 +39,14 @@ MENSAGEM_CODIGO_INCORRETO = "Código incorreto. Verifique o e-mail e tente novam
 
 
 def _mensagem_bloqueio(restante: timedelta) -> str:
-    """Mensagem de bloqueio com o tempo restante arredondado para cima, em minutos."""
+    """Mensagem de bloqueio com o tempo restante arredondado para cima, em minutos.
+
+    Args:
+        restante (timedelta): Tempo que falta para o fim do bloqueio.
+
+    Returns:
+        str: Mensagem para o usuário com os minutos restantes.
+    """
     minutos = max(1, math.ceil(restante.total_seconds() / 60))
     unidade = "minuto" if minutos == 1 else "minutos"
     return (
@@ -60,7 +67,11 @@ class ServicoAutenticacao:
     """Autentica o usuário e abre a sessão de login."""
 
     def __init__(self, db: Session) -> None:
-        """Guarda a sessão do banco e monta os repositórios usados no login."""
+        """Guarda a sessão do banco e monta os repositórios usados no login.
+
+        Args:
+            db (Session): Sessão do SQLAlchemy usada nas consultas e gravações.
+        """
         self.db = db
         self.usuarios = RepositorioUsuario(db)
         self.credenciais = RepositorioCredencial(db)
@@ -72,6 +83,17 @@ class ServicoAutenticacao:
 
         A conta bloqueada responde 429 sem conferir a senha. Na quinta falha
         seguida, a conta fica bloqueada.
+
+        Args:
+            identificador (str): E-mail ou CPF do usuário.
+            senha (str): Senha informada.
+
+        Returns:
+            DesafioLogin: O desafio que aguarda o código enviado por e-mail.
+
+        Raises:
+            ErroNegocio: Com status 401, quando o usuário não existe ou a senha está
+                errada, ou 429, quando a conta está ou fica bloqueada.
         """
         usuario = self._localizar(identificador)
         if usuario is None:
@@ -103,7 +125,19 @@ class ServicoAutenticacao:
 
     # ------------------------------------------------------------------ etapa 2
     def confirmar_login(self, id_desafio: uuid.UUID, codigo: str) -> ResultadoLogin:
-        """Confere o código. Se estiver certo, consome o código e abre a sessão."""
+        """Confere o código. Se estiver certo, consome o código e abre a sessão.
+
+        Args:
+            id_desafio (uuid.UUID): ID do desafio criado na primeira etapa.
+            codigo (str): Código recebido por e-mail.
+
+        Returns:
+            ResultadoLogin: Token de acesso e usuário autenticado.
+
+        Raises:
+            ErroNegocio: Com status 401, quando o desafio é inválido, o código expirou
+                ou está incorreto, ou 429, quando a conta está ou fica bloqueada.
+        """
         desafio = self.codigos.buscar(id_desafio)
         if desafio is None:
             raise ErroNegocio(MENSAGEM_CODIGO_INVALIDO, 401)
@@ -153,6 +187,12 @@ class ServicoAutenticacao:
 
         Profissional inativo recebe a mensagem de que o cadastro ainda aguarda a
         validação do administrador.
+
+        Args:
+            usuario (Usuario): Usuário que está entrando.
+
+        Raises:
+            ErroNegocio: Com status 403, quando a conta está banida ou inativa.
         """
         if RepositorioAdministracao(self.db).esta_banido(usuario.id):
             raise ErroNegocio("Esta conta foi banida pelo administrador.", 403)
@@ -169,6 +209,13 @@ class ServicoAutenticacao:
         """Tempo que falta de bloqueio, ou None.
 
         Bloqueio vencido é limpo junto com a contagem de falhas, sem commit.
+
+        Args:
+            credencial (Credencial): Credencial do usuário.
+            agora (datetime): Instante atual, em UTC.
+
+        Returns:
+            timedelta | None: Tempo restante de bloqueio, ou ``None`` se não houver.
         """
         if credencial.bloqueado_ate is None:
             return None
@@ -183,6 +230,13 @@ class ServicoAutenticacao:
         """Conta a senha errada e bloqueia a conta ao atingir o limite de tentativas.
 
         Devolve a duração do bloqueio quando ele começa, ou None. Faz o commit.
+
+        Args:
+            credencial (Credencial): Credencial do usuário.
+            agora (datetime): Instante atual, em UTC.
+
+        Returns:
+            timedelta | None: Duração do bloqueio iniciado, ou ``None``.
         """
         credencial.tentativas_login_falhas += 1
         restante = None
@@ -198,6 +252,15 @@ class ServicoAutenticacao:
         """Busca o usuário por e-mail (se houver "@") ou por CPF.
 
         Identificador mal formatado responde 422.
+
+        Args:
+            identificador (str): E-mail ou CPF informado.
+
+        Returns:
+            Usuario | None: O usuário encontrado, ou ``None``.
+
+        Raises:
+            ErroNegocio: Com status 422, quando o e-mail ou o CPF é inválido.
         """
         texto = identificador.strip()
         if "@" in texto:

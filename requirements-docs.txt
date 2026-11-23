@@ -1,0 +1,5 @@
+# Dependências para gerar a documentação (Sphinx). Instale também o
+# requirements.txt do projeto: o autodoc importa o código do backend.
+sphinx>=8.0
+sphinx-rtd-theme>=3.0
+rinohtype>=0.5.5

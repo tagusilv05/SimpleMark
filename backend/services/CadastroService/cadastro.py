@@ -29,7 +29,11 @@ class ServicoCadastro:
     """
 
     def __init__(self, db: Session) -> None:
-        """Guarda a sessão do banco e monta os repositórios usados no cadastro."""
+        """Guarda a sessão do banco e monta os repositórios usados no cadastro.
+
+        Args:
+            db (Session): Sessão do SQLAlchemy usada nas consultas e gravações.
+        """
         self.db = db
         self.usuarios = RepositorioUsuario(db)
         self.credenciais = RepositorioCredencial(db)
@@ -37,7 +41,14 @@ class ServicoCadastro:
         self.conselhos = RepositorioConselho(db)
 
     def cadastrar_paciente(self, dados: CadastroUsuarioEntrada) -> Usuario:
-        """Cria o usuário já ativo, com perfil de paciente, e faz o commit."""
+        """Cria o usuário já ativo, com perfil de paciente, e faz o commit.
+
+        Args:
+            dados (CadastroUsuarioEntrada): Dados pessoais, endereço e senha.
+
+        Returns:
+            Usuario: O usuário criado.
+        """
         usuario = self._criar_usuario(dados, status=True)
         usuario.paciente = Paciente()
         return self._concluir(usuario)
@@ -47,6 +58,16 @@ class ServicoCadastro:
 
         Conselho (número e órgão) já cadastrado responde 409. Especialidade que
         não existe é criada na hora, e o valor da consulta começa em zero.
+
+        Args:
+            dados (CadastroProfissionalEntrada): Dados pessoais, conselho e
+                especialidades do profissional.
+
+        Returns:
+            Usuario: O usuário criado, ainda inativo.
+
+        Raises:
+            ErroNegocio: Com status 409, quando o conselho já está cadastrado.
         """
         if self.conselhos.buscar(dados.numero_conselho, dados.orgao_conselho) is not None:
             raise ErroNegocio(
@@ -74,7 +95,15 @@ class ServicoCadastro:
         return self._concluir(usuario)
 
     def _criar_usuario(self, dados: CadastroUsuarioEntrada, status: bool) -> Usuario:
-        """Monta usuário, endereço e credencial com a senha em hash, sem fazer commit."""
+        """Monta usuário, endereço e credencial com a senha em hash, sem fazer commit.
+
+        Args:
+            dados (CadastroUsuarioEntrada): Dados pessoais, endereço e senha.
+            status (bool): Se a conta já nasce ativa.
+
+        Returns:
+            Usuario: O usuário adicionado à sessão.
+        """
         self._garantir_unicidade(dados.cpf, dados.email)
         usuario = Usuario(
             nome=dados.nome,
@@ -107,7 +136,15 @@ class ServicoCadastro:
         return usuario
 
     def _garantir_unicidade(self, cpf: str, email: str) -> None:
-        """Responde 409 se o CPF ou o e-mail já estiverem cadastrados."""
+        """Responde 409 se o CPF ou o e-mail já estiverem cadastrados.
+
+        Args:
+            cpf (str): CPF a verificar.
+            email (str): E-mail a verificar.
+
+        Raises:
+            ErroNegocio: Com status 409, quando o CPF ou o e-mail já existem.
+        """
         if self.usuarios.buscar_por_cpf(cpf) is not None:
             raise ErroNegocio(
                 "Já existe um cadastro com este CPF. Faça login ou utilize outro CPF.",
@@ -120,7 +157,17 @@ class ServicoCadastro:
             )
 
     def _concluir(self, usuario: Usuario) -> Usuario:
-        """Faz o commit; conflito de unicidade no banco vira ErroNegocio 409."""
+        """Faz o commit; conflito de unicidade no banco vira ErroNegocio 409.
+
+        Args:
+            usuario (Usuario): Usuário recém-montado.
+
+        Returns:
+            Usuario: O mesmo usuário, já gravado.
+
+        Raises:
+            ErroNegocio: Com status 409, quando o banco acusa dado duplicado.
+        """
         try:
             self.db.commit()
         except IntegrityError:

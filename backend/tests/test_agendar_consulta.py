@@ -1,7 +1,7 @@
 # Testes do agendamento de consulta pelo paciente (POST /consultas/agendar).
 #
-# O e-mail de confirmação roda como tarefa em segundo plano; aqui ele usa a
-# sessão do teste e um SMTP falso, como nos testes da videochamada.
+# O e-mail de confirmação só sai depois do pagamento aprovado (ver test_pagamento);
+# aqui o envio usa a sessão do teste e um SMTP falso, como nos testes da videochamada.
 """Testes do agendamento de consulta pelo paciente logado."""
 from datetime import date, time, timedelta
 from types import SimpleNamespace
@@ -63,7 +63,8 @@ def test_agenda_consulta_no_horario_livre(client, db, paciente_logado, horario, 
     assert horario.ocupado is True
     consulta = db.get(Consulta, corpo["id_consulta"])
     assert consulta.meet_link
-    assert len(integracoes.emails) == 1
+    # Agendar não confirma: a confirmação só vai por e-mail após o pagamento.
+    assert integracoes.emails == []
 
 
 def test_horario_agendado_some_da_busca(client, paciente_logado, horario, integracoes):

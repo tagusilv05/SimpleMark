@@ -8,7 +8,12 @@ from models.models import Consulta, DocumentoClinico, Paciente, ProfissionalEspe
 
 
 def _carregar_contexto():
-    """Joins que a resposta do documento sempre precisa: paciente e profissional."""
+    """Joins que a resposta do documento sempre precisa: paciente e profissional.
+
+    Returns:
+        tuple: Opções ``joinedload`` a partir de ``Consulta`` para paciente, profissional,
+        especialidade e conselho.
+    """
     esp_prof = joinedload(Consulta.profissional_especialidade)
     return (
         joinedload(Consulta.paciente).joinedload(Paciente.usuario),
@@ -19,7 +24,15 @@ def _carregar_contexto():
 
 
 def buscar_consulta(db: Session, id_consulta: int) -> Consulta | None:
-    """Consulta pelo id, com paciente e profissional carregados, ou None."""
+    """Consulta pelo id, com paciente e profissional carregados, ou None.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Id da consulta.
+
+    Returns:
+        Consulta | None: Consulta encontrada, ou None.
+    """
     return (
         db.query(Consulta)
         .filter(Consulta.id_consulta == id_consulta)
@@ -29,7 +42,15 @@ def buscar_consulta(db: Session, id_consulta: int) -> Consulta | None:
 
 
 def buscar_documento(db: Session, id_documento: int) -> DocumentoClinico | None:
-    """Documento pelo id, com receita, atestado e consulta carregados, ou None."""
+    """Documento pelo id, com receita, atestado e consulta carregados, ou None.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_documento (int): Id do documento.
+
+    Returns:
+        DocumentoClinico | None: Documento encontrado, ou None.
+    """
     return (
         db.query(DocumentoClinico)
         .filter(DocumentoClinico.id_documento == id_documento)
@@ -43,7 +64,15 @@ def buscar_documento(db: Session, id_documento: int) -> DocumentoClinico | None:
 
 
 def listar_documentos_da_consulta(db: Session, id_consulta: int) -> list[DocumentoClinico]:
-    """Documentos emitidos para a consulta, em ordem de id."""
+    """Documentos emitidos para a consulta, em ordem de id.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        id_consulta (int): Id da consulta.
+
+    Returns:
+        list[DocumentoClinico]: Documentos da consulta.
+    """
     return (
         db.query(DocumentoClinico)
         .filter(DocumentoClinico.id_consulta == id_consulta)

@@ -31,6 +31,14 @@ def listar_pendentes(
     """Lista os profissionais que aguardam validação, sem os banidos.
 
     Somente administrador.
+
+    Args:
+        servico (ServicoValidacaoProfissional): Serviço de validação, injetado pelo FastAPI.
+        administracao (ServicoAdministracao): Serviço de administração, injetado pelo FastAPI.
+        _admin (Usuario): Administrador logado, injetado pelo FastAPI (só exige o perfil).
+
+    Returns:
+        list[ProfissionalPendenteResposta]: Profissionais pendentes de validação.
     """
     pendentes = administracao.sem_banidos(servico.listar_pendentes())
     return [ProfissionalPendenteResposta.de_profissional(item) for item in pendentes]
@@ -57,6 +65,15 @@ def validar_profissional(
 
     Somente administrador. Responde 404 se o profissional não existir e 409 se ele
     já estiver validado ou banido.
+
+    Args:
+        id_profissional (int): Id do profissional.
+        servico (ServicoValidacaoProfissional): Serviço de validação, injetado pelo FastAPI.
+        administracao (ServicoAdministracao): Serviço de administração, injetado pelo FastAPI.
+        admin (Usuario): Administrador logado, injetado pelo FastAPI.
+
+    Returns:
+        UsuarioPublico: Dados públicos da conta do profissional validado.
     """
     administracao.recusar_validacao_se_banido(id_profissional)
     usuario = servico.validar(id_profissional)
@@ -77,6 +94,13 @@ def listar_ids_usuarios(
     """Lista os IDs de profissionais e pacientes, sem os banidos.
 
     Somente administrador.
+
+    Args:
+        administracao (ServicoAdministracao): Serviço de administração, injetado pelo FastAPI.
+        _admin (Usuario): Administrador logado, injetado pelo FastAPI (só exige o perfil).
+
+    Returns:
+        IdsUsuariosResposta: IDs de profissionais e de pacientes.
     """
     return administracao.listar_ids_usuarios()
 
@@ -102,6 +126,15 @@ def banir_profissional(
 
     Somente administrador; o motivo é opcional. Responde 404 se o profissional não
     existir, 403 se a conta for de administrador e 409 se já estiver banida.
+
+    Args:
+        id_profissional (int): Id do profissional.
+        administracao (ServicoAdministracao): Serviço de administração, injetado pelo FastAPI.
+        admin (Usuario): Administrador logado, injetado pelo FastAPI.
+        dados (BanirEntrada): Motivo opcional do banimento.
+
+    Returns:
+        MensagemResposta: Mensagem de confirmação.
     """
     administracao.banir_profissional(id_profissional, admin, dados.motivo)
     return MensagemResposta(mensagem="O profissional foi banido.")
@@ -128,6 +161,15 @@ def banir_paciente(
 
     Somente administrador; o motivo é opcional. Responde 404 se o paciente não
     existir, 403 se a conta for de administrador e 409 se já estiver banida.
+
+    Args:
+        id_paciente (int): Id do paciente.
+        administracao (ServicoAdministracao): Serviço de administração, injetado pelo FastAPI.
+        admin (Usuario): Administrador logado, injetado pelo FastAPI.
+        dados (BanirEntrada): Motivo opcional do banimento.
+
+    Returns:
+        MensagemResposta: Mensagem de confirmação.
     """
     administracao.banir_paciente(id_paciente, admin, dados.motivo)
     return MensagemResposta(mensagem="O paciente foi banido.")
@@ -143,5 +185,13 @@ def listar_logs(
     administracao: ServicoAdministracaoDep,
     _admin: AdministradorAtual,
 ) -> list[LogAcaoResposta]:
-    """Lista as ações registradas pelos administradores. Somente administrador."""
+    """Lista as ações registradas pelos administradores. Somente administrador.
+
+    Args:
+        administracao (ServicoAdministracao): Serviço de administração, injetado pelo FastAPI.
+        _admin (Usuario): Administrador logado, injetado pelo FastAPI (só exige o perfil).
+
+    Returns:
+        list[LogAcaoResposta]: Ações registradas no log.
+    """
     return administracao.listar_logs()

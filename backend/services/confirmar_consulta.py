@@ -14,8 +14,19 @@ from services.usuario_minha_conta import verificar_paciente_usuario as servicer_
 def confirmar_consulta(dados, db: Session):
     """Grava a consulta do paciente com o profissional na especialidade.
 
-    Levanta ValueError se algum dos usuários não for válido ou se a especialidade
-    não for do profissional. Em qualquer erro faz rollback e relança.
+    Em qualquer erro faz rollback e relança.
+
+    Args:
+        dados: Dados da consulta, com ``id_usuario_profissional``,
+            ``id_usuario_paciente`` e ``id_especialidade``.
+        db (Session): Sessão do banco de dados.
+
+    Returns:
+        Consulta: Consulta gravada.
+
+    Raises:
+        ValueError: Se algum dos usuários não for válido ou se a especialidade
+            não for do profissional.
     """
 
     try:

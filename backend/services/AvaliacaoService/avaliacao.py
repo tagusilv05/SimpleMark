@@ -30,7 +30,11 @@ class ServicoAvaliacao:
     """
 
     def __init__(self, db: Session) -> None:
-        """Guarda a sessão do banco e monta o repositório de avaliações."""
+        """Guarda a sessão do banco e monta o repositório de avaliações.
+
+        Args:
+            db (Session): Sessão do SQLAlchemy usada nas consultas e gravações.
+        """
         self.db = db
         self.avaliacoes = RepositorioAvaliacao(db)
 
@@ -39,6 +43,18 @@ class ServicoAvaliacao:
 
         Consulta inexistente ou de outro paciente responde 404. Consulta ainda não
         realizada ou já avaliada responde 409. Faz o commit.
+
+        Args:
+            paciente (Paciente): Paciente autenticado que avalia a consulta.
+            id_consulta (int): ID da consulta avaliada.
+            dados (AvaliacaoEntrada): Nota opcional e comentário da avaliação.
+
+        Returns:
+            Avaliacao: A avaliação gravada.
+
+        Raises:
+            ErroNegocio: Com status 404, quando a consulta não existe ou é de outro
+                paciente, ou 409, quando ainda não foi realizada ou já foi avaliada.
         """
         consulta = self.avaliacoes.buscar_consulta(id_consulta)
         # Consulta de outro paciente responde 404, para não revelar que ela existe.
@@ -75,6 +91,17 @@ class ServicoAvaliacao:
         """Devolve a avaliação que o paciente deu à consulta.
 
         Responde 404 se a consulta não for dele ou ainda não tiver avaliação.
+
+        Args:
+            paciente (Paciente): Paciente autenticado.
+            id_consulta (int): ID da consulta.
+
+        Returns:
+            Avaliacao: A avaliação dada pelo paciente à consulta.
+
+        Raises:
+            ErroNegocio: Com status 404, quando a consulta não existe, é de outro
+                paciente ou ainda não foi avaliada.
         """
         consulta = self.avaliacoes.buscar_consulta(id_consulta)
         if consulta is None or consulta.id_paciente != paciente.id_paciente:
@@ -88,6 +115,15 @@ class ServicoAvaliacao:
         """Média e distribuição das notas (1 a 5 estrelas) do profissional.
 
         Responde 404 se o profissional não existir. Sem notas, a média é None.
+
+        Args:
+            id_profissional (int): ID do profissional.
+
+        Returns:
+            ResumoAvaliacoesResposta: Média, total e distribuição das notas.
+
+        Raises:
+            ErroNegocio: Com status 404, quando o profissional não existe.
         """
         if self.avaliacoes.buscar_profissional(id_profissional) is None:
             raise ErroNegocio("Não encontramos este profissional de saúde.", 404)
@@ -103,7 +139,18 @@ class ServicoAvaliacao:
         )
 
     def ranking(self, id_especialidade: int | None, limite: int) -> list[ProfissionalMelhorAvaliadoResposta]:
-        """Profissionais ativos ordenados pela média ponderada (bayesiana) das estrelas."""
+        """Profissionais ativos ordenados pela média ponderada (bayesiana) das estrelas.
+
+        Args:
+            id_especialidade (int | None): Filtra pela especialidade; ``None`` considera
+                todas.
+            limite (int): Quantidade máxima de profissionais no ranking.
+
+        Returns:
+            list[ProfissionalMelhorAvaliadoResposta]: Profissionais em ordem de
+            pontuação, com posição, média e total de avaliações. Lista vazia se não
+            houver avaliações.
+        """
         linhas = self.avaliacoes.agregar_por_profissional(id_especialidade)
         if not linhas:
             return []
@@ -116,6 +163,13 @@ class ServicoAvaliacao:
 
             Com poucas avaliações pesa mais a média geral; o peso dela é dado por
             MINIMO_AVALIACOES_CONFIANCA.
+
+            Args:
+                media (float): Média das notas do profissional.
+                total (int): Quantidade de avaliações do profissional.
+
+            Returns:
+                float: A média ponderada do profissional.
             """
             return (total / (total + m)) * media + (m / (total + m)) * media_geral
 
@@ -141,7 +195,11 @@ class ServicoAvaliacao:
         ]
 
     def _atualizar_media(self, id_esp_prof: int) -> None:
-        """Recalcula a média do vínculo profissional-especialidade, sem fazer commit."""
+        """Recalcula a média do vínculo profissional-especialidade, sem fazer commit.
+
+        Args:
+            id_esp_prof (int): ID do vínculo profissional-especialidade.
+        """
         vinculo = self.avaliacoes.buscar_vinculo_para_atualizar(id_esp_prof)
         if vinculo is None:
             return

@@ -38,6 +38,17 @@ def avaliar_profissional(
     Somente pacientes (403 para outros perfis). Responde 404 se a consulta não
     existir, 403 se for de outro paciente, 400 se ainda não foi realizada e 409 se
     já foi avaliada.
+
+    Args:
+        dados (AvaliacaoCreate): Consulta, nota e comentário da avaliação.
+        paciente (Usuario): Usuário logado, injetado pelo FastAPI.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        AvaliacaoResponse: Avaliação registrada.
+
+    Raises:
+        HTTPException: Quando a conta logada não é de paciente (403).
     """
     if paciente.paciente is None:
         raise HTTPException(
@@ -52,7 +63,15 @@ def media_profissional(
     id_profissional: int,
     db: Session = Depends(get_db),
 ):
-    """Média e total das avaliações do profissional. Rota pública."""
+    """Média e total das avaliações do profissional. Rota pública.
+
+    Args:
+        id_profissional (int): Id do profissional.
+        db (Session): Sessão do banco de dados, injetada pelo FastAPI.
+
+    Returns:
+        MediaProfissionalResponse: Média e total das avaliações.
+    """
     return obter_media_profissional(db, id_profissional)
 
 
@@ -93,6 +112,15 @@ def avaliar_consulta(
 
     Somente o paciente da consulta. Responde 404 se a consulta não existir ou for de
     outro paciente e 409 se ainda não foi realizada ou já foi avaliada.
+
+    Args:
+        id_consulta (int): Id da consulta.
+        dados (AvaliacaoEntrada): Nota opcional (1 a 5) e comentário.
+        servico (ServicoAvaliacao): Serviço de avaliações, injetado pelo FastAPI.
+        paciente (Paciente): Paciente logado, injetado pelo FastAPI.
+
+    Returns:
+        AvaliacaoResposta: Avaliação registrada.
     """
     avaliacao = servico.avaliar(paciente, id_consulta, dados)
     return AvaliacaoResposta.model_validate(avaliacao, from_attributes=True)
@@ -117,6 +145,14 @@ def minha_avaliacao(
 
     Somente o paciente da consulta. Responde 404 se a consulta não existir, for de
     outro paciente ou ainda não tiver sido avaliada.
+
+    Args:
+        id_consulta (int): Id da consulta.
+        servico (ServicoAvaliacao): Serviço de avaliações, injetado pelo FastAPI.
+        paciente (Paciente): Paciente logado, injetado pelo FastAPI.
+
+    Returns:
+        AvaliacaoResposta: Avaliação dada pelo paciente.
     """
     avaliacao = servico.minha_avaliacao(paciente, id_consulta)
     return AvaliacaoResposta.model_validate(avaliacao, from_attributes=True)
@@ -135,6 +171,13 @@ def resumo_avaliacoes(
     """Média e distribuição das estrelas do profissional. Rota pública.
 
     Responde 404 se o profissional não existir. Sem notas, a média vem nula.
+
+    Args:
+        id_profissional (int): Id do profissional.
+        servico (ServicoAvaliacao): Serviço de avaliações, injetado pelo FastAPI.
+
+    Returns:
+        ResumoAvaliacoesResposta: Média e distribuição das estrelas.
     """
     return servico.resumo_do_profissional(id_profissional)
 
@@ -153,5 +196,13 @@ def melhor_avaliados(
     """Ranking dos profissionais ativos pela média bayesiana das estrelas.
 
     Rota pública. Pode filtrar por especialidade e limitar a quantidade (1 a 50).
+
+    Args:
+        servico (ServicoAvaliacao): Serviço de avaliações, injetado pelo FastAPI.
+        id_especialidade (int | None): Filtra por especialidade, se informado.
+        limite (int): Quantidade máxima de profissionais (1 a 50).
+
+    Returns:
+        list[ProfissionalMelhorAvaliadoResposta]: Profissionais ordenados pela média.
     """
     return servico.ranking(id_especialidade, limite)

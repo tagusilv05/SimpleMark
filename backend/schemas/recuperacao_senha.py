@@ -16,7 +16,14 @@ class EsqueciSenhaEntrada(BaseModel):
     @field_validator("email")
     @classmethod
     def email_valido(cls, valor: str) -> str:
-        """Normaliza o e-mail (minúsculas, sem espaços) e recusa formato inválido."""
+        """Normaliza o e-mail (minúsculas, sem espaços) e recusa formato inválido.
+
+        Args:
+            valor (str): E-mail informado.
+
+        Returns:
+            str: E-mail normalizado.
+        """
         return normalizar_email(valor)
 
 
@@ -30,7 +37,17 @@ class RedefinirSenhaEntrada(BaseModel):
     @field_validator("codigo")
     @classmethod
     def codigo_somente_numeros(cls, valor: str) -> str:
-        """Aceita só o código com a quantidade exata de dígitos (ASCII)."""
+        """Aceita só o código com a quantidade exata de dígitos (ASCII).
+
+        Args:
+            valor (str): Código informado.
+
+        Returns:
+            str: Código sem espaços nas pontas.
+
+        Raises:
+            ValueError: Quando o código não tem exatamente ``TAMANHO_CODIGO_LOGIN`` dígitos.
+        """
         texto = valor.strip()
         if len(texto) != TAMANHO_CODIGO_LOGIN or not (texto.isascii() and texto.isdigit()):
             raise ValueError(f"O código de confirmação deve ter {TAMANHO_CODIGO_LOGIN} números.")
@@ -39,7 +56,17 @@ class RedefinirSenhaEntrada(BaseModel):
     @field_validator("nova_senha")
     @classmethod
     def senha_minima(cls, valor: str) -> str:
-        """Recusa senha com menos de 8 caracteres (mesma regra do cadastro)."""
+        """Recusa senha com menos de 8 caracteres (mesma regra do cadastro).
+
+        Args:
+            valor (str): Senha informada.
+
+        Returns:
+            str: A senha, sem alteração.
+
+        Raises:
+            ValueError: Quando a senha tem menos de 8 caracteres.
+        """
         if len(valor) < 8:
             raise ValueError("A senha deve ter no mínimo 8 caracteres.")
         return valor

@@ -32,7 +32,14 @@ class DesafioLogin:
 
 
 def mascarar_email(email: str) -> str:
-    """ana.souza@gmail.com vira a***@gmail.com."""
+    """Mascara o e-mail: ana.souza@gmail.com vira a***@gmail.com.
+
+    Args:
+        email (str): E-mail completo.
+
+    Returns:
+        str: O e-mail com a parte local mascarada.
+    """
     local, _, dominio = email.partition("@")
     return f"{local[:1]}***@{dominio}"
 
@@ -40,7 +47,11 @@ def mascarar_email(email: str) -> str:
 class ServicoCodigoLogin:
     """Emissão dos códigos de login enviados por e-mail."""
     def __init__(self, db: Session) -> None:
-        """Guarda a sessão do banco e monta o repositório de códigos de login."""
+        """Guarda a sessão do banco e monta o repositório de códigos de login.
+
+        Args:
+            db (Session): Sessão do SQLAlchemy usada nas consultas e gravações.
+        """
         self.db = db
         self.codigos = RepositorioCodigoLogin(db)
 
@@ -49,6 +60,15 @@ class ServicoCodigoLogin:
 
         O código só fica valendo se o e-mail saiu. Se o envio falhar, nada é
         gravado e a API responde 503. Quem chama já segura a trava da credencial.
+
+        Args:
+            usuario (Usuario): Usuário que receberá o código.
+
+        Returns:
+            DesafioLogin: ID do desafio, e-mail mascarado e validade em segundos.
+
+        Raises:
+            ErroNegocio: Com status 503, quando o envio do e-mail falha.
         """
         agora = agora_utc()
         validade = timedelta(minutes=codigo_login_validade_minutos())
@@ -81,8 +101,16 @@ class ServicoCodigoLogin:
     def _sortear_inedito(self, id_usuario: uuid.UUID) -> tuple[str, str]:
         """Sorteia um código cujo hash ainda não existe para o usuário.
 
-        Devolve o código e o hash. Tenta até TENTATIVAS_DE_SORTEIO vezes e, se não
-        achar um livre, levanta ErroNegocio 503.
+        Tenta até TENTATIVAS_DE_SORTEIO vezes.
+
+        Args:
+            id_usuario (uuid.UUID): ID do usuário dono do código.
+
+        Returns:
+            tuple[str, str]: O código e o hash dele.
+
+        Raises:
+            ErroNegocio: Com status 503, quando não acha um código livre.
         """
         for _ in range(TENTATIVAS_DE_SORTEIO):
             codigo = gerar_codigo_login()

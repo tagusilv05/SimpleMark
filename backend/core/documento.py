@@ -13,5 +13,12 @@ ATESTADO = "ATESTADO"
 
 
 def descrever_tipo(tipo: bool) -> str:
-    """Converte o booleano de documento_clinico.tipo em "RECEITA" ou "ATESTADO"."""
+    """Converte o booleano de documento_clinico.tipo em "RECEITA" ou "ATESTADO".
+
+    Args:
+        tipo (bool): Valor da coluna ``documento_clinico.tipo``.
+
+    Returns:
+        str: ``"RECEITA"`` se ``tipo`` for ``TIPO_RECEITA``; caso contrário, ``"ATESTADO"``.
+    """
     return RECEITA if tipo == TIPO_RECEITA else ATESTADO

@@ -47,7 +47,7 @@ def cadastrar_paciente(
                         "data_nascimento": "1996-08-14",
                         "genero": "feminino",
                         "telefone": "86911110001",
-                        "email": "nordestino1971+paciente@gmail.com",
+                        "email": "paciente@example.com",
                         "senha": "Senha123",
                         "consentimento_lgpd": True,
                         **_EXEMPLO_ENDERECO,
@@ -61,6 +61,13 @@ def cadastrar_paciente(
 
     Rota pública. Responde 409 se o CPF ou o e-mail já estiverem cadastrados e 422
     com dados inválidos.
+
+    Args:
+        servico (ServicoCadastro): Serviço de cadastro, injetado pelo FastAPI.
+        dados (CadastroUsuarioEntrada): Dados pessoais, endereço e senha do paciente.
+
+    Returns:
+        UsuarioPublico: Dados públicos da conta criada.
     """
     return montar_usuario_publico(servico.cadastrar_paciente(dados))
 
@@ -87,7 +94,7 @@ def cadastrar_profissional(
                         "data_nascimento": "1988-11-03",
                         "genero": "masculino",
                         "telefone": "86911110002",
-                        "email": "nordestino1971+profissional@gmail.com",
+                        "email": "profissional@example.com",
                         "senha": "Senha123",
                         "consentimento_lgpd": True,
                         "cep": "64000-000",
@@ -110,5 +117,13 @@ def cadastrar_profissional(
     Rota pública. Especialidade que não existe é criada na hora. Responde 409 se o
     CPF, o e-mail ou o número de conselho já estiverem cadastrados e 422 com dados
     inválidos.
+
+    Args:
+        servico (ServicoCadastro): Serviço de cadastro, injetado pelo FastAPI.
+        dados (CadastroProfissionalEntrada): Dados pessoais, endereço, senha, conselho
+            e especialidades do profissional.
+
+    Returns:
+        UsuarioPublico: Dados públicos da conta criada.
     """
     return montar_usuario_publico(servico.cadastrar_profissional(dados))
