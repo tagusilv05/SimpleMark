@@ -64,7 +64,7 @@ services:
 
       # Mercado Pago
       MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN}
-      MERCADOPAGO_RETURN_URL: ${MERCADOPAGO_RETURN_URL}
+      MERCADOPAGO_FRONTEND_URL: ${MERCADOPAGO_FRONTEND_URL:-https://simplemark-frontend.onrender.com}
 
   # Aplica as migrações do Alembic (alembic upgrade head) e termina.
   # Usa o DONO do esquema; o backend só sobe depois que ele termina com sucesso.

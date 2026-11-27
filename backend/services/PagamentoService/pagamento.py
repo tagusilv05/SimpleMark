@@ -26,9 +26,9 @@ from services.PagamentoService.api_mercado_pago import (
     obter_pagamento,
 )
 
-URL_RETORNO = os.getenv(
-    "MERCADOPAGO_RETURN_URL",
-    "http://localhost:8080/api/v1/pagamento/retorno",
+URL_FRONTEND = os.getenv(
+    "MERCADOPAGO_FRONTEND_URL",
+    "https://simplemark-frontend.onrender.com",
 ).rstrip("/")
 
 STATUS_MP = {
@@ -238,9 +238,9 @@ def _montar_preferencia(consulta: Consulta) -> dict:
             },
         },
         "back_urls": {
-            "success": f"{URL_RETORNO}/sucesso",
-            "pending": f"{URL_RETORNO}/pendente",
-            "failure": f"{URL_RETORNO}/falha",
+            "success": f"{URL_FRONTEND}/pagamento/{consulta.id_consulta}",
+            "pending": f"{URL_FRONTEND}/pagamento/{consulta.id_consulta}",
+            "failure": f"{URL_FRONTEND}/pagamento/{consulta.id_consulta}",
         },
         "auto_return": "approved",
         "external_reference": str(consulta.id_consulta),

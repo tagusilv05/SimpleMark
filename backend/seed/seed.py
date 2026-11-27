@@ -5,7 +5,7 @@ horários disponíveis na agenda, uma consulta realizada e a avaliação dela.
 """
 
 import os
-from datetime import date, time
+from datetime import date, time, timedelta
 from decimal import Decimal
 
 from database.connection import SessionLocal
@@ -32,12 +32,12 @@ def criar_seed():
     fictícios: e-mails em example.com (domínio reservado para exemplos) e CPFs de
     teste. Sem ``SEED_SENHA`` no ambiente, não cadastra nada.
 
-    Cria (ou localiza) o paciente Joao Silva e o médico Marcos Silva, com suas
+    Cria (ou localiza) o paciente Joao Silva e o médico João Marcos, com suas
     credenciais (senha lida de ``SEED_SENHA``), a especialidade Cardiologia, o conselho
-    CRM-PI 123456, o vínculo médico/especialidade com consulta a R$ 250,00, seis
-    horários disponíveis em 05/11/2026 e 06/11/2026, uma teleconsulta realizada em
-    20/10/2026 e a avaliação de 5 estrelas dessa consulta. Ao final, grava tudo e
-    exibe um resumo no terminal.
+    CRM-PI 123456, o vínculo médico/especialidade com consulta a R$ 250,00, quatro
+    horários disponíveis por dia de 27/11/2026 a 02/12/2026, uma teleconsulta
+    realizada em 20/10/2026 e a avaliação de 5 estrelas dessa consulta. Ao final,
+    grava tudo e exibe um resumo no terminal.
 
     Raises:
         Exception: Repassa qualquer erro ocorrido durante o cadastro, depois de
@@ -117,7 +117,7 @@ def criar_seed():
 
         if usuario_medico is None:
             usuario_medico = Usuario(
-                nome="Marcos Silva",
+                nome="João Marcos",
                 cpf="111.444.777-35",
                 orgao_emissor="SSP",
                 data_nascimento=date(1980, 3, 10),
@@ -129,6 +129,8 @@ def criar_seed():
 
             db.add(usuario_medico)
             db.flush()
+        else:
+            usuario_medico.nome = "João Marcos"
 
         medico = (
             db.query(Profissional)
@@ -234,13 +236,16 @@ def criar_seed():
         # 6. CADASTRAR HORÁRIOS DISPONÍVEIS
         # ==========================================
 
+        horarios_diarios = [
+            (time(8, 0), time(9, 0)),
+            (time(9, 0), time(10, 0)),
+            (time(10, 0), time(11, 0)),
+            (time(14, 0), time(15, 0)),
+        ]
         horarios_disponiveis = [
-            (date(2026, 11, 5), time(8, 0), time(9, 0)),
-            (date(2026, 11, 5), time(9, 0), time(10, 0)),
-            (date(2026, 11, 5), time(10, 0), time(11, 0)),
-            (date(2026, 11, 5), time(14, 0), time(15, 0)),
-            (date(2026, 11, 6), time(9, 0), time(10, 0)),
-            (date(2026, 11, 6), time(14, 0), time(15, 0)),
+            (date(2026, 11, 27) + timedelta(days=dia), hora_inicio, hora_fim)
+            for dia in range(6)
+            for hora_inicio, hora_fim in horarios_diarios
         ]
 
         for data_consulta, hora_inicio, hora_fim in horarios_disponiveis:

@@ -38,6 +38,20 @@ def _pagamento_mp(id_mp, id_consulta, status):
     return {"id": id_mp, "external_reference": str(id_consulta), "status": status}
 
 
+def test_urls_de_retorno_abrem_pagamento_no_frontend(cenario, monkeypatch):
+    consulta = cenario["consultas"][1]
+    monkeypatch.setattr(servico, "URL_FRONTEND", "https://simplemark-frontend.onrender.com")
+
+    preferencia = servico._montar_preferencia(consulta)
+    url_pagamento = f"https://simplemark-frontend.onrender.com/pagamento/{consulta.id_consulta}"
+
+    assert preferencia["back_urls"] == {
+        "success": url_pagamento,
+        "pending": url_pagamento,
+        "failure": url_pagamento,
+    }
+
+
 @pytest.mark.parametrize("status_mp", ["pending", "rejected", "cancelled"])
 def test_pagamento_nao_aprovado_nao_confirma(db, consulta_futura, confirmadas, status_mp):
     servico._aplicar_pagamento_mp(_pagamento_mp(7, consulta_futura.id_consulta, status_mp), db)
